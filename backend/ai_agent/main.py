@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 # 导入自定义模块
-from config import ai_settings
+from backend.ai_agent.config import ai_settings
 from core.tool_load import import_tools_from_directory
 from core.graph_builder import build_graph, State
 from core.clean_checkpoint import cleanup_conversations
@@ -25,7 +25,8 @@ tool = import_tools_from_directory('tool', mode=current_mode)
 try:
     # 使用SqliteSaver自动管理连接，避免线程问题
     # 直接创建SqliteSaver实例，让它在内部管理连接
-    memory = SqliteSaver(sqlite3.connect("checkpoints.db", check_same_thread=False))
+    from backend.config import settings
+    memory = SqliteSaver(sqlite3.connect(settings.CHECKPOINTS_DB_PATH, check_same_thread=False))
 except Exception as e:
     print(f"[ERROR] SQLite检查点初始化失败: {e}")
     exit(1)

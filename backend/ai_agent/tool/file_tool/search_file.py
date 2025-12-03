@@ -9,7 +9,7 @@ from langgraph.types import Command, interrupt
 # 导入配置和路径验证器
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from config import settings
+from backend.config import settings
 from file.utils.path_validator import PathValidator
 
 class SearchFilesInput(BaseModel):
@@ -25,7 +25,17 @@ def search_file(path: str, regex: str) -> str:
         path: 文件路径或搜索目录（相对于novel目录的相对路径）
         regex: 正则表达式
     """
-    user_choice = interrupt("工具中断，扣1恢复，扣2取消")
+    # 构造包含工具具体信息的中断数据
+    interrupt_data = {
+        "tool_name": "search_file",
+        "tool_display_name": "搜索文件",
+        "description": f"搜索文件: {path} (模式: {regex})",
+        "parameters": {
+            "path": path,
+            "regex": regex
+        }
+    }
+    user_choice = interrupt(interrupt_data)
     choice_action = user_choice.get("choice_action", "2")
     choice_data = user_choice.get("choice_data", "无附加信息")
     
@@ -39,7 +49,7 @@ def search_file(path: str, regex: str) -> str:
             
             # 验证路径安全性
             if not path_validator.is_safe_path(clean_path):
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：搜索失败，不安全的文件路径: {path}"
+                return f"【工具结果】：搜索失败，不安全的文件路径: {path} ;**【用户信息】：{choice_data}**"
                 
             # 获取完整路径
             search_path = path_validator.get_full_path(clean_path)
@@ -62,7 +72,7 @@ def search_file(path: str, regex: str) -> str:
                                 "content": line.strip()
                             })
                 except Exception as e:
-                    return f"【用户额外信息】：{choice_data}，【工具执行结果】：读取文件失败: {str(e)}"
+                    return f"【工具结果】：读取文件失败: {str(e)} ;**【用户信息】：{choice_data}**"
                     
             elif search_path.is_dir():
                 # 递归搜索目录中的所有文件
@@ -83,10 +93,10 @@ def search_file(path: str, regex: str) -> str:
                         except Exception as e:
                             continue  # 跳过无法读取的文件
             else:
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：路径不存在: {path}"
+                return f"【工具结果】：路径不存在: {path} ;**【用户信息】：{choice_data}**"
             
             if results:
-                result_str = f"【用户额外信息】：{choice_data}，【工具执行结果】：在 '{path}' 中找到 {len(results)} 个匹配项：\n\n"
+                result_str = f"【工具结果】：在 '{path}' 中找到 {len(results)} 个匹配项：\n\n"
                 for result in results[:10]:  # 最多显示10个结果
                     result_str += f"文件: {result['file']}:{result['line']}\n"
                     result_str += f"内容: {result['content']}\n\n"
@@ -94,11 +104,11 @@ def search_file(path: str, regex: str) -> str:
                 if len(results) > 10:
                     result_str += f"... 还有 {len(results) - 10} 个匹配项未显示"
                 
-                return result_str
+                return result_str + f" ;**【用户信息】：{choice_data}**"
             else:
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：在 '{path}' 中没有找到匹配项"
+                return f"【工具结果】：在 '{path}' 中没有找到匹配项 ;**【用户信息】：{choice_data}**"
                 
         except Exception as e:
-            return f"【用户额外信息】：{choice_data}，【工具执行结果】：搜索失败: {str(e)}"
+            return f"【工具结果】：搜索失败: {str(e)} ;**【用户信息】：{choice_data}**"
     else:
-        return f"【用户额外信息】：{choice_data}，【工具执行结果】：用户取消工具调用"
+        return f"【工具结果】：用户取消工具调用 ;**【用户信息】：{choice_data}**"

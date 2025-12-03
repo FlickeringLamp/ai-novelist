@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from config import settings
+from backend.config import settings
 from ..models import FileItem
 from .file_service_operations import FileServiceOperations
 from .file_service_folders import FileServiceFolders

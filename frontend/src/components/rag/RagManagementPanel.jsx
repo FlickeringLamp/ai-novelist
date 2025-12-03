@@ -1,358 +1,355 @@
-import React, { useState, forwardRef, useImperativeHandle, useEffect, useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import {
-  setShowRagSettingsModal,
-  setEmbeddingModel,
-  // 新增：RAG统一状态管理actions
-  setRagLoading,
-  setRagError,
-  setAllRagSettings,
-  setRagKnowledgeBaseFiles,
-  setRagEmbeddingModel
-} from '../../store/slices/chatSlice';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCog, faDatabase, faTimes, faSave, faInfoCircle, faSync } from '@fortawesome/free-solid-svg-icons';
-import EmbeddingModelSelector from './ragsettingsTab/EmbeddingModelSelector';
-import EmbeddingDimensionsSettings from './ragsettingsTab/EmbeddingDimensionsSettings';
-import TextChunkingSettings from './ragsettingsTab/TextChunkingSettings';
-import KnowledgeBaseSettings from './knowledgebaseTab/KnowledgeBaseSettings';
-import NotificationModal from '../others/NotificationModal';
-import useIpcRenderer from '../../hooks/useIpcRenderer';
+import React, { useState, useEffect, useRef } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import globalProviderService from '../../services/providerService';
+import ragService from '../../services/ragService';
 import './RagManagementPanel.css';
 
-// RAG统一管理面板组件（包含模态框功能）
-const RagManagementPanel = forwardRef(({ isOpen, onClose, onSaveComplete }, ref) => {
-  const dispatch = useDispatch();
-  const { invoke, setStoreValue } = useIpcRenderer();
-  const {
-    availableModels,
-    embeddingModel
-  } = useSelector((state) => state.chat);
-  
-  const ragState = useSelector((state) => state.chat.rag.ragState);
-  
-  const [activeTab, setActiveTab] = useState('rag-settings'); // 'rag-settings', 'knowledge-base'
-  const [notification, setNotification] = useState({
-    isOpen: false,
-    message: '',
-    success: false
-  });
 
-  // 统一加载所有RAG相关设置
-  const loadAllRagSettings = useCallback(async () => {
-    try {
-      dispatch(setRagLoading({ allSettings: true }));
-      dispatch(setRagError({ allSettings: '' }));
-      
-      // 并行加载所有RAG设置
-      const [
-        embeddingModelResult,
-        availableModelsResult,
-        embeddingModelsResult,
-        knowledgeBaseFilesResult,
-        chunkSettingsResult
-      ] = await Promise.all([
-        invoke('get-store-value', 'embeddingModel'),
-        invoke('get-available-models'),
-        invoke('get-embedding-models'),
-        invoke('list-kb-files'),
-        invoke('get-rag-chunk-settings')
+
+const RagSettingsPanel = () =>{
+  const [activeTab, setActiveTab] = useState('embedding'); // 默认显示嵌入配置标签
+  const [providers, setProviders] = useState([]);
+  const [selectedProviderId, setSelectedProviderId] = useState(null);
+  const [embeddingModels, setEmbeddingModels] = useState([]);
+  const [selectedEmbeddingModelId, setSelectedEmbeddingModelId] = useState(null);
+  const [embeddingDimensions, setEmbeddingDimensions] = useState(null)
+  const [chunkSize, setChunkSize] = useState("")
+  const [chunkOverlap, setChunkOverlap] = useState("")
+  const [ragFile, setRagFile] = useState([])
+  const [uploadStatus, setUploadStatus] = useState('')
+  const [renamingFileId, setRenamingFileId] = useState(null)
+  const [newFileName, setNewFileName] = useState('')
+  const fileInputRef = useRef(null)
+
+  useEffect(()=>{
+    const initializeData = async() => {
+      const [providersResult,chunkSettingsResult] = await Promise.all([
+        globalProviderService.getProviders(),
+        ragService.getRagChunkSettings(),
       ]);
-      // 合并普通模型和嵌入模型
-      const allModels = [
-        ...(availableModelsResult.models || []),
-        ...(embeddingModelsResult.models || [])
-      ];
-      // 批量更新Redux状态
-      console.log('从API获取的chunkSettingsResult:', chunkSettingsResult);
-      const finalChunkSize = chunkSettingsResult.chunkSize !== undefined ? chunkSettingsResult.chunkSize : 100;
-      const finalChunkOverlap = chunkSettingsResult.chunkOverlap !== undefined ? chunkSettingsResult.chunkOverlap : 20;
-      console.log('最终设置的chunkSize:', finalChunkSize, 'chunkOverlap:', finalChunkOverlap);
-      
-      dispatch(setAllRagSettings({
-        embeddingModel: embeddingModelResult || '',
-        availableModels: allModels,
-        knowledgeBaseFiles: knowledgeBaseFilesResult.files || [],
-        chunkSize: finalChunkSize,
-        chunkOverlap: finalChunkOverlap,
-        embeddingDimensions: 1024, // 使用默认维度
-        isCustomDimensions: false // 默认使用模型维度
-      }));
-      // 同时更新根级别的嵌入模型状态，确保状态同步
-      if (embeddingModelResult) {
-        dispatch(setEmbeddingModel(embeddingModelResult));
-      }
-      
-    } catch (error) {
-      console.error('加载RAG设置失败:', error);
-      dispatch(setRagError({ allSettings: '加载RAG设置失败，请重试' }));
-    } finally {
-      dispatch(setRagLoading({ allSettings: false }));
-    }
-  }, [invoke, dispatch]);
+      setProviders(providersResult.data || []);
+      setChunkSize(chunkSettingsResult.chunkSize || "");
+      setChunkOverlap(chunkSettingsResult.chunkOverlap || "")
+    };
+      initializeData();
+  },[]);
 
-  // 刷新知识库文件列表
-  const refreshKnowledgeBaseFiles = useCallback(async () => {
+  useEffect(()=>{
+    const fetchEmbeddingModels = async() => {
+      if (selectedProviderId) {
+        const result = await ragService.getEmbeddingModels(selectedProviderId);
+        setEmbeddingModels(result.data || []);
+      }
+    };
+    fetchEmbeddingModels();
+  },[selectedProviderId]);
+
+  useEffect(()=>{
+    const fetchKnowledgeBaseFiles = async() => {
+      const result = await ragService.listKnowledgeBaseFiles();
+      setRagFile(result.files || []);
+    };
+    fetchKnowledgeBaseFiles();
+  },[])
+
+  const handleProviderClick = (providerId) => {
+    setSelectedProviderId(providerId);
+  };
+
+  const handleEmbeddingModelClick = async (modelId) => {
+    setSelectedEmbeddingModelId(modelId);
     try {
-      dispatch(setRagLoading({ knowledgeBase: true }));
-      dispatch(setRagError({ knowledgeBase: '' }));
-      
-      const result = await invoke('list-kb-files');
+      // 构造包含提供商前缀的模型信息
+      const modelInfo = `${selectedProviderId}:${modelId}`;
+      const result = await ragService.getEmbeddingDimensions(modelInfo);
+      setEmbeddingDimensions(result.dimensions || "");
+    } catch (error) {
+      console.error('获取嵌入维度失败:', error);
+      setEmbeddingDimensions("");
+    }
+  };
+
+  const handleSubmit = async(e) => {
+    e.preventDefault();
+    try {
+      const result = await ragService.saveRagChunkSettings(chunkSize, chunkOverlap);
       if (result.success) {
-        dispatch(setRagKnowledgeBaseFiles(result.files || []));
+        console.log('RAG分块设置保存成功:', result.message);
+        // 可以在这里添加成功提示
       } else {
-        dispatch(setRagError({ knowledgeBase: result.error || '获取知识库文件失败' }));
+        console.error('RAG分块设置保存失败:', result.error);
+        // 可以在这里添加错误提示
       }
     } catch (error) {
-      console.error('刷新知识库文件失败:', error);
-      dispatch(setRagError({ knowledgeBase: '刷新知识库文件失败' }));
-    } finally {
-      dispatch(setRagLoading({ knowledgeBase: false }));
+      console.error('保存RAG分块设置时发生错误:', error);
     }
-  }, [invoke, dispatch]);
+  }
 
-  // 初始化加载所有设置
-  useEffect(() => {
-    if (isOpen) {
-      // 添加防抖，避免频繁加载
-      const timeoutId = setTimeout(() => {
-        loadAllRagSettings();
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isOpen, loadAllRagSettings]);
+  const handleFileSelect = () => {
+    fileInputRef.current.click()
+  }
 
-  // 处理关闭
-  const handleClose = () => {
-    dispatch(setShowRagSettingsModal(false));
-    if (onClose) onClose();
-  };
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
 
-  // 处理通知关闭
-  const handleNotificationClose = () => {
-    setNotification({ isOpen: false, message: '', success: false });
-    if (notification.success) {
-      handleClose();
-    }
-  };
-
-  // 显示通知
-  const showNotification = (message, success = true) => {
-    setNotification({
-      isOpen: true,
-      message,
-      success
-    });
-  };
-
-  // 暴露保存方法给父组件
-  useImperativeHandle(ref, () => ({
-    handleSave: () => {
-      // 这里可以协调子组件的保存操作
-      console.log('RAG管理面板保存操作');
-      showNotification('RAG设置保存成功！', true);
-    },
-    refreshKnowledgeBaseFiles
-  }));
-
-  // 处理嵌入模型变更
-  const handleEmbeddingModelChange = (modelId) => {
-    dispatch(setEmbeddingModel(modelId));
-    // 同时更新RAG状态中的嵌入模型，确保状态同步
-    dispatch(setRagEmbeddingModel(modelId));
-  };
-
-
-  // 统一保存处理函数
-  const handleSave = async () => {
+    setUploadStatus('正在上传文件...')
+    
     try {
-      console.log('[RAG设置保存] 开始保存RAG设置，当前Redux状态:', {
-        embeddingModel: ragState.embeddingModel,
-        chunkSize: ragState.chunkSize,
-        chunkOverlap: ragState.chunkOverlap,
-        retrievalTopK: ragState.retrievalTopK,
-        embeddingDimensions: ragState.embeddingDimensions
-      });
-
-      // 保存所有RAG相关设置到持久化存储
-      await Promise.all([
-        setStoreValue('embeddingModel', ragState.embeddingModel),
-        setStoreValue('ragChunkSize', ragState.chunkSize),
-        setStoreValue('ragChunkOverlap', ragState.chunkOverlap),
-        setStoreValue('retrievalTopK', ragState.retrievalTopK),
-        setStoreValue('embeddingDimensions', ragState.embeddingDimensions)
-      ]);
-      console.log('[RAG设置保存] 存储保存完成');
-
-      // 重新初始化嵌入函数以确保新设置立即生效
-      try {
-        await invoke('reinitialize-embedding-function');
-        console.log('[RAG设置保存] 嵌入函数重新初始化完成');
-      } catch (error) {
-        console.warn('重新初始化嵌入函数时出错:', error);
+      const result = await ragService.addFileToKnowledgeBase(file)
+      
+      if (result.success) {
+        setUploadStatus(`文件 "${file.name}" 上传成功！`)
+        // 刷新文件列表
+        const fileListResult = await ragService.listKnowledgeBaseFiles()
+        setRagFile(fileListResult.files || [])
+      } else {
+        setUploadStatus(`文件上传失败: ${result.error}`)
       }
-
-      // 通知保存成功
-      showNotification('RAG设置保存成功！', true);
-      
-      console.log('[RAG设置保存] 保存流程完成');
-      
-      // 保存后重新加载设置以确保状态同步
-      // 添加防抖，避免频繁加载
-      const timeoutId = setTimeout(() => {
-        loadAllRagSettings();
-        console.log('[RAG设置保存] 设置重新加载已触发');
-      }, 500);
-      
     } catch (error) {
-      console.error('RAG设置保存失败:', error);
-      showNotification('RAG设置保存失败，请重试。', false);
+      console.error('文件上传过程中发生错误:', error)
+      setUploadStatus(`文件上传失败: ${error.message}`)
     }
-  };
 
-  // 处理知识库文件更新
-  const handleKnowledgeBaseUpdate = () => {
-    refreshKnowledgeBaseFiles();
-  };
+    // 清空文件输入，允许重复选择同一文件
+    event.target.value = ''
+    
+    // 3秒后清除状态消息
+    setTimeout(() => {
+      setUploadStatus('')
+    }, 3000)
+  }
 
-  // 如果不打开，返回null
-  if (!isOpen) return null;
-
-  // 渲染当前激活标签页的内容
-  const renderActiveTabContent = () => {
-    switch (activeTab) {
-      case 'rag-settings':
-        return (
-          <div className="rag-settings-tab">
-            {/* 加载状态显示 */}
-            {ragState.loading.allSettings && (
-              <div className="loading-overlay">
-                <FontAwesomeIcon icon={faSync} spin />
-                <span>加载RAG设置中...</span>
-              </div>
-            )}
-            
-            {/* 错误状态显示 */}
-            {ragState.errors.allSettings && (
-              <div className="error-message">
-                {ragState.errors.allSettings}
-                <button onClick={loadAllRagSettings}>重试</button>
-              </div>
-            )}
-
-            {/* 嵌入模型配置 */}
-            <div className="settings-section">
-              <h5>嵌入模型配置</h5>
-              
-              <div className="setting-item">
-                <EmbeddingModelSelector
-                  selectedModel={ragState.embeddingModel}
-                  availableModels={ragState.availableModels}
-                  onModelChange={handleEmbeddingModelChange}
-                  showCurrentSelection={true}
-                />
-                <div className="setting-description">
-                  用于RAG功能的文本嵌入模型（仅显示嵌入模型）
-                </div>
-              </div>
-
-              {/* 嵌入向量维度设置 */}
-              <EmbeddingDimensionsSettings
-                embeddingModel={ragState.embeddingModel}
-                onDimensionsChange={() => {}}
-                onSaveComplete={onSaveComplete}
-              />
-            </div>
-            {/* 文本分段参数配置 */}
-            <div className="settings-section">
-              <TextChunkingSettings
-                onSaveComplete={onSaveComplete}
-                chunkSize={ragState.chunkSize}
-                chunkOverlap={ragState.chunkOverlap}
-              />
-            </div>
-          </div>
-        );
-      case 'knowledge-base':
-        return (
-          <div className="knowledge-base-tab">
-            {/* 知识库文件列表 */}
-            <div className="settings-section">
-              <div className="knowledge-base-panel-inline">
-                <KnowledgeBaseSettings
-                  onClose={null}
-                  files={ragState.knowledgeBaseFiles}
-                  loading={ragState.loading.knowledgeBase}
-                  error={ragState.errors.knowledgeBase}
-                  onRefresh={refreshKnowledgeBaseFiles}
-                  onUpdate={handleKnowledgeBaseUpdate}
-                />
-              </div>
-            </div>
-
-
-          </div>
-        );
-      default:
-        return null;
+  const handleDeleteFile = async (fileId) => {
+    try {
+      const result = await ragService.deleteKnowledgeBaseFile(fileId);
+      
+      if (result.success) {
+        console.log('文件删除成功:', result.message);
+        // 刷新文件列表
+        const fileListResult = await ragService.listKnowledgeBaseFiles();
+        setRagFile(fileListResult.files || []);
+      } else {
+        console.error('文件删除失败:', result.error);
+      }
+    } catch (error) {
+      console.error('文件删除过程中发生错误:', error);
     }
-  };
+  }
 
-  return (
-    <>
-      <div className="rag-settings-modal-content">
-        {/* 主内容区域 */}
-        <div className="rag-management-content">
-          <div className="rag-management-panel">
-            {/* 标签页导航 */}
-            <div className="tab-navigation">
-              <div className="tab-list">
-                <div
-                  className={`tab-item ${activeTab === 'rag-settings' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('rag-settings')}
-                >
-                  <FontAwesomeIcon icon={faCog} />
-                  <span>RAG设置</span>
-                </div>
-                <div
-                  className={`tab-item ${activeTab === 'knowledge-base' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('knowledge-base')}
-                >
-                  <FontAwesomeIcon icon={faDatabase} />
-                  <span>知识库管理</span>
-                </div>
-              </div>
+  const handleRenameFile = async (fileId) => {
+    if (!newFileName.trim()) {
+      console.error('文件名不能为空');
+      return;
+    }
 
-              {/* 内容区域 */}
-              <div className="tab-content-area">
-                {renderActiveTabContent()}
-              </div>
-            </div>
-          </div>
-        </div>
+    try {
+      const result = await ragService.renameKnowledgeBaseFile(fileId, newFileName);
+      
+      if (result.success) {
+        console.log('文件重命名成功:', result.message);
+        // 刷新文件列表
+        const fileListResult = await ragService.listKnowledgeBaseFiles();
+        setRagFile(fileListResult.files || []);
+        // 重置重命名状态
+        setRenamingFileId(null);
+        setNewFileName('');
+      } else {
+        console.error('文件重命名失败:', result.error);
+      }
+    } catch (error) {
+      console.error('文件重命名过程中发生错误:', error);
+    }
+  }
 
-        {/* 操作按钮区域 */}
-        <div className="tab-content-actions">
-          <button className="save-button" onClick={handleSave}>
-            <FontAwesomeIcon icon={faSave} />
-            保存
-          </button>
-          <button className="cancel-button" onClick={handleClose}>
-            <FontAwesomeIcon icon={faTimes} />
-            关闭
-          </button>
-        </div>
+  const startRenameFile = (file) => {
+    setRenamingFileId(file.id);
+    setNewFileName(file.name);
+  }
+
+  const cancelRenameFile = () => {
+    setRenamingFileId(null);
+    setNewFileName('');
+  }
+
+  return(
+    <div className='rag-management-panel'>
+      <div className='rag-tab-headers'>
+        <button
+          className={`rag-tab-button ${activeTab === 'embedding' ? 'active' : ''}`}
+          onClick={() => setActiveTab('embedding')}
+        >
+          嵌入配置
+        </button>
+        <button
+          className={`rag-tab-button ${activeTab === 'knowledge' ? 'active' : ''}`}
+          onClick={() => setActiveTab('knowledge')}
+        >
+          RAG知识库
+        </button>
       </div>
-
-      {/* 通知模态框 */}
-      {notification.isOpen && (
-        <NotificationModal
-          message={notification.message}
-          onClose={handleNotificationClose}
-        />
-      )}
-    </>
+      
+      <div className='tab-content'>
+        {activeTab === 'embedding' && (
+          <div className='embedding-model-tab'>
+            <PanelGroup direction="horizontal" className="embedding-panel-group">
+              {/* 左侧提供商列表面板 */}
+              <Panel defaultSize={25} minSize={20} maxSize={40} className="provider-list-panel">
+                <div className="provider-list">
+                  {providers.map((provider, index) => (
+                    <div
+                      key={index}
+                      className={`provider-item ${selectedProviderId === provider ? "selected":""}`}
+                      onClick={() => handleProviderClick(provider)}
+                    >
+                      {provider}
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+              <PanelResizeHandle className="embedding-panel-resize-handle" />
+              {/* 右侧模型列表面板 */}
+              <Panel className='emb-model-list-panel'>
+                <div className="model-list-header">
+                  <h3>模型列表</h3>
+                </div>
+                <div className='embedding-model-list'>
+                  {embeddingModels.length === 0 ? (
+                    <div className='empty-models-message'>
+                      未找到此提供商的嵌入模型
+                    </div>
+                  ) : (
+                    embeddingModels.map((embeddingModel,index)=>(
+                      <div
+                        key={index}
+                        className={`embedding-model-item ${selectedEmbeddingModelId === embeddingModel.id?'selected':''}`}
+                        onClick={()=> handleEmbeddingModelClick(embeddingModel.id)}
+                      >
+                        {embeddingModel.id}
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                {/* 嵌入维度显示框 */}
+                <div className="embedding-dimensions-container">
+                  <div className="dimensions-header">
+                    <h3>嵌入维度</h3>
+                  </div>
+                  <div className="dimensions-display">
+                    {embeddingDimensions ? (
+                      <div className="dimensions-value">{embeddingDimensions}</div>
+                    ) : (
+                      <div className="dimensions-placeholder">请选择模型</div>
+                    )}
+                  </div>
+                </div>
+              </Panel>
+            </PanelGroup>
+          </div>
+        )}
+        
+        {activeTab === 'knowledge' && (
+          <div className='rag-knowledgebase-tab'>
+            <div className='rag-chunk-settings'>
+              <h3>切分设置</h3>
+              <form onSubmit={handleSubmit}>
+                <label htmlFor='chunk_size'>切分长度:</label>
+                <input
+                  type='text'
+                  id='chunk_size'
+                  className='chunk_size_input'
+                  value={chunkSize}
+                  onChange={(e) => setChunkSize(e.target.value)}
+                  placeholder='请输入切分长度'
+                />
+                <label htmlFor='chunk_overlap'>重叠长度:</label>
+                <input
+                  type='text'
+                  id='chunk_overlap'
+                  className='chunk_overlap_input'
+                  value={chunkOverlap}
+                  onChange={(e) => setChunkOverlap(e.target.value)}
+                  placeholder='请输入重叠长度'
+                />
+                <button type='submit' className='chunk-submit-btn'>确定</button>
+              </form>
+            </div>
+            
+            <div className='file-upload-section'>
+              <h3>文件上传</h3>
+              <input
+                type='file'
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+                accept='.txt,.md,.pdf,.doc,.docx'
+              />
+              <button
+                className='add-file-btn'
+                onClick={handleFileSelect}
+              >
+                添加文件到知识库
+              </button>
+              {uploadStatus && (
+                <div className='upload-status'>
+                  {uploadStatus}
+                </div>
+              )}
+            </div>
+            
+            <div className='rag-file-list'>
+              <h3>文件列表</h3>
+              {ragFile.map((file,index)=>(
+                <div
+                  key={index}
+                  className='rag-file-item'
+                >
+                  <div className='file-info'>
+                    {renamingFileId === file.id ? (
+                      <div>
+                        <input
+                          type="text"
+                          value={newFileName}
+                          onChange={(e) => setNewFileName(e.target.value)}
+                          placeholder="输入新文件名"
+                        />
+                        <button className="confirm-rename-btn" onClick={() => handleRenameFile(file.id)}>确认</button>
+                        <button className="cancel-rename-btn" onClick={cancelRenameFile}>取消</button>
+                      </div>
+                    ) : (
+                      <div>文件名: {file.name}</div>
+                    )}
+                    <div>片段数: {file.total_chunks}</div>
+                    <div>切分长度: {file.chunk_size}</div>
+                    <div>重叠长度: {file.chunk_overlap}</div>
+                    <div>嵌入维度: {file.dimensions}</div>
+                  </div>
+                  <div>
+                    <button
+                      className='rename-file-btn'
+                      onClick={() => startRenameFile(file)}
+                      title='重命名文件'
+                      disabled={renamingFileId !== null}
+                    >
+                      重命名
+                    </button>
+                    <button
+                      className='delete-file-btn'
+                      onClick={() => handleDeleteFile(file.id)}
+                      title='删除文件'
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
-});
 
-export default RagManagementPanel;
+};
+export default RagSettingsPanel;

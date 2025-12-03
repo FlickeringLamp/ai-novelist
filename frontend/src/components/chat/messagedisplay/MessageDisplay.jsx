@@ -1,245 +1,209 @@
-import React, { useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { deleteMessage, restoreMessages } from '../../../store/slices/chatSlice';
-import { toggleToolMessageCollapse } from '../../../store/slices/messageSlice';
-import checkpointService from '../../../services/checkpointService';
-import { ToolCallCard } from '../services/ToolCallManager';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCopy, faTrashCan, faSpinner, faClock, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
-import ReactMarkdownMessageRenderer from './ReactMarkdownMessageRenderer';
+import React, { useState, useEffect } from 'react';
+import './MessageDisplay.css';
+import ReactMarkdownMessageRenderer from './ReactMarkdownMessageRenderer.jsx';
 
-// 消息显示组件
-const MessageDisplay = React.forwardRef(({
-  messages,
-  currentMode,
-  currentSessionId,
-  onSetConfirmation,
-  onSetNotification,
-  onEnterAdjustmentMode
-}, ref) => {
-  const dispatch = useDispatch();
+const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
+  // 为每个工具消息、系统消息和工具请求消息创建折叠状态
+  const [collapsedTools, setCollapsedTools] = useState({});
   
-  // 获取tool消息折叠状态
-  const collapsedToolMessages = useSelector((state) => state.chat.message.collapsedToolMessages);
-
-  // 简化：直接返回消息内容，因为新的渲染器不需要编辑器实例
-  const getAllMessagesLatestContent = () => {
-    return messages.map(msg => ({
-      ...msg,
-      content: msg.content || msg.text || '',
-      text: msg.content || msg.text || ''
+  // 当消息列表更新时，初始化工具消息、系统消息和工具请求消息的折叠状态
+  useEffect(() => {
+    const newCollapsedTools = { ...collapsedTools };
+    let hasChanges = false;
+    
+    messages.forEach((msg, index) => {
+      const messageId = msg.id || `msg_${index}`;
+      // 如果是工具消息、系统消息、工具请求消息或总结消息且尚未设置折叠状态，则默认折叠
+      if ((msg.role === 'tool' || msg.role === 'system' || msg.role === 'tool_request' || msg.role === 'summary') && newCollapsedTools[messageId] === undefined) {
+        // 检查是否是 ask_user 工具请求，如果是则默认展开
+        const isAskUserTool = msg.role === 'tool_request' &&
+                             msg.tool_calls &&
+                             msg.tool_calls.length > 0 &&
+                             msg.tool_calls[0].name === 'ask_user';
+        
+        // 总结消息默认折叠，ask_user 工具默认展开，其他默认折叠
+        newCollapsedTools[messageId] = msg.role === 'summary' ? true : !isAskUserTool;
+        hasChanges = true;
+      }
+    });
+    
+    if (hasChanges) {
+      setCollapsedTools(newCollapsedTools);
+    }
+  }, [messages]);
+  // 切换工具消息、系统消息、工具请求消息和总结消息的折叠状态
+  const toggleToolCollapse = (messageId) => {
+    setCollapsedTools(prev => ({
+      ...prev,
+      [messageId]: !prev[messageId]
     }));
   };
-
-  // 提供获取最新内容的方法给父组件
-  React.useImperativeHandle(ref, () => ({
-    getAllMessagesLatestContent
-  }));
-
-  const handleCopyMessage = (content) => {
-    navigator.clipboard.writeText(content);
-    onSetNotification({ show: true, message: '复制成功' });
-  };
-
-  const handleDeleteMessage = (messageId) => {
-    onSetConfirmation({
-      message: '确定删除吗，这将会导致后续所有内容丢失！',
-      onConfirm: () => {
-        dispatch(deleteMessage({ messageId }));
-        onSetConfirmation({ show: false });
-      },
-      onCancel: () => onSetConfirmation({ show: false })
-    });
-  };
-
-
-  // 渲染AI消息
-  const renderAIMessage = (msg) => {
-    const content = msg.content || msg.text || '';
-    return (
-      <>
-        <div className="message-header">
-          AI:
-          {/* 流式传输时在消息头部显示加载指示器 */}
-          {msg.isLoading && (
-            <div className="streaming-indicator-header">
-              <FontAwesomeIcon icon={faSpinner} spin className="ai-typing-spinner" />
-              <span className="streaming-text">AI正在思考中...</span>
-            </div>
-          )}
-        </div>
-        {msg.reasoning_content && (
-          <details className="reasoning-details">
-            <summary className="reasoning-summary">思考过程 (点击展开)</summary>
-            <pre className="reasoning-content">{msg.reasoning_content}</pre>
-          </details>
-        )}
-
-        {/* 工具调用显示 */}
-        {msg.toolCalls && msg.toolCalls.length > 0 && (
-          <details className="tool-call-details">
-            <summary className="tool-call-summary">
-              {msg.isLoading ? <FontAwesomeIcon icon={faSpinner} spin className="ai-typing-spinner" /> : null}
-              请求调用工具
-            </summary>
-            <div className="tool-calls-container">
-              {msg.toolCalls.map((toolCall, i) => (
-                <ToolCallCard key={toolCall.id || i} toolCall={toolCall} />
-              ))}
-            </div>
-          </details>
-        )}
-
-        <div className="message-content">
-          {/* 使用ReactMarkdown渲染器显示消息内容 - 流式传输时也显示内容 */}
-          <ReactMarkdownMessageRenderer
-            value={content}
-            isStreaming={msg.isLoading} // 传递流式传输状态
-          />
-        </div>
-
-        {/* 正文生成后的选项按钮 */}
-        {msg.role === 'assistant' && currentMode === 'writing' && !msg.isLoading && !msg.toolCalls && (
-          <div className="writing-options">
-            <button onClick={onEnterAdjustmentMode}>进入调整模式</button>
-          </div>
-        )}
-        
-        <div className="message-actions">
-          <button title="复制" onClick={() => handleCopyMessage(msg.content || msg.text)}>
-            <FontAwesomeIcon icon={faCopy} />
-          </button>
-          <button title="删除" onClick={() => handleDeleteMessage(msg.id)}>
-            <FontAwesomeIcon icon={faTrashCan} />
-          </button>
-        </div>
-      </>
-    );
-  };
-  // 渲染系统消息
-  const renderSystemMessage = (msg) => {    
-    return (
-      <>
-        <div className="message-header">系统: {msg.name ? `${msg.name}` : ''}</div>
-        <div className="message-content">
-          {msg.text || msg.content}
-        </div>
-      </>
-    );
-  };
-
-  // 渲染工具消息
-  const renderToolMessage = (msg) => {
-    const content = msg.content || msg.text || '[工具执行结果]';
-    const isCollapsed = collapsedToolMessages[msg.id];
-    
-    return (
-      <>
-        <div className="message-header">
-          <div className="tool-message-header-content">
-            <span>工具执行结果: {msg.toolName ? `${msg.toolName}` : ''}</span>
-            <button
-              className="collapse-toggle-button"
-              onClick={() => dispatch(toggleToolMessageCollapse({ messageId: msg.id }))}
-              title={isCollapsed ? '展开' : '折叠'}
-            >
-              <FontAwesomeIcon icon={isCollapsed ? faChevronDown : faChevronUp} />
-            </button>
-          </div>
-        </div>
-        {!isCollapsed && (
-          <div className="message-content">
-            <ReactMarkdownMessageRenderer
-              value={content}
-            />
-          </div>
-        )}
-        <div className="message-actions">
-          <button title="复制" onClick={() => handleCopyMessage(msg.content || msg.text)}>
-            <FontAwesomeIcon icon={faCopy} />
-          </button>
-          <button title="删除" onClick={() => handleDeleteMessage(msg.id)}>
-            <FontAwesomeIcon icon={faTrashCan} />
-          </button>
-        </div>
-      </>
-    );
-  };
-  // 渲染用户消息
-  const renderUserMessage = (msg) => {
-    const content = msg.content || msg.text || '[消息内容缺失]';
-    
-    return (
-      <>
-        <div className="message-header">用户:</div>
-        <div className="message-content">
-          <ReactMarkdownMessageRenderer
-            value={content}
-          />
-        </div>
-        <div className="message-actions">
-          <button title="复制" onClick={() => handleCopyMessage(msg.content || msg.text)}>
-            <FontAwesomeIcon icon={faCopy} />
-          </button>
-          <button title="删除" onClick={() => handleDeleteMessage(msg.id)}>
-            <FontAwesomeIcon icon={faTrashCan} />
-          </button>
-        </div>
-      </>
-    );
-  };
-
+  
   return (
-    <div id="chatDisplay">
-      {messages.map((msg, index) => (
-        <div key={msg.id || index} className={`message ${msg.role === 'user' ? 'user' : msg.role === 'assistant' ? 'ai' : msg.role} ${msg.className || ''}`}>
-          {msg.role === 'system' && msg.checkpointId ? (
-            <div className="checkpoint-message">
-              <button
-                className="checkpoint-restore-button"
-                onClick={() => {
-                  onSetConfirmation({
-                    message: '是否回档，后续内容将会清空！',
-                    onConfirm: async () => {
-                      const taskId = msg.sessionId || currentSessionId || 'default-task';
-                      console.log(`Restoring checkpoint ${msg.checkpointId} for task ${taskId}...`);
-                      const result = await checkpointService.restoreCheckpoint(msg.checkpointId);
-                      if (result.success) {
-                        // **关键修复**: 调用新的 restoreMessages action 来重构历史状态
-                        if (result.messages) {
-                          dispatch(restoreMessages(result.messages));
-                        }
-                        onSetNotification({ show: true, message: '回档成功！聊天记录已恢复。' });
-                      } else {
-                        onSetNotification({ show: true, message: `恢复失败: ${result.error || '未知错误'}` });
-                      }
-                      // 回档操作完成后关闭确认模态框
-                      onSetConfirmation({ show: false });
-                    },
-                    onCancel: () => {
-                      // 取消操作时关闭确认模态框
-                      onSetConfirmation({ show: false });
-                    }
-                  });
-                }}
-              >
-                <FontAwesomeIcon icon={faClock} />
-              </button>
-              <span className="checkpoint-id-display">ID: {msg.checkpointId.substring(0, 7)}</span>
+    <div className="simple-message-display">
+      {messages.map((msg, index) => {
+        const isUser = msg.role === 'user';
+        const isSystem = msg.role === 'system';
+        const isTool = msg.role === 'tool';
+        const isSummary = msg.role === 'summary';
+        const content = msg.content || msg.text || '';
+        const messageId = msg.id || `msg_${index}`;
+        const isCollapsed = (isTool || isSystem || msg.role === 'tool_request' || isSummary) && collapsedTools[messageId];
+        
+        return (
+          <div key={messageId} className={`simple-message ${isUser ? 'user-message' : isSystem ? 'system-message' : isTool ? 'tool-message' : msg.role === 'tool_request' ? 'tool-request-message' : isSummary ? 'summary-message' : 'ai-message'}`}>
+            <div className="message-sender">
+              {isUser ? '用户' : isSystem ? '系统' : isTool ? '工具' : msg.role === 'tool_request' ? '工具请求' : isSummary ? '📝 对话总结' : 'AI'}
             </div>
-          ) : msg.role === 'system' ? (
-            renderSystemMessage(msg)
-          ) : msg.role === 'assistant' ? (
-            renderAIMessage(msg)
-          ) : msg.role === 'tool' ? (
-            renderToolMessage(msg)
-          ) : (
-            renderUserMessage(msg)
-          )}
+            <div className="message-content">
+              {isUser ? (
+                // 用户消息使用简单文本显示
+                <div style={{ whiteSpace: 'pre-wrap' }}>{content}</div>
+              ) : isSystem ? (
+                // 系统消息使用折叠功能
+                <div className="tool-message-container">
+                  <div className="tool-message-header" onClick={() => toggleToolCollapse(messageId)}>
+                    <span className="tool-toggle-icon">{isCollapsed ? '▶' : '▼'}</span>
+                    <span className={`tool-message-preview ${isCollapsed ? 'collapsed' : ''}`}>
+                      {isCollapsed ? content : content}
+                    </span>
+                  </div>
+                </div>
+              ) : isTool ? (
+                // 工具消息使用折叠功能
+                <div className="tool-message-container">
+                  <div className="tool-message-header" onClick={() => toggleToolCollapse(messageId)}>
+                    <span className="tool-toggle-icon">{isCollapsed ? '▶' : '▼'}</span>
+                    <span className={`tool-message-preview ${isCollapsed ? 'collapsed' : ''}`}>
+                      {isCollapsed ? content : content}
+                    </span>
+                  </div>
+                  {!isCollapsed && msg.tool_calls && msg.tool_calls.length > 0 && (
+                    <div className="tool-calls-info">
+                      <div className="tool-calls-title">调用的工具:</div>
+                      {msg.tool_calls.map((toolCall, toolIndex) => (
+                        <div key={toolIndex} className="tool-call-item">
+                          <span className="tool-name">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
+                          {toolCall.function?.arguments && (
+                            <div className="tool-arguments">
+                              参数: {JSON.stringify(toolCall.function.arguments, null, 2)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : msg.role === 'tool_request' ? (
+                // 工具请求消息使用折叠功能
+                <div className="tool-message-container">
+                  <div className="tool-message-header" onClick={() => toggleToolCollapse(messageId)}>
+                    <span className="tool-toggle-icon">{isCollapsed ? '▶' : '▼'}</span>
+                    <span className={`tool-message-preview ${isCollapsed ? 'collapsed' : ''}`}>
+                      {isCollapsed ? (
+                        // 折叠状态下显示工具名称或问题预览
+                        (() => {
+                          if (msg.tool_calls && msg.tool_calls.length > 0) {
+                            const toolCall = msg.tool_calls[0];
+                            const toolName = toolCall.name || toolCall.function?.name || '未知工具';
+                            
+                            // 对于 ask_user 工具，尝试显示问题内容
+                            if (toolName === 'ask_user') {
+                              // 从参数中获取问题内容
+                              let question = '询问用户';
+                              if (toolCall.args && toolCall.args.question) {
+                                question = toolCall.args.question;
+                              } else if (toolCall.function && toolCall.function.arguments) {
+                                try {
+                                  const args = typeof toolCall.function.arguments === 'string'
+                                    ? JSON.parse(toolCall.function.arguments)
+                                    : toolCall.function.arguments;
+                                  if (args.question) {
+                                    question = args.question;
+                                  }
+                                } catch (e) {
+                                  console.error('解析工具参数失败:', e);
+                                }
+                              }
+                              return `询问: ${question.length > 30 ? question.substring(0, 30) + '...' : question}`;
+                            }
+                            
+                            return `工具请求: ${toolName}`;
+                          }
+                          return '工具请求';
+                        })()
+                      ) : (
+                        // 展开状态下显示工具请求
+                        `工具请求 (${msg.tool_calls.length}个工具)`
+                      )}
+                    </span>
+                  </div>
+                  {!isCollapsed && (
+                    <div className="tool-calls-info">
+                      <div className="tool-calls-title">工具请求:</div>
+                      {msg.tool_calls.map((toolCall, toolIndex) => (
+                        <div key={toolIndex} className="tool-call-item">
+                          <span className="tool-name">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
+                          {toolCall.args && (
+                            <div className="tool-arguments">
+                              参数: {JSON.stringify(toolCall.args, null, 2)}
+                            </div>
+                          )}
+                          {toolCall.function?.arguments && (
+                            <div className="tool-arguments">
+                              参数: {JSON.stringify(JSON.parse(toolCall.function.arguments), null, 2)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : isSummary ? (
+                // 总结消息使用折叠功能
+                <div className="tool-message-container">
+                  <div className="tool-message-header" onClick={() => toggleToolCollapse(messageId)}>
+                    <span className="tool-toggle-icon">{isCollapsed ? '▶' : '▼'}</span>
+                    <span className={`tool-message-preview ${isCollapsed ? 'collapsed' : ''}`}>
+                      {isCollapsed ? (
+                        // 折叠状态下显示总结预览
+                        content.length > 50 ? content.substring(0, 50) + '...' : content
+                      ) : (
+                        // 展开状态下显示完整总结
+                        '对话总结'
+                      )}
+                    </span>
+                  </div>
+                  {!isCollapsed && (
+                    <div className="summary-content">
+                      <ReactMarkdownMessageRenderer value={content} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // AI消息使用markdown渲染
+                <div>
+                  {/* 只有当有内容时才渲染markdown */}
+                  {content && <ReactMarkdownMessageRenderer value={content} />}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      
+      {/* 显示当前正在输入的AI消息 - 流式传输时显示 */}
+      {currentAiMessage && (
+        <div className="simple-message ai-message">
+          <div className="message-sender">AI</div>
+          <div className="message-content">
+            <ReactMarkdownMessageRenderer value={currentAiMessage} />
+            {isLoading && <span className="typing-indicator">...</span>}
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
-});
+};
 
 export default MessageDisplay;

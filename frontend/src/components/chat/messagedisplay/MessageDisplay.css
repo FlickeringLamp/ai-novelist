@@ -1,0 +1,203 @@
+.simple-message-display {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.simple-message {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+  padding: 10px 15px;
+  border-radius: 8px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.user-message {
+  align-self: flex-end;
+  background-color: #007bff;
+  color: white;
+}
+
+.ai-message {
+  align-self: flex-start;
+  background-color: #2a2a2a;
+  color: #e0e0e0;
+}
+
+.system-message {
+  align-self: flex-start;
+  background-color: #3a3a5a;
+  color: #e0e0e0;
+  border-left: 4px solid #6a6aff;
+}
+
+.tool-message {
+  align-self: flex-start;
+  background-color: #4a3a2a;
+  color: #e0e0e0;
+  border-left: 4px solid #ff9900;
+}
+
+.tool-request-message {
+  align-self: flex-start;
+  background-color: #3a4a2a;
+  color: #e0e0e0;
+  border-left: 4px solid #00cc66;
+}
+
+.summary-message {
+  align-self: flex-start;
+  background-color: #2a3a4a;
+  color: #e0e0e0;
+  border-left: 4px solid #007bff;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+.message-sender {
+  font-weight: bold;
+  margin-bottom: 5px;
+  font-size: 0.9em;
+}
+
+.message-content {
+  line-height: 1.4;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* 确保 markdown 渲染器在 AI 消息中正确显示 */
+.ai-message .react-markdown-renderer {
+  color: #e0e0e0;
+}
+
+/* 用户消息保持简单文本样式 */
+.user-message .message-content {
+  white-space: pre-wrap;
+}
+
+/* 系统消息样式 */
+.system-message .message-content {
+  white-space: pre-wrap;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+/* 工具消息样式 */
+.tool-message .message-content {
+  white-space: pre-wrap;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  width: 100%;
+}
+
+.tool-message-container {
+  width: 100%;
+}
+
+.tool-message-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.tool-message-header:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.tool-toggle-icon {
+  margin-right: 8px;
+  font-size: 0.8em;
+  color: #ffcc66;
+  transition: transform 0.2s ease;
+}
+
+.tool-message-preview {
+  flex: 1;
+  color: #e0e0e0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  width: 100%;
+}
+
+.tool-message-preview.collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.tool-calls-info {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.tool-calls-title {
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: #ffcc66;
+}
+
+.tool-call-item {
+  margin-bottom: 6px;
+  padding: 4px;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.tool-name {
+  font-weight: bold;
+  color: #ff9933;
+}
+
+.tool-arguments {
+  margin-top: 4px;
+  font-size: 0.8em;
+  color: #cccccc;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* 总结消息样式 */
+.summary-content {
+  margin-top: 8px;
+  padding: 12px;
+  background-color: rgba(0, 123, 255, 0.1);
+  border-radius: 6px;
+  border-left: 3px solid #007bff;
+}
+
+.summary-content .react-markdown-renderer {
+  color: #e0e0e0;
+}
+
+.summary-message .message-sender {
+  color: #007bff;
+}

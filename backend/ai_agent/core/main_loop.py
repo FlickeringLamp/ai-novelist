@@ -87,11 +87,6 @@ def main_loop(graph,cleanup_function=None):
                 # 获取当前状态以保持对话历史
                 current_state = graph.get_state(config)
                 current_messages = current_state.values.get("messages", [])
-                current_summary = current_state.values.get("summary", "")
-                
-                # 显示当前总结（如果有）
-                if current_summary:
-                    print(f"\n📝 当前对话总结: {current_summary}")
                 
                 # 询问是否删除消息
                 delete_choice = input("是否删除消息后再对话？(1=是, 2=否): ").strip()
@@ -154,8 +149,10 @@ def main_loop(graph,cleanup_function=None):
             
                 # 使用流式传输处理对话响应
                 print("AI响应:")
-                for chunk in graph.stream(input_state, config, stream_mode="updates"):
-                    print(chunk)
+                for message_chunk, metadata in graph.stream(input_state, config, stream_mode="messages"):
+                    if message_chunk.content:
+                        print(message_chunk.content, end="", flush=True)
+                print()  # 添加换行
                 result = graph.get_state(config)
                 print(f"对话完成，当前状态: {result}")
         
@@ -195,15 +192,10 @@ def main_loop(graph,cleanup_function=None):
             # 获取当前状态
             current_state = graph.get_state(config)
             current_messages = current_state.values.get("messages", [])
-            current_summary = current_state.values.get("summary", "")
             
             if not current_messages:
                 print("没有对话历史可总结")
                 continue
-                
-            # 显示当前总结（如果有）
-            if current_summary:
-                print(f"\n📝 当前对话总结: {current_summary}")
             
             # 使用总结指令触发总结
             summarize_instruction = HumanMessage(content="/summarize")
@@ -219,7 +211,15 @@ def main_loop(graph,cleanup_function=None):
             
             # 显示更新后的总结
             updated_state = graph.get_state(config)
-            updated_summary = updated_state.values.get("summary", "")
+            updated_messages_after = updated_state.values.get("messages", [])
+            
+            # 从最后一条消息中获取总结内容
+            updated_summary = ""
+            if updated_messages_after:
+                last_message = updated_messages_after[-1]
+                if hasattr(last_message, 'content'):
+                    updated_summary = last_message.content
+            
             if updated_summary:
                 print(f"\n📝 更新后的对话总结: {updated_summary}")
             else:

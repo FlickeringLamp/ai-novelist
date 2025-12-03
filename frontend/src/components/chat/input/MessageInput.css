@@ -1,0 +1,162 @@
+.message-input-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+.message-form {
+  display: flex;
+  width: 100%;
+  flex: 1;
+  position: relative; /* 添加相对定位，作为FileListPopup的定位参考 */
+  overflow: visible; /* 确保内容可以溢出显示 */
+}
+.tool-call-info{
+  background-color: black;
+}
+
+.message-textarea {
+  background-color: black;
+  color: aliceblue;
+  border: none;
+  border-radius: 4px;
+  resize: none;
+  font-family: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0; /* 防止flex项目溢出 */
+}
+
+.message-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.send-button {
+  background: none;
+  color: #82f933;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0px 0px 0px 0px;
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-button:hover {
+  color: #0056b3;
+}
+
+.send-button:disabled {
+  color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* 工具请求卡片样式 */
+.tool-request-card {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tool-call-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tool-call-header h4 {
+  margin: 0;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+
+.tool-description {
+  color: #0efa78;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.tool-action-buttons {
+  display: flex;
+  gap: 0;
+  justify-content: space-between;
+  margin-top: 0;
+}
+
+.approve-button,
+.reject-button {
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  text-align: center;
+}
+
+.approve-button {
+  background-color: #28a745;
+  color: white;
+}
+
+
+.reject-button {
+  background-color: #dc3545;
+  color: white;
+}
+
+
+/* 自动批准相关样式 */
+.auto-approve-countdown {
+  padding: 6px 10px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  animation: countdownPulse 1s infinite;
+}
+
+.countdown-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auto-approve-notice {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+}
+
+.notice-text {
+  font-size: 11px;
+  color: #0c5460;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@keyframes countdownPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 193, 7, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+  }
+}

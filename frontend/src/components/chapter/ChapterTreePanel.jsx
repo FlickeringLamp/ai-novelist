@@ -9,8 +9,6 @@ import ContextMenuManager from './ContextMenuManager';
 import NotificationModal from '../others/NotificationModal';
 import ConfirmationModal from '../others/ConfirmationModal';
 import ModalManager from '../others/ModalManager';
-import CheckpointPanel from './CheckpointPanel';
-import { faHistory } from '@fortawesome/free-solid-svg-icons';
 import FileOperations from './FileOperations';
 import chapterService from '../../services/chapterService.js';
 import configStoreService from '../../services/configStoreService.js';
@@ -21,7 +19,6 @@ import SettingsManager from './SettingsManager';
 function ChapterTreePanel() {
   const chapters = useSelector((state) => state.novel.chapters);
   const refreshCounter = useSelector((state) => state.novel.refreshCounter);
-  const [currentView, setCurrentView] = useState('chapters');
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [currentRenameItemId, setCurrentRenameItemId] = useState(null);
   const [currentRenameItemTitle, setCurrentRenameItemTitle] = useState('');
@@ -295,31 +292,24 @@ function ChapterTreePanel() {
         <button className="refresh-button" onClick={fetchChapters} title="刷新章节列表">
           <FontAwesomeIcon icon={faRotate} />
         </button>
-        <button className="checkpoint-button" onClick={() => setCurrentView(currentView === 'chapters' ? 'checkpoints' : 'chapters')} title="查看版本历史">
-          <FontAwesomeIcon icon={faHistory} />
-        </button>
       </div>
 
       <div className="main-chapter-area">
-        {currentView === 'checkpoints' ? (
-          <CheckpointPanel onClose={() => setCurrentView('chapters')} />
-        ) : (
-          <div className="chapter-tree-panel-content" onContextMenu={(e) => handleContextMenu(e, null, false, null, '')}>
-            {chapters.length === 0 ? (
-              <p className="no-chapters-message">暂无文件</p>
-            ) : (
-              <ChapterTreeRenderer
-                items={chapters}
-                collapsedChapters={collapsedChapters}
-                getDisplayName={getDisplayName}
-                getDisplayPrefix={getDisplayPrefix}
-                handleChapterClick={handleChapterClick}
-                handleContextMenu={handleContextMenu}
-                renderPrefixEdit={prefixEditManager.renderPrefixEdit}
-              />
-            )}
-          </div>
-        )}
+        <div className="chapter-tree-panel-content" onContextMenu={(e) => handleContextMenu(e, null, false, null, '')}>
+          {chapters.length === 0 ? (
+            <p className="no-chapters-message">暂无文件</p>
+          ) : (
+            <ChapterTreeRenderer
+              items={chapters}
+              collapsedChapters={collapsedChapters}
+              getDisplayName={getDisplayName}
+              getDisplayPrefix={getDisplayPrefix}
+              handleChapterClick={handleChapterClick}
+              handleContextMenu={handleContextMenu}
+              renderPrefixEdit={prefixEditManager.renderPrefixEdit}
+            />
+          )}
+        </div>
       </div>
 
       {/* 右键菜单管理模块 */}

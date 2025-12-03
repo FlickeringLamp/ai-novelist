@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import {
-  setContextLimitSettings,
-  setAiParametersForMode
-} from '../../../store/slices/chatSlice';
+import configStoreService from '../../../services/configStoreService.js';
 import SliderComponent from '../common/SliderComponent';
 import InputComponent from '../common/InputComponent';
 import SettingGroup from '../common/SettingGroup';
@@ -18,12 +14,20 @@ const AdvancedSettings = ({
   onParametersChange,
   mode = 'outline'
 }) => {
-  const dispatch = useDispatch();
-  const contextLimitSettings = useSelector(state => state.chat.mode.contextLimitSettings);
-  
   // 本地状态管理
   const [localParameters, setLocalParameters] = useState({});
   const [localContextSettings, setLocalContextSettings] = useState({});
+  const [contextLimitSettings, setContextLimitSettings] = useState({});
+
+  // 加载上下文限制设置
+  const loadContextLimitSettings = async () => {
+    try {
+      const settings = await configStoreService.getStoreValue('contextLimitSettings');
+      setContextLimitSettings(settings || {});
+    } catch (error) {
+      console.error('加载上下文限制设置失败:', error);
+    }
+  };
 
   // 初始化AI参数
   useEffect(() => {
@@ -37,7 +41,8 @@ const AdvancedSettings = ({
       modeParameters = {
         temperature: 0.7,
         top_p: 0.7,
-        n: 1
+        n: 1,
+        max_tokens: 4000
       };
     }
     
@@ -59,6 +64,10 @@ const AdvancedSettings = ({
   }, [aiParameters, mode]);
 
   // 初始化上下文限制设置
+  useEffect(() => {
+    loadContextLimitSettings();
+  }, []);
+
   useEffect(() => {
     if (contextLimitSettings?.modes?.[mode]) {
       setLocalContextSettings(contextLimitSettings.modes[mode]);
@@ -89,13 +98,29 @@ const AdvancedSettings = ({
   };
 
   // 处理上下文限制设置变化
-  const handleMaxTokensChange = (value) => {
+  const handleMaxTokensChange = async (value) => {
     const newSettings = {
       ...localContextSettings,
       max_tokens: value
     };
     
     setLocalContextSettings(newSettings);
+    
+    // 更新上下文限制设置
+    try {
+      const updatedContextLimitSettings = {
+        ...contextLimitSettings,
+        modes: {
+          ...contextLimitSettings.modes,
+          [mode]: newSettings
+        }
+      };
+      
+      await configStoreService.setStoreValue('contextLimitSettings', updatedContextLimitSettings);
+      setContextLimitSettings(updatedContextLimitSettings);
+    } catch (error) {
+      console.error('保存上下文限制设置失败:', error);
+    }
     
     // 更新AI参数中的max_tokens
     const newParameters = {
@@ -112,14 +137,31 @@ const AdvancedSettings = ({
   };
 
   // 重置参数为默认值
-  const handleReset = () => {
+  const handleReset = async () => {
     const defaultParameters = {
       temperature: 0.7,
       top_p: 0.7,
-      n: 1
+      n: 1,
+      max_tokens: mode === 'outline' ? 4000 : mode === 'writing' ? 8000 : 2000
     };
     
     setLocalParameters(defaultParameters);
+    
+    // 重置上下文限制设置
+    try {
+      const updatedContextLimitSettings = {
+        ...contextLimitSettings,
+        modes: {
+          ...contextLimitSettings.modes,
+          [mode]: { max_tokens: defaultParameters.max_tokens }
+        }
+      };
+      
+      await configStoreService.setStoreValue('contextLimitSettings', updatedContextLimitSettings);
+      setContextLimitSettings(updatedContextLimitSettings);
+    } catch (error) {
+      console.error('重置上下文限制设置失败:', error);
+    }
     
     // 通知父组件参数已重置
     if (onParametersChange) {

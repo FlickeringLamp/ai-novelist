@@ -1,26 +1,71 @@
-import React, { memo, useCallback, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import {
-    restoreMessages,
-    setSessionHistory,
-    setIsHistoryPanelVisible
-} from '../../../store/slices/messageSlice';
+import React, { memo, useCallback, useState, useEffect } from 'react';
 import sessionService from '../../../services/sessionService';
+import configStoreService from '../../../services/configStoreService';
 import ConfirmationModal from '../../others/ConfirmationModal';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faClock, faUndo } from '@fortawesome/free-solid-svg-icons';
 import './ChatHistoryPanel.css';
 
-const ChatHistoryPanel = memo(({ history }) => {
-    const dispatch = useDispatch();
-    const { sessionHistory } = useSelector((state) => state.chat.message);
-    
+const ChatHistoryPanel = memo(({ onLoadHistory }) => {
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [confirmationMessage, setConfirmationMessage] = useState('');
     const [onConfirmCallback, setOnConfirmCallback] = useState(null);
     const [onCancelCallback, setOnCancelCallback] = useState(null);
     const [sessionIdToDelete, setSessionIdToDelete] = useState(null);
+    const [history, setHistory] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [isVisible, setIsVisible] = useState(false);
+    const [rollbackSessionId, setRollbackSessionId] = useState(null);
+    const [showRollbackModal, setShowRollbackModal] = useState(false);
+    const [checkpoints, setCheckpoints] = useState([]);
+    const [selectedCheckpoint, setSelectedCheckpoint] = useState(null);
+    const [rollbackMessage, setRollbackMessage] = useState('');
+    const [checkpointsLoading, setCheckpointsLoading] = useState(false);
+
+    // 加载会话历史
+    const loadSessionHistory = useCallback(async () => {
+        try {
+            setLoading(true);
+            console.log('正在加载会话历史...');
+            const result = await sessionService.listSessions();
+            if (result.success) {
+                console.log('成功加载会话历史:', result.sessions);
+                setHistory(result.sessions);
+            } else {
+                console.error('加载会话历史失败:', result.error);
+                setHistory([]);
+            }
+        } catch (error) {
+            console.error('加载会话历史异常:', error);
+            setHistory([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // 组件挂载时加载会话历史
+    useEffect(() => {
+        loadSessionHistory();
+    }, [loadSessionHistory]);
+    
+    // 当面板打开时重新加载会话历史
+    useEffect(() => {
+        if (isVisible) {
+            loadSessionHistory();
+        }
+    }, [isVisible, loadSessionHistory]);
 
     const handleClosePanel = () => {
-        dispatch(setIsHistoryPanelVisible(false));
+        setIsVisible(false);
+    };
+
+    const handleRestoreMessages = (messages) => {
+        console.log('恢复消息:', messages);
+        // 调用从ChatPanel传来的回调函数，将历史消息传递给ChatPanel
+        if (onLoadHistory && typeof onLoadHistory === 'function') {
+            onLoadHistory(messages);
+        }
+        setIsVisible(false);
     };
 
     const handleSelectConversation = useCallback(async (sessionId) => {
@@ -28,6 +73,14 @@ const ChatHistoryPanel = memo(({ history }) => {
             // 获取会话消息
             const messagesResult = await sessionService.getSessionMessages(sessionId);
             if (messagesResult.success) {
+                // 更新store.json中的thread_id
+                try {
+                    await configStoreService.setStoreValue('thread_id', sessionId);
+                    console.log(`已更新thread_id为: ${sessionId}`);
+                } catch (error) {
+                    console.error('更新thread_id失败:', error);
+                }
+                
                 // 将消息转换为前端期望的格式
                 const messages = messagesResult.messages.map(msg => {
                     // 将后端消息类型转换为前端角色
@@ -48,8 +101,32 @@ const ChatHistoryPanel = memo(({ history }) => {
                     };
                 });
                 
-                dispatch(restoreMessages(messages));
-                dispatch(setIsHistoryPanelVisible(false));
+                // 检查最后一条消息是否是包含工具调用的AI消息
+                const lastMessage = messages[messages.length - 1];
+                let finalMessages = messages;
+                
+                if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+                    // 如果最后一条消息是包含工具调用的AI消息，需要将其转换为工具请求状态
+                    // 1. 将AI消息的内容和工具调用分开
+                    const aiMessage = {
+                        ...lastMessage,
+                        tool_calls: [] // AI消息本身不包含工具调用
+                    };
+                    
+                    // 2. 创建工具请求消息
+                    const toolRequestMessage = {
+                        id: `historic_tool_${Date.now()}`, // 创建一个唯一ID
+                        role: 'tool_request',
+                        content: '',
+                        tool_calls: lastMessage.tool_calls
+                    };
+                    
+                    // 3. 替换最后一条消息并添加工具请求消息
+                    finalMessages = [...messages.slice(0, -1), aiMessage, toolRequestMessage];
+                }
+                
+                if (handleRestoreMessages) handleRestoreMessages(messages);
+                if (handleClosePanel) handleClosePanel();
                 
                 console.log(`已加载会话 ${sessionId}，包含 ${messages.length} 条消息`);
             } else {
@@ -58,7 +135,7 @@ const ChatHistoryPanel = memo(({ history }) => {
         } catch (error) {
             console.error('选择会话失败:', error);
         }
-    }, [dispatch]);
+    }, [handleRestoreMessages, handleClosePanel]);
 
     const handleDeleteConversation = useCallback(async (sessionId) => {
         setSessionIdToDelete(sessionId);
@@ -70,11 +147,7 @@ const ChatHistoryPanel = memo(({ history }) => {
                 const result = await sessionService.deleteSession(sessionId);
                 if (result.success) {
                     // 重新加载历史记录
-                    const sessionsResult = await sessionService.listSessions();
-                    if (sessionsResult.success) {
-                        // 直接使用后端返回的会话数据
-                        dispatch(setSessionHistory(sessionsResult.sessions));
-                    }
+                    await loadSessionHistory();
                 } else {
                     console.error('删除会话失败:', result.error);
                 }
@@ -87,15 +160,152 @@ const ChatHistoryPanel = memo(({ history }) => {
             setSessionIdToDelete(null);
         });
         setShowConfirmationModal(true);
-    }, [dispatch]);
+    }, []);
+
+    // 处理回档按钮点击
+    const handleRollbackClick = useCallback(async (sessionId) => {
+        try {
+            setCheckpointsLoading(true);
+            setRollbackSessionId(sessionId);
+            setSelectedCheckpoint(null);
+            setRollbackMessage('');
+            
+            // 获取该会话的存档点
+            const result = await sessionService.getCheckpoints(sessionId);
+            if (result.success) {
+                setCheckpoints(result.checkpoints);
+                setShowRollbackModal(true);
+            } else {
+                console.error('获取存档点失败:', result.error);
+                alert('获取存档点失败: ' + result.error);
+            }
+        } catch (error) {
+            console.error('获取存档点异常:', error);
+            alert('获取存档点异常: ' + error.message);
+        } finally {
+            setCheckpointsLoading(false);
+        }
+    }, []);
+
+    // 处理确认回档
+    const handleConfirmRollback = useCallback(async () => {
+        if (!selectedCheckpoint) {
+            alert('请选择一个存档点');
+            return;
+        }
+
+        if (!rollbackMessage.trim()) {
+            alert('请输入回档后的新消息');
+            return;
+        }
+
+        try {
+            setCheckpointsLoading(true);
+            
+            const result = await sessionService.rollbackToCheckpoint(
+                rollbackSessionId,
+                selectedCheckpoint.index,
+                rollbackMessage.trim()
+            );
+            
+            if (result.success) {
+                console.log('回档成功:', result);
+                alert('回档成功！');
+                setShowRollbackModal(false);
+                
+                // 如果回档的是当前会话，刷新消息
+                const currentThreadId = await configStoreService.getStoreValue('thread_id');
+                if (currentThreadId === rollbackSessionId) {
+                    // 重新加载当前会话的消息
+                    const messagesResult = await sessionService.getSessionMessages(currentThreadId);
+                    if (messagesResult.success && messagesResult.messages) {
+                        // 将消息转换为前端期望的格式
+                        const messages = messagesResult.messages.map(msg => {
+                            let role;
+                            if (msg.message_type === 'human') {
+                                role = 'user';
+                            } else if (msg.message_type === 'ai') {
+                                role = 'assistant';
+                            } else {
+                                role = msg.message_type;
+                            }
+                            
+                            return {
+                                id: msg.message_id || `msg_${msg.index}`,
+                                role: role,
+                                content: msg.content,
+                                tool_calls: msg.tool_calls
+                            };
+                        });
+                        
+                        // 检查最后一条消息是否是包含工具调用的AI消息
+                        const lastMessage = messages[messages.length - 1];
+                        let finalMessages = messages;
+                        
+                        if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+                            // 如果最后一条消息是包含工具调用的AI消息，需要将其转换为工具请求状态
+                            // 1. 将AI消息的内容和工具调用分开
+                            const aiMessage = {
+                                ...lastMessage,
+                                tool_calls: [] // AI消息本身不包含工具调用
+                            };
+                            
+                            // 2. 创建工具请求消息
+                            const toolRequestMessage = {
+                                id: `rollback_tool_${Date.now()}`, // 创建一个唯一ID
+                                role: 'tool_request',
+                                content: '',
+                                tool_calls: lastMessage.tool_calls
+                            };
+                            
+                            // 3. 替换最后一条消息并添加工具请求消息
+                            finalMessages = [...messages.slice(0, -1), aiMessage, toolRequestMessage];
+                        }
+                        
+                        if (handleRestoreMessages) handleRestoreMessages(finalMessages);
+                        console.log(`已重新加载 ${finalMessages.length} 条消息`);
+                    }
+                }
+            } else {
+                console.error('回档失败:', result.error);
+                alert('回档失败: ' + result.error);
+            }
+        } catch (error) {
+            console.error('回档异常:', error);
+            alert('回档异常: ' + error.message);
+        } finally {
+            setCheckpointsLoading(false);
+        }
+    }, [rollbackSessionId, selectedCheckpoint, rollbackMessage, handleRestoreMessages]);
+
+    // 关闭回档模态框
+    const handleCloseRollbackModal = useCallback(() => {
+        setShowRollbackModal(false);
+        setRollbackSessionId(null);
+        setCheckpoints([]);
+        setSelectedCheckpoint(null);
+        setRollbackMessage('');
+    }, []);
 
     return (
-        <div className="chat-history-panel">
+        <div className="chat-history-container">
+            <button
+                className="history-button"
+                onClick={() => setIsVisible(!isVisible)}
+                title="历史会话"
+            >
+                <FontAwesomeIcon icon={faClock} />
+            </button>
+            
+            {isVisible && (
+                <div className="chat-history-panel">
             <h3>对话历史</h3>
             <button className="close-history-panel-button" onClick={handleClosePanel}>
                 &times;
             </button>
-            {!history || !Array.isArray(history) || history.length === 0 ? (
+            {loading ? (
+                <p className="no-history-message">正在加载历史对话...</p>
+            ) : !history || !Array.isArray(history) || history.length === 0 ? (
                 <p className="no-history-message">暂无历史对话。</p>
             ) : (
                 <ul className="history-list">
@@ -125,15 +335,26 @@ const ChatHistoryPanel = memo(({ history }) => {
                                     </div>
                                     {isCurrent && <span className="current-badge">当前</span>}
                                 </div>
-                                {!isCurrent && (
-                                    <button
-                                        className="delete-button"
-                                        onClick={() => handleDeleteConversation(sessionId)}
-                                        title="删除此会话"
-                                    >
-                                        &times;
-                                    </button>
-                                )}
+                                <div className="history-item-buttons">
+                                    {!isCurrent && (
+                                        <button
+                                            className="rollback-button"
+                                            onClick={() => handleRollbackClick(sessionId)}
+                                            title="回档此会话"
+                                        >
+                                            <FontAwesomeIcon icon={faUndo} />
+                                        </button>
+                                    )}
+                                    {!isCurrent && (
+                                        <button
+                                            className="delete-button"
+                                            onClick={() => handleDeleteConversation(sessionId)}
+                                            title="删除此会话"
+                                        >
+                                            &times;
+                                        </button>
+                                    )}
+                                </div>
                             </li>
                         );
                     })}
@@ -146,6 +367,81 @@ const ChatHistoryPanel = memo(({ history }) => {
                     onConfirm={onConfirmCallback}
                     onCancel={onCancelCallback}
                 />
+            )}
+                </div>
+            )}
+            
+            {/* 回档模态框 */}
+            {showRollbackModal && (
+                <div className="rollback-modal-overlay">
+                    <div className="rollback-modal">
+                        <div className="rollback-modal-header">
+                            <h3>消息回档</h3>
+                            <button className="close-modal-button" onClick={handleCloseRollbackModal}>
+                                &times;
+                            </button>
+                        </div>
+                        
+                        <div className="rollback-modal-content">
+                            {checkpointsLoading ? (
+                                <div className="loading-message">正在加载存档点...</div>
+                            ) : checkpoints.length === 0 ? (
+                                <div className="no-checkpoints-message">该会话暂无存档点</div>
+                            ) : (
+                                <>
+                                    <div className="checkpoints-section">
+                                        <h4>选择存档点</h4>
+                                        <div className="checkpoints-list">
+                                            {checkpoints.map((checkpoint) => (
+                                                <div
+                                                    key={checkpoint.checkpoint_id}
+                                                    className={`checkpoint-option ${selectedCheckpoint?.index === checkpoint.index ? 'selected' : ''}`}
+                                                    onClick={() => setSelectedCheckpoint(checkpoint)}
+                                                >
+                                                    <div className="checkpoint-info">
+                                                        <span className="checkpoint-index">#{checkpoint.index}</span>
+                                                        <span className="checkpoint-node">{Array.isArray(checkpoint.next_node) ? checkpoint.next_node.join(', ') : checkpoint.next_node}</span>
+                                                        <span className="checkpoint-type">{checkpoint.last_message_type}</span>
+                                                    </div>
+                                                    <div className="checkpoint-content">
+                                                        {checkpoint.last_message_content?.substring(0, 50) || '无内容'}
+                                                        {checkpoint.last_message_content?.length > 50 && '...'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="rollback-input-section">
+                                        <h4>回档后的新消息</h4>
+                                        <textarea
+                                            value={rollbackMessage}
+                                            onChange={(e) => setRollbackMessage(e.target.value)}
+                                            placeholder="请输入回档后的新消息内容..."
+                                            rows={3}
+                                        />
+                                    </div>
+                                    
+                                    <div className="rollback-actions">
+                                        <button
+                                            className="confirm-rollback-button"
+                                            onClick={handleConfirmRollback}
+                                            disabled={checkpointsLoading || !selectedCheckpoint || !rollbackMessage.trim()}
+                                        >
+                                            {checkpointsLoading ? '回档中...' : '确认回档'}
+                                        </button>
+                                        <button
+                                            className="cancel-rollback-button"
+                                            onClick={handleCloseRollbackModal}
+                                        >
+                                            取消
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

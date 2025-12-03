@@ -1,16 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faSyncAlt, faRobot } from '@fortawesome/free-solid-svg-icons';
 import modelSelectionService from '../../../services/modelSelectionService';
 import './ModelSelectorPanel.css';
 
-const ModelSelectorPanel = ({ onModelChange, onClose }) => {
+const ModelSelectorPanel = () => {
   // 本地状态管理 - 不再使用Redux
   const [availableModels, setAvailableModels] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [selectedProvider, setSelectedProvider] = useState('');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('');
 
   // 加载模型列表
   const loadAvailableModels = async () => {
@@ -34,11 +36,25 @@ const ModelSelectorPanel = ({ onModelChange, onClose }) => {
     }
   };
 
+  // 加载选中的模型
+  const loadSelectedModel = async () => {
+    try {
+      const result = await modelSelectionService.getSelectedModel();
+      if (result.success) {
+        setSelectedModel(result.selectedModel);
+      } else {
+        console.error('获取选中模型失败:', result.error);
+      }
+    } catch (error) {
+      console.error('加载选中模型失败:', error);
+    }
+  };
+
   // 刷新模型列表
   const handleRefreshModels = async () => {
     try {
       setRefreshing(true);
-      const result = await modelSelectionService.refreshModels();
+      const result = await modelSelectionService.getAvailableModels();
       
       if (result.success) {
         // 刷新成功后重新加载模型列表
@@ -65,8 +81,10 @@ const ModelSelectorPanel = ({ onModelChange, onClose }) => {
       
       if (result.success) {
         console.log(`模型选择已保存: ${modelId}`);
-        // 通知父组件模型已更改
-        onModelChange(modelId);
+        // 更新本地状态
+        setSelectedModel(modelId);
+        // 关闭面板
+        setIsVisible(false);
       } else {
         console.error('保存模型选择失败:', result.error);
       }
@@ -111,85 +129,105 @@ const ModelSelectorPanel = ({ onModelChange, onClose }) => {
     setSelectedProvider(provider === selectedProvider ? '' : provider);
   };
 
-  // 组件挂载时加载模型列表
+  // 组件挂载时加载模型列表和选中的模型
   useEffect(() => {
     loadAvailableModels();
+    loadSelectedModel();
   }, []);
 
   return (
-    <div className="model-selector-panel">
-      {/* 搜索和过滤区域 */}
-      <div className="model-filter-section">
-        <div className="search-container">
-          <FontAwesomeIcon icon={faSearch} className="search-icon" />
-          <input
-            type="text"
-            placeholder="搜索模型名称或提供商..."
-            value={searchText}
-            onChange={handleSearchChange}
-            className="search-input"
-          />
-          <button
-            className={`refresh-button ${refreshing ? 'refreshing' : ''}`}
-            onClick={handleRefreshModels}
-            title="刷新模型列表"
-            disabled={refreshing}
-          >
-            <FontAwesomeIcon icon={faSyncAlt} spin={refreshing} />
-          </button>
-        </div>
-        
-        {/* 提供商筛选 */}
-        <div className="provider-filter">
-          <span className="filter-label">提供商：</span>
-          <div className="provider-tags">
-            {providers.map(provider => (
-              <button
-                key={provider}
-                className={`provider-tag ${selectedProvider === provider ? 'active' : ''}`}
-                onClick={() => handleProviderSelect(provider)}
-              >
-                {provider}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 模型列表 */}
-      <div className="model-list-container">
-        {loading ? (
-          <div className="loading-state">
-            正在加载模型列表...
-          </div>
-        ) : filteredModels.length === 0 ? (
-          <div className="empty-state">
-            {searchText || selectedProvider ? '没有找到匹配的模型' : '暂无可用模型'}
-          </div>
+    <div className="model-selector-container">
+      <button
+        className="model-button"
+        onClick={() => setIsVisible(!isVisible)}
+        title="模型选择"
+      >
+        {selectedModel ? (
+          <span className="model-name-text">{selectedModel}</span>
         ) : (
-          <div className="model-grid">
-            {filteredModels.map((model) => (
-              <div
-                key={model.id}
-                className="model-card"
-                onClick={() => handleModelSelect(model.id)}
+          <>
+            <FontAwesomeIcon icon={faRobot} />
+            <span className="model-select-hint">选择模型</span>
+          </>
+        )}
+      </button>
+      
+      {isVisible && (
+        <div className="model-selector-panel">
+          {/* 搜索和过滤区域 */}
+          <div className="model-filter-section">
+            <div className="search-container">
+              <FontAwesomeIcon icon={faSearch} className="search-icon" />
+              <input
+                type="text"
+                placeholder="搜索模型名称或提供商..."
+                value={searchText}
+                onChange={handleSearchChange}
+                className="search-input"
+              />
+              <button
+                className={`refresh-button ${refreshing ? 'refreshing' : ''}`}
+                onClick={handleRefreshModels}
+                title="刷新模型列表"
+                disabled={refreshing}
               >
-                <div className="model-info">
-                  <div className="model-name">{model.id}</div>
-                  <div className="model-provider">{model.provider}</div>
-                </div>
+                <FontAwesomeIcon icon={faSyncAlt} spin={refreshing} />
+              </button>
+            </div>
+            
+            {/* 提供商筛选 */}
+            <div className="provider-filter">
+              <span className="filter-label">提供商：</span>
+              <div className="provider-tags">
+                {providers.map(provider => (
+                  <button
+                    key={provider}
+                    className={`provider-tag ${selectedProvider === provider ? 'active' : ''}`}
+                    onClick={() => handleProviderSelect(provider)}
+                  >
+                    {provider}
+                  </button>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-        )}
-        
-        {/* 搜索结果统计 */}
-        {searchText && (
-          <div className="search-results-info">
-            找到 {filteredModels.length} 个匹配的模型
+
+          {/* 模型列表 */}
+          <div className="model-list-container">
+            {loading ? (
+              <div className="loading-state">
+                正在加载模型列表...
+              </div>
+            ) : filteredModels.length === 0 ? (
+              <div className="empty-state">
+                {searchText || selectedProvider ? '没有找到匹配的模型' : '暂无可用模型'}
+              </div>
+            ) : (
+              <div className="model-grid">
+                {filteredModels.map((model) => (
+                  <div
+                    key={model.id}
+                    className="model-card"
+                    onClick={() => handleModelSelect(model.id)}
+                  >
+                    <div className="model-info">
+                      <div className="model-name">{model.id}</div>
+                      <div className="model-provider">{model.provider}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* 搜索结果统计 */}
+            {searchText && (
+              <div className="search-results-info">
+                找到 {filteredModels.length} 个匹配的模型
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

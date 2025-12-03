@@ -1,53 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import {
-  setCustomPromptForMode,
-  resetCustomPromptForMode,
-  setModeFeatureSetting,
-  resetModeFeatureSettings,
-  setAdditionalInfoForMode,
-  resetAdditionalInfoForMode,
-  setAiParametersForMode,
-  resetAiParametersForMode,
-  // setRagTableNames, // 已废弃的RAG设置标签页相关
-  setAutoApproveEnabled,
-  setAutoApproveDelay,
-  setAutoApproveSettings
-} from '../../store/slices/chatSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUndo, faSave, faTimes, faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
-import useIpcRenderer from '../../hooks/useIpcRenderer';
-import useHttpService from '../../hooks/useHttpService';
+import { faSave, faTimes, faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
+import configStoreService from '../../services/configStoreService.js';
 import useModeManager from './ModeManager';
 import NotificationModal from '../others/NotificationModal';
 import ConfirmationModal from '../others/ConfirmationModal';
 import ChatParameters from '././parameterTab/ChatParameters';
-// import AgentRagTab from './ragTab/AgentRagTab'; // 已废弃的RAG设置标签页
+import FileSelector from './FileSelector';
 import ToolConfigTab from './toolTab/ToolConfigTab';
+import toolConfigService from '../../services/toolConfigService.js';
 import './AgentPanel.css';
 
 /**
  * 统一的Agent面板组件 - 整合了原来的三个GeneralSettings文件的功能
  */
 const AgentPanel = ({ isOpen = true, onClose }) => {
-  const dispatch = useDispatch();
-  const { invoke, getStoreValue, setStoreValue } = useIpcRenderer();
-  const { updateModeToolConfig } = useHttpService();
-  
-  // 统一使用Redux状态作为单一数据源
-  const {
-    customPrompts,
-    modeFeatureSettings,
-    additionalInfo,
-    aiParameters,
-    contextLimitSettings,
-    autoApproveSettings
-  } = useSelector((state) => state.chat.mode);
-  
-  // 工具配置状态管理
-  const [toolConfigs, setToolConfigs] = useState({});
-  
   // UI状态 - 专注于展示和交互
   const [defaultPrompts, setDefaultPrompts] = useState({});
   const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
@@ -64,6 +32,13 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
     success: false
   });
 
+  // 模式配置状态
+  const [customPrompts, setCustomPrompts] = useState({});
+  const [additionalInfo, setAdditionalInfo] = useState({});
+  const [aiParameters, setAiParameters] = useState({});
+  const [toolConfigs, setToolConfigs] = useState({});
+  const [allModesList, setAllModesList] = useState([]);
+
   // 使用模式管理模块 - 单一数据源
   const modeManager = useModeManager();
 
@@ -71,20 +46,45 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
   const fetchDefaultPrompts = async () => {
     setIsLoadingPrompts(true);
     try {
-      const result = await invoke('get-default-prompts');
+      const result = await configStoreService.getDefaultPrompts();
       if (result.success) {
         setDefaultPrompts(result.prompts);
       } else {
         // 如果后端获取失败，使用内置默认值作为fallback
-        setDefaultPrompts(modeManager.getAllDefaultPrompts());
+        const defaultPrompts = await modeManager.getAllDefaultPrompts();
+        setDefaultPrompts(defaultPrompts);
       }
     } catch (error) {
       console.error('调用获取默认提示词API失败:', error);
       // 如果API调用失败，使用内置默认值
-      setDefaultPrompts(modeManager.getAllDefaultPrompts());
+      const defaultPrompts = await modeManager.getAllDefaultPrompts();
+      setDefaultPrompts(defaultPrompts);
     } finally {
       setIsLoadingPrompts(false);
     }
+  };
+
+  // 加载模式配置
+  const loadModeConfig = async () => {
+    try {
+      const [customPromptsData, additionalInfoData, aiParametersData] = await Promise.all([
+        configStoreService.getStoreValue('customPrompts'),
+        configStoreService.getStoreValue('additionalInfo'),
+        configStoreService.getStoreValue('aiParameters')
+      ]);
+      
+      setCustomPrompts(customPromptsData || {});
+      setAdditionalInfo(additionalInfoData || {});
+      setAiParameters(aiParametersData || {});
+    } catch (error) {
+      console.error('加载模式配置失败:', error);
+    }
+  };
+
+  // 加载所有模式列表
+  const loadAllModes = () => {
+    const modes = modeManager.getAllModes();
+    setAllModesList(modes);
   };
 
   // 统一数据初始化
@@ -94,8 +94,12 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
       
       // 并行加载所有必要数据
       await Promise.all([
-        fetchDefaultPrompts()
+        fetchDefaultPrompts(),
+        loadModeConfig()
       ]);
+      
+      // 加载所有模式列表
+      loadAllModes();
       
     } catch (error) {
       console.error('[AgentPanel] 数据初始化失败:', error);
@@ -108,99 +112,86 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
     initializeData();
   }, []);
 
-
-  // 统一设置变更处理 - 直接更新Redux状态
-  const handlePromptChange = (mode, value) => {
-    dispatch(setCustomPromptForMode({ mode, prompt: value }));
-  };
-
-  const handleFeatureSettingChange = (mode, feature, enabled) => {
-    dispatch(setModeFeatureSetting({ mode, feature, enabled }));
-  };
-
-  const handleAdditionalInfoChange = (mode, field, value) => {
-    const currentInfo = additionalInfo[mode] || {};
-    const updatedInfo = {
-      ...currentInfo,
-      [field]: value
+  // 统一设置变更处理 - 直接更新本地状态
+  const handlePromptChange = async (mode, value) => {
+    const updatedPrompts = {
+      ...customPrompts,
+      [mode]: value
     };
-    dispatch(setAdditionalInfoForMode({ mode, info: updatedInfo }));
-  };
-
-  const handleAiParametersChange = (mode, newParameters) => {
-    dispatch(setAiParametersForMode({ mode, parameters: newParameters }));
-  };
-
-  /* const handleRagSettingsChange = (newRagSettings) => {
-    // 直接更新Redux状态
-    for (const mode of Object.keys(newRagSettings)) {
-      const settings = newRagSettings[mode];
-      if (settings) {
-        // 保存RAG检索启用状态
-        dispatch(setModeFeatureSetting({
-          mode,
-          feature: 'ragRetrievalEnabled',
-          enabled: settings.ragRetrievalEnabled || false
-        }));
-        
-        // 保存文件选择
-        const tableNames = settings.ragTableNames && settings.ragTableNames.length > 0
-          ? settings.ragTableNames
-          : null;
-        dispatch(setRagTableNames({
-          mode,
-          tableNames: tableNames
-        }));
-      }
+    setCustomPrompts(updatedPrompts);
+    
+    // 保存到后端
+    try {
+      await configStoreService.setStoreValue('customPrompts', updatedPrompts);
+    } catch (error) {
+      console.error('保存自定义提示词失败:', error);
     }
-  }; */
-  
+  };
+
+
+  const handleAdditionalInfoChange = async (mode, value) => {
+    const updatedAdditionalInfo = {
+      ...additionalInfo,
+      [mode]: value
+    };
+    console.log("配置了什么玩意",updatedAdditionalInfo)
+    setAdditionalInfo(updatedAdditionalInfo);
+    
+    // 保存到后端
+    try {
+      await configStoreService.setStoreValue('additionalInfo', updatedAdditionalInfo);
+    } catch (error) {
+      console.error('保存附加信息失败:', error);
+    }
+  };
+
+  const handleAiParametersChange = async (mode, newParameters) => {
+    const updatedAiParameters = {
+      ...aiParameters,
+      [mode]: newParameters
+    };
+    setAiParameters(updatedAiParameters);
+    
+    // 保存到后端
+    try {
+      await configStoreService.setStoreValue('aiParameters', updatedAiParameters);
+    } catch (error) {
+      console.error('保存AI参数失败:', error);
+    }
+  };
+
   // 处理工具配置变更
-  const handleToolConfigChange = (mode, newConfig) => {
-    setToolConfigs(prev => ({
-      ...prev,
+  const handleToolConfigChange = async (mode, newConfig) => {
+    const updatedToolConfigs = {
+      ...toolConfigs,
       [mode]: newConfig
-    }));
+    };
+    setToolConfigs(updatedToolConfigs);
+    
+    // 保存到后端
+    try {
+      await toolConfigService.updateModeToolConfig(mode, {
+        enabled_tools: newConfig.enabled_tools
+      });
+    } catch (error) {
+      console.error('保存工具配置失败:', error);
+    }
   };
 
-  const handleReset = (mode) => {
-    dispatch(resetCustomPromptForMode({ mode }));
-    dispatch(resetModeFeatureSettings({ mode }));
-    dispatch(resetAdditionalInfoForMode({ mode }));
-  };
-
-  // 保存设置 - 直接使用Redux状态和工具配置
+  // 保存设置 - 直接使用本地状态和工具配置
   const handleSave = async () => {
     try {
       console.log('[AgentPanel] 开始保存通用设置和工具配置');
       
-      // 保存到持久化存储 - 直接使用Redux状态
-      await invoke('set-store-value', 'customPrompts', customPrompts);
-      await invoke('set-store-value', 'modeFeatureSettings', modeFeatureSettings);
-      await invoke('set-store-value', 'additionalInfo', additionalInfo);
-      await invoke('set-store-value', 'aiParameters', aiParameters);
-      await invoke('set-store-value', 'autoApproveSettings', autoApproveSettings);
-      
-      // 保存工具配置到后端
-      for (const [mode, config] of Object.entries(toolConfigs)) {
-        if (config && config.enabled_tools) {
-          try {
-            const result = await updateModeToolConfig(mode, {
-              enabled_tools: config.enabled_tools
-            });
-            if (result.success) {
-              console.log(`模式 ${mode} 的工具配置保存成功`);
-            } else {
-              console.error(`模式 ${mode} 的工具配置保存失败:`, result.error);
-            }
-          } catch (error) {
-            console.error(`保存模式 ${mode} 的工具配置失败:`, error);
-          }
-        }
-      }
+      // 保存到后端 - 直接使用本地状态
+      await Promise.all([
+        configStoreService.setStoreValue('customPrompts', customPrompts),
+        configStoreService.setStoreValue('additionalInfo', additionalInfo),
+        configStoreService.setStoreValue('aiParameters', aiParameters)
+      ]);
       
       // 通知保存成功
-      showNotification('通用设置和工具配置保存成功！', true);
+      showNotification('通用设置保存成功！', true);
     } catch (error) {
       console.error('保存通用设置失败:', error);
       showNotification('通用设置保存失败，请重试。', false);
@@ -234,20 +225,23 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
 
   const filteredModes = modeManager.filterModes(searchText);
 
-  // 获取当前选中的模式详情 - 使用Redux状态
+  // 获取当前选中的模式详情 - 使用本地状态
   const selectedModeDetail = {
     name: getModeDisplayName(selectedMode),
     defaultPrompt: defaultPrompts[selectedMode] || '',
     customPrompt: customPrompts[selectedMode] || '',
-    featureSettings: modeFeatureSettings[selectedMode] || {},
-    additionalInfo: additionalInfo[selectedMode] || {},
-    aiParameters: aiParameters[selectedMode] || {
+    additionalInfo: (additionalInfo && additionalInfo[selectedMode]) ? additionalInfo[selectedMode] : {},
+    aiParameters: (aiParameters && aiParameters[selectedMode]) ? aiParameters[selectedMode] : {
       temperature: 0.7,
       top_p: 0.7,
-      n: 1
+      n: 1,
+      max_tokens: 4000
     },
     type: modeManager.isCustomMode(selectedMode) ? 'custom' : 'builtin'
   };
+  
+  // 打印 selectedModeDetail 信息
+  console.log('selectedModeDetail:', selectedModeDetail);
 
   // 处理添加自定义模式
   const handleAddCustomModeUI = async () => {
@@ -267,6 +261,10 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
         setNewModeName('');
         setShowCustomModeForm(false);
         setSelectedMode(modeId);
+        
+        // 重新加载模式列表
+        loadAllModes();
+        
         showNotification('自定义模式添加成功', true);
       } catch (error) {
         showNotification('添加自定义模式失败', false);
@@ -291,6 +289,10 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
         setNewModeName('');
         setShowCustomModeForm(false);
         setEditingMode(null);
+        
+        // 重新加载模式列表
+        loadAllModes();
+        
         showNotification('自定义模式编辑成功', true);
       } catch (error) {
         showNotification('编辑自定义模式失败', false);
@@ -305,11 +307,19 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
         await modeManager.deleteCustomMode(selectedMode);
         await modeManager.cleanupModeSettings(selectedMode);
         setShowDeleteConfirm(false);
+        
+        // 重新加载模式列表和配置
+        await Promise.all([
+          loadAllModes(),
+          loadModeConfig()
+        ]);
+        
         // 删除后切换到第一个模式
         const allModes = getAllModes();
         if (allModes.length > 0) {
           setSelectedMode(allModes[0].id);
         }
+        
         showNotification('自定义模式删除成功', true);
       } catch (error) {
         showNotification('删除自定义模式失败', false);
@@ -330,27 +340,6 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
   // 渲染标签页内容
   const renderTabContent = () => {
     switch (activeTab) {
-      /* case 'rag':
-        return (
-          <div className="tab-content">
-            <AgentRagTab
-              ragSettings={modeFeatureSettings}
-              onRagSettingsChange={handleRagSettingsChange}
-              customModes={modeManager.customModes}
-              selectedMode={selectedMode}
-            />
-          </div>
-        ); */
-      case 'tools':
-        return (
-          <div className="tab-content">
-            <ToolConfigTab
-              mode={selectedMode}
-              modeType={selectedModeDetail.type}
-              onToolConfigChange={handleToolConfigChange}
-            />
-          </div>
-        );
       case 'ai':
         return (
           <div className="tab-content">
@@ -358,6 +347,16 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
               aiParameters={aiParameters}
               onParametersChange={handleAiParametersChange}
               mode={selectedMode}
+            />
+          </div>
+        );
+      case 'tools':
+        return (
+          <div className="tab-content">
+            <ToolConfigTab
+              mode={selectedMode}
+              modeType={selectedModeDetail.type}
+              onToolConfigChange={handleToolConfigChange}
             />
           </div>
         );
@@ -374,13 +373,41 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                 placeholder={selectedModeDetail.type === 'builtin' ? selectedModeDetail.defaultPrompt : `输入${selectedModeDetail.name}模式的自定义提示词...`}
                 rows={4}
               />
-              <button
-                className="reset-button"
-                onClick={() => handleReset(selectedMode)}
-                disabled={!selectedModeDetail.customPrompt}
-              >
-                <FontAwesomeIcon icon={faUndo} /> 重置
-              </button>
+            </div>
+
+            {/* 附加文件框 */}
+            <div className="additional-files-section">
+              <h4>附加文件:</h4>
+              <div className="additional-files-container">
+                <FileSelector
+                  onFileContentAdd={(content) => {
+                    const newFile = {
+                      content: content
+                    };
+                    handleAdditionalInfoChange(selectedMode, newFile);
+                  }}
+                />
+                
+                {/* 显示已添加的文件 */}
+                <div className="attached-files-list">
+                  <h5>已添加的文件:</h5>
+                  {selectedModeDetail.additionalInfo && selectedModeDetail.additionalInfo.content ? (
+                    <div className="attached-file-item">
+                      <span className="file-name">{selectedModeDetail.additionalInfo.content.path}</span>
+                      <button
+                        className="remove-file-button"
+                        onClick={() => {
+                          handleAdditionalInfoChange(selectedMode, {});
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faTimes} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="no-files">暂无附加文件</div>
+                  )}
+                </div>
+              </div>
             </div>
 
           </div>
@@ -544,7 +571,6 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                     </div>
                   )}
                 </div>
-
                 {/* 标签页导航 */}
                 <div className="settings-tabs">
                   <button
@@ -554,22 +580,16 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                     提示词设置
                   </button>
                   <button
-                    className={`tab-button ${activeTab === 'tools' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('tools')}
-                  >
-                    工具配置
-                  </button>
-                  {/* <button
-                    className={`tab-button ${activeTab === 'rag' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('rag')}
-                  >
-                    RAG设置
-                  </button> */}
-                  <button
                     className={`tab-button ${activeTab === 'ai' ? 'active' : ''}`}
                     onClick={() => setActiveTab('ai')}
                   >
                     聊天参数
+                  </button>
+                  <button
+                    className={`tab-button ${activeTab === 'tools' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('tools')}
+                  >
+                    工具配置
                   </button>
                 </div>
   

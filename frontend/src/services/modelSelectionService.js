@@ -1,5 +1,6 @@
-// 模型选择服务 - 直接与litellm网关通信，不经过Redux
+// 模型选择服务 - 使用后端API获取模型列表
 import httpClient from '../utils/httpClient.js';
+import providerService from './providerService.js';
 
 class ModelSelectionService {
   constructor() {
@@ -53,131 +54,75 @@ class ModelSelectionService {
   }
 
   /**
-   * 获取可用模型列表 - 从litellm网关获取
+   * 获取常用模型列表 - 从后端API获取
    */
   async getAvailableModels() {
     try {
-      // 从litellm网关获取模型列表
-      const response = await fetch(`${this.litellmBaseURL}/model/info`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // 使用providerService获取常用模型列表
+      const result = await providerService.getFavoriteModels();
+      
+      if (result.success) {
+        console.log('从后端获取的模型数据:', result.models);
+        
+        // 将后端返回的模型数据转换为前端期望的格式
+        const models = this.convertBackendModels(result.models);
+        
+        // 过滤掉嵌入模型
+        const filteredModels = this.filterEmbeddingModels(models);
+        
+        return {
+          success: true,
+          models: filteredModels,
+          message: '模型列表获取成功'
+        };
+      } else {
+        throw new Error(result.error);
       }
-
-      const data = await response.json();
-      
-      // 根据实际返回的数据结构获取模型列表
-      const modelsData = data.all_models || data.data || data.models || [];
-      console.log('从litellm获取的原始数据:', data);
-      console.log('解析出的模型数据:', modelsData);
-      
-      // 转换litellm返回的数据格式为前端期望的格式
-      const models = this.convertLiteLLMModels(modelsData);
-      
-      // 过滤掉嵌入模型
-      const filteredModels = this.filterEmbeddingModels(models);
-      
-      return {
-        success: true,
-        models: filteredModels,
-        message: '模型列表获取成功'
-      };
     } catch (error) {
       console.error('获取模型列表失败:', error);
       return {
         success: false,
-        error: '从litellm网关获取模型列表失败: ' + error.message,
+        error: '获取模型列表失败: ' + error.message,
         models: []
       };
     }
   }
 
   /**
-   * 转换litellm返回的模型数据格式为前端期望的格式
-   * @param {Array} litellmModels - litellm网关返回的模型数据
+   * 转换后端返回的模型数据格式为前端期望的格式
+   * @param {Object} backendModels - 后端返回的模型数据
    * @returns {Array} 转换后的模型数据
    */
-  convertLiteLLMModels(litellmModels) {
-    if (!Array.isArray(litellmModels)) {
-      console.warn('convertLiteLLMModels: 输入不是数组', litellmModels);
+  convertBackendModels(backendModels) {
+    if (!backendModels || typeof backendModels !== 'object') {
+      console.warn('convertBackendModels: 输入不是对象', backendModels);
       return [];
     }
 
-    return litellmModels.map(model => {
-      // 根据实际数据结构获取模型名称
-      const modelName = model.model_name || model.id?.model_name || model.id || '';
+    const models = [];
+    
+    // 遍历后端返回的模型对象
+    for (const [modelId, modelInfo] of Object.entries(backendModels)) {
+      if (!modelInfo || typeof modelInfo !== 'object') {
+        console.warn(`跳过无效的模型信息: ${modelId}`, modelInfo);
+        continue;
+      }
       
-      // 使用智能提供商推断逻辑
-      const provider = this._inferProviderFromModelName(modelName);
+      const modelName = modelInfo.name || modelId;
+      const provider = modelInfo.provider || 'unknown';
       
       console.log(`转换模型: ${modelName} -> 提供商: ${provider}`);
-
-      return {
-        id: modelName,
+      
+      models.push({
+        id: modelId,
+        name: modelName,
         provider: provider,
         // 保留原始数据以备后用
-        originalData: model
-      };
-    });
-  }
-
-  /**
-   * 根据模型名称智能推断提供商
-   * @param {string} modelName - 模型名称
-   * @returns {string} 提供商名称
-   */
-  _inferProviderFromModelName(modelName) {
-    if (!modelName) {
-      return 'unknown';
+        originalData: modelInfo
+      });
     }
-
-    // 定义模型名称前缀与提供商的映射
-    const providerMapping = {
-      'openai/deepseek': 'DeepSeek',
-      'openai/qwen': '阿里云',
-      'openai/qwen3': '阿里云',
-      'openai/kimi': 'Kimi',
-      'openai/glm': '智谱AI',
-      'openai/deepseek-ai': '硅基流动',
-      'gemini/gemini': 'Google Gemini',
-      'ollama/': 'Ollama',
-      'anthropic/claude': 'Anthropic',
-      'openai/gpt': 'OpenAI',
-      'openai/dall': 'OpenAI',
-      'openai/tts': 'OpenAI',
-      'openai/whisper': 'OpenAI'
-    };
-
-    // 检查模型名称是否匹配已知前缀
-    for (const [prefix, providerName] of Object.entries(providerMapping)) {
-      if (modelName.startsWith(prefix)) {
-        return providerName;
-      }
-    }
-
-    // 如果没有匹配到已知前缀，尝试从斜杠前推断
-    if (modelName.includes('/')) {
-      const firstPart = modelName.split('/')[0];
-      const prefixToProvider = {
-        'openai': 'OpenAI兼容',
-        'gemini': 'Google Gemini',
-        'ollama': 'Ollama',
-        'anthropic': 'Anthropic',
-        'cohere': 'Cohere',
-        'azure': 'Azure OpenAI'
-      };
-      
-      if (prefixToProvider[firstPart]) {
-        return prefixToProvider[firstPart];
-      }
-    }
-
-    return 'unknown';
+    
+    return models;
   }
 
   /**
@@ -230,65 +175,35 @@ class ModelSelectionService {
   }
 
   /**
-   * 刷新模型列表（重新从litellm网关获取）
-   */
-  async refreshModels() {
-    try {
-      // 直接调用getAvailableModels来刷新模型列表
-      const result = await this.getAvailableModels();
-      return {
-        success: result.success,
-        message: result.success ? '模型列表刷新成功' : result.error
-      };
-    } catch (error) {
-      console.error('刷新模型列表失败:', error);
-      return {
-        success: false,
-        error: '刷新模型列表失败: ' + error.message
-      };
-    }
-  }
-
-  /**
-   * 获取嵌入模型列表 - 从litellm网关获取
+   * 获取嵌入模型列表 - 从后端API获取
    */
   async getEmbeddingModels() {
     try {
-      // 从litellm网关获取模型列表
-      const response = await fetch(`${this.litellmBaseURL}/model/info`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // 使用providerService获取常用模型列表
+      const result = await providerService.getFavoriteModels();
+      
+      if (result.success) {
+        console.log('从后端获取的模型数据:', result.models);
+        
+        // 将后端返回的模型数据转换为前端期望的格式
+        const models = this.convertBackendModels(result.models);
+        
+        // 只保留嵌入模型
+        const embeddingModels = this.filterNonEmbeddingModels(models);
+        
+        return {
+          success: true,
+          models: embeddingModels,
+          message: '嵌入模型列表获取成功'
+        };
+      } else {
+        throw new Error(result.error);
       }
-
-      const data = await response.json();
-      
-      // 根据实际返回的数据结构获取模型列表
-      const modelsData = data.all_models || data.data || data.models || [];
-      console.log('从litellm获取的原始数据:', data);
-      console.log('解析出的模型数据:', modelsData);
-      
-      // 转换litellm返回的数据格式为前端期望的格式
-      const models = this.convertLiteLLMModels(modelsData);
-      
-      // 只保留嵌入模型
-      const embeddingModels = this.filterNonEmbeddingModels(models);
-      
-      return {
-        success: true,
-        models: embeddingModels,
-        message: '嵌入模型列表获取成功'
-      };
     } catch (error) {
       console.error('获取嵌入模型列表失败:', error);
       return {
         success: false,
-        error: '从litellm网关获取嵌入模型列表失败: ' + error.message,
+        error: '获取嵌入模型列表失败: ' + error.message,
         models: []
       };
     }

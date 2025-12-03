@@ -3,8 +3,11 @@ from pathlib import Path
 from typing import Optional, Dict, Any, TypedDict
 import sys
 import os
-sys.path.append(os.path.dirname(__file__))
-from prompts import sys_prompts
+import time
+import logging
+from backend.ai_agent.prompts import sys_prompts
+
+logger = logging.getLogger(__name__)
 
 class AISettings:
     """
@@ -13,116 +16,101 @@ class AISettings:
     
     def __init__(self):
         # 从ai_agent目录向上找到config目录
-        self._config_file = Path(__file__).parent.parent / "config" / "store.json"
+        self._config_file = Path(__file__).parent.parent / "data" / "config" / "store.json"
         
         # AI模型配置,超时暂时调大一点
         self.model: str = "deepseek-chat"
         self.temperature: float = 0.7
         self.max_tokens: int = 4096
         self.timeout: int = 300
-        
-        # API密钥配置（在属性中动态获取）
-        self.api_key = None  # 将在属性中动态获取
-        self.base_url = self._get_config("deepseekApiUrl", "https://api.deepseek.com")
-        
-        # 多模型支持配置
-        self.ENABLE_DEEPSEEK: bool = True
-        self.ENABLE_OLLAMA: bool = True
-        self.ENABLE_OPENROUTER: bool = True
-        self.ENABLE_ALIYUN: bool = True
-        self.ENABLE_SILICONFLOW: bool = True
-        self.ENABLE_GEMINI: bool = True
-        self.ENABLE_ZHIPUAI: bool = True
-        self.ENABLE_KIMI: bool = True
+
     
-    def _load_config(self) -> Dict[str, Any]:
-        """从 store.json 加载配置"""
+    # 获取配置的方法
+    def _get_config(self, key: str, default: Any = None) -> Any:
+        """获取配置值"""
         if not self._config_file.exists():
-            return {}
+            # 如果配置文件不存在，创建默认配置文件
+            try:
+                self._config_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._config_file, 'w', encoding='utf-8') as f:
+                    json.dump({}, f, ensure_ascii=False, indent=2)
+                return default
+            except Exception as e:
+                print(f"创建配置文件失败: {e}")
+                return default
+        
+        try:
+            with open(self._config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                return config.get(key, default)
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"读取配置文件失败: {e}")
+            return default
+
+    # 获取所有配置
+    def get_all_config(self) -> Dict[str, Any]:
+        """获取所有配置"""
+        if not self._config_file.exists():
+            # 如果配置文件不存在，创建默认配置文件
+            try:
+                self._config_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._config_file, 'w', encoding='utf-8') as f:
+                    json.dump({}, f, ensure_ascii=False, indent=2)
+                return {}
+            except Exception as e:
+                print(f"创建配置文件失败: {e}")
+                return {}
         
         try:
             with open(self._config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, Exception):
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"读取配置文件失败: {e}")
             return {}
     
-    def _get_config(self, key: str, default: Any = None) -> Any:
-        """获取配置值"""
-        config = self._load_config()
-        value = config.get(key, default)
-        
-        # 处理嵌套的配置结构
-        if isinstance(value, dict):
-            if 'value' in value:
-                return value['value']
-            elif 'success' in value and 'value' in value:
-                return value['value']
-        
-        return value
-    
-    @property
-    def DEEPSEEK_API_KEY(self) -> Optional[str]:
-        """DeepSeek API密钥（动态加载）"""
-        api_key = self._get_config("deepseekApiKey")
-        if not api_key:
-            print("警告: DeepSeek API密钥未设置，请检查config/store.json")
-        return api_key
-    
-    @property
-    def OPENROUTER_API_KEY(self) -> Optional[str]:
-        """OpenRouter API密钥（动态加载）"""
-        return self._get_config("openrouterApiKey")
-    
-    @property
-    def ALIYUN_API_KEY(self) -> Optional[str]:
-        """阿里云API密钥（动态加载）"""
-        return self._get_config("aliyunApiKey")
-    
-    @property
-    def SILICONFLOW_API_KEY(self) -> Optional[str]:
-        """硅基流动API密钥（动态加载）"""
-        return self._get_config("siliconflowApiKey")
-    
-    @property
-    def GEMINI_API_KEY(self) -> Optional[str]:
-        """Google Gemini API密钥（动态加载）"""
-        return self._get_config("geminiApiKey")
-    
-    @property
-    def ZHIPUAI_API_KEY(self) -> Optional[str]:
-        """智谱AI API密钥（动态加载）"""
-        return self._get_config("zhipuaiApiKey")
-    
-    @property
-    def KIMI_API_KEY(self) -> Optional[str]:
-        """Kimi API密钥（动态加载）"""
-        return self._get_config("kimiApiKey")
-    
-    
-    @property
-    def OLLAMA_MODELS(self) -> list:
-        """Ollama可用模型列表（动态加载）"""
-        return self._get_config("ollamaModels", [])
-    
+    # 获取api_key配置
     def get_api_key_for_provider(self, provider: str) -> Optional[str]:
         """根据提供商获取对应的API密钥"""
-        provider_keys = {
-            "deepseek": self.DEEPSEEK_API_KEY,
-            "openrouter": self.OPENROUTER_API_KEY,
-            "aliyun": self.ALIYUN_API_KEY,
-            "siliconflow": self.SILICONFLOW_API_KEY,
-            "gemini": self.GEMINI_API_KEY,
-            "zhipuai": self.ZHIPUAI_API_KEY,
-            "kimi": self.KIMI_API_KEY,
+        if provider == "ollama":
+            return ""
+        # 内置提供商的配置键映射
+        provider_config_keys = {
+            "deepseek": "deepseekApiKey",
+            "openrouter": "openrouterApiKey",
+            "aliyun": "aliyunApiKey",
+            "siliconflow": "siliconflowApiKey",
+            "zhipuai": "zhipuaiApiKey",
+            "kimi": "kimiApiKey",
         }
-        return provider_keys.get(provider)
+        
+        # 如果是内置提供商，直接获取配置
+        if provider in provider_config_keys:
+            api_key = self._get_config(provider_config_keys[provider])
+            return api_key
+        
+        # 检查自定义提供商
+        custom_providers = self._get_config("customProviders", [])
+        for custom_provider in custom_providers:
+            if custom_provider.get("name") == provider:
+                return custom_provider.get("apiKey")
+        
+        return None
+    
     
     def get_base_url_for_provider(self, provider: str) -> Optional[str]:
         """根据提供商获取对应的base_url"""
-        if provider == "deepseek":
-            return self.base_url
-        elif provider == "ollama":
-            return self.OLLAMA_BASE_URL
+        # 先检查内置提供商
+        from backend.ai_agent.models.providers_list import BUILTIN_PROVIDERS
+        
+        if provider in BUILTIN_PROVIDERS:
+            return BUILTIN_PROVIDERS[provider]
+        
+        # 检查自定义提供商
+        custom_providers = self._get_config("customProviders", [])
+        for custom_provider in custom_providers:
+            if custom_provider.get("name") == provider:
+                return custom_provider.get("baseUrl")
+        
         # 其他提供商使用默认base_url
         return None
     
@@ -130,11 +118,6 @@ class AISettings:
     def DEFAULT_MODEL(self) -> str:
         """默认模型（动态加载）"""
         return self._get_config("selectedModel", "deepseek-chat")
-    
-    @property
-    def OLLAMA_BASE_URL(self) -> str:
-        """Ollama服务地址（动态加载）"""
-        return self._get_config("ollamaBaseUrl", "http://127.0.0.1:11434")
     
     @property
     def CURRENT_MODE(self) -> str:
@@ -178,12 +161,71 @@ class AISettings:
         
         # 否则使用全局默认值
         return self.max_tokens
+    
+    def save_config(self, key: str, value: Any) -> bool:
+        """保存配置值"""
+        try:
+            # 确保配置文件存在
+            if not self._config_file.exists():
+                self._config_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._config_file, 'w', encoding='utf-8') as f:
+                    json.dump({}, f, ensure_ascii=False, indent=2)
+            
+            # 读取现有配置
+            with open(self._config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            # 更新配置
+            config[key] = value
+            
+            # 保存配置
+            with open(self._config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+            
+            return True
+        except Exception as e:
+            print(f"保存配置失败: {e}")
+            return False
+    
+    def update_config(self, updates: Dict[str, Any]) -> bool:
+        """批量更新配置"""
+        try:
+            # 确保配置文件存在
+            if not self._config_file.exists():
+                self._config_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._config_file, 'w', encoding='utf-8') as f:
+                    json.dump({}, f, ensure_ascii=False, indent=2)
+            
+            # 读取现有配置
+            with open(self._config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            # 批量更新配置
+            config.update(updates)
+            
+            # 保存配置
+            with open(self._config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+            
+            return True
+        except Exception as e:
+            print(f"更新配置失败: {e}")
+            return False
+    
+    def get_thread_id(self) -> str:
+        """获取thread_id，如果不存在则创建一个新的"""
+        thread_id = self._get_config("thread_id")
+        if not thread_id:
+            # 创建基于时间戳的新thread_id
+            thread_id = f"thread_{int(time.time() * 1000)}"
+            self.save_config("thread_id", thread_id)
+            logger.info(f"创建新的thread_id: {thread_id}")
+        return thread_id
 
 # 定义状态类型
 class State(TypedDict):
-    """包含消息和总结的状态"""
+    """包含消息的状态"""
     messages: list  # 移除 add_messages 注解，完全手动管理
-    summary: str  # 对话总结
 
 # 创建全局AI设置实例
 ai_settings = AISettings()

@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from config import settings
+from backend.config import settings
 from ..models import FileItem
 from ..utils.path_validator import PathValidator
 from ..managers.event_manager import file_event_manager

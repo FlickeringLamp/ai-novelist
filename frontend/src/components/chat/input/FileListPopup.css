@@ -1,0 +1,57 @@
+.file-list-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  z-index: 1000;
+  margin-bottom: 5px;
+}
+
+.file-list-popup input {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-bottom: 1px solid #eee;
+  outline: none;
+  font-size: 14px;
+}
+
+.file-list-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+
+.file-list-item:last-child {
+  border-bottom: none;
+}
+
+.file-list-item:hover {
+  background-color: #f5f5f5;
+}
+
+.file-list-item.selected {
+  background-color: #e6f7ff;
+}
+
+
+.file-list-loading {
+  padding: 10px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.file-list-empty {
+  padding: 10px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}

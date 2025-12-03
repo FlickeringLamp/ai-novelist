@@ -9,7 +9,7 @@ class Settings:
     """
     
     def __init__(self):
-        self._config_file = Path("config/store.json")
+        self._config_file = Path("backend/data/config/store.json")
         
         # 应用配置
         self.APP_NAME: str = "AI Novelist Backend"
@@ -27,6 +27,10 @@ class Settings:
         # 向量数据库配置 (使用LanceDB)
         self.LANCEDB_PERSIST_DIR: str = str(base_dir / "data" / "lancedb")
         
+        # SQLite数据库配置
+        self.DB_DIR: str = str(base_dir / "data" / "db")
+        self.CHECKPOINTS_DB_PATH: str = str(base_dir / "data" / "db" / "checkpoints.db")
+        
         # 文件配置
         self.MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
         self.ALLOWED_EXTENSIONS: str = ".txt,.md,.pdf,.docx"
@@ -35,6 +39,7 @@ class Settings:
         os.makedirs(self.DATA_DIR, exist_ok=True)
         os.makedirs(self.NOVEL_DIR, exist_ok=True)
         os.makedirs(self.LANCEDB_PERSIST_DIR, exist_ok=True)
+        os.makedirs(self.DB_DIR, exist_ok=True)
     
     def _load_config(self) -> Dict[str, Any]:
         """从 store.json 加载配置"""

@@ -10,7 +10,7 @@ from langgraph.types import interrupt,Command
 # 导入配置和路径验证器
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from config import settings
+from backend.config import settings
 from file.utils.path_validator import PathValidator
 
 class ApplyDiffInput(BaseModel):
@@ -209,6 +209,7 @@ def fuzzy_search(lines: List[str], search_chunk: str, start_index: int, end_inde
 @tool(args_schema=ApplyDiffInput)
 def apply_diff(path: str, diff: str, runtime: ToolRuntime = None) -> str:
     """应用差异修改
+    用于替换已有文本
     
     使用标准的SEARCH/REPLACE块格式来修改文件内容。
     
@@ -235,7 +236,18 @@ def apply_diff(path: str, diff: str, runtime: ToolRuntime = None) -> str:
         diff: 差异内容，必须使用SEARCH/REPLACE块格式
         runtime: LangChain运行时上下文
     """
-    user_choice = interrupt("工具中断，扣1恢复，扣2取消")
+    # 构造包含工具具体信息的中断数据
+    interrupt_data = {
+        "tool_name": "apply_diff",
+        "tool_display_name": "应用差异",
+        "description": f"应用差异: {path}",
+        "parameters": {
+            "path": path,
+            "diff": diff
+        }
+    }
+    user_choice = interrupt(interrupt_data)
+    print(f"用户选择{user_choice}")
     choice_action = user_choice.get("choice_action", "2")
     choice_data = user_choice.get("choice_data", "无附加信息")
     
@@ -243,13 +255,14 @@ def apply_diff(path: str, diff: str, runtime: ToolRuntime = None) -> str:
         try:
             # 初始化路径验证器
             path_validator = PathValidator(settings.NOVEL_DIR)
-            
+            print(f"初始化路径验证{path_validator}")
             # 规范化路径
             clean_path = path_validator.normalize_path(path)
-            
+            print(f"规范化路径{clean_path}")
             # 验证路径安全性
             if not path_validator.is_safe_path(clean_path):
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：应用差异失败，不安全的文件路径: {path}"
+                print(f"")
+                return f"【工具结果】：应用差异失败，不安全的文件路径: {path} ;**【用户信息】：{choice_data}**"
                 
             # 获取完整路径
             file_path = path_validator.get_full_path(clean_path)
@@ -261,14 +274,14 @@ def apply_diff(path: str, diff: str, runtime: ToolRuntime = None) -> str:
             # 验证diff格式
             valid_seq = validate_marker_sequencing(diff)
             if not valid_seq["success"]:
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：应用差异失败: {valid_seq['error']}"
+                return f"【工具结果】：应用差异失败: {valid_seq['error']} ;**【用户信息】：{choice_data}**"
     
             # 解析diff块
             diff_block_pattern = r'(?:^|\n)(?<!\\)<<<<<<< SEARCH\s*\n([\s\S]*?)(?<!\\)-------\s*\n([\s\S]*?)(?:\n)?(?:(?<=\n)(?<!\\)=======\s*\n)([\s\S]*?)(?:\n)?(?:(?<=\n)(?<!\\)>>>>>>> REPLACE)(?=\n|$)'
             matches = list(re.finditer(diff_block_pattern, diff))
     
             if not matches:
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：应用差异失败: 无效的diff格式 - 未找到有效的SEARCH/REPLACE块"
+                return f"【工具结果】：应用差异失败: 无效的diff格式 - 未找到有效的SEARCH/REPLACE块 ;**【用户信息】：{choice_data}**"
     
             # 确定行结束符
             line_ending = "\r\n" if "\r\n" in original_content else "\n"
@@ -377,7 +390,7 @@ def apply_diff(path: str, diff: str, runtime: ToolRuntime = None) -> str:
         
                 # 检查匹配结果
                 if match_index == -1 or best_match_score < FUZZY_THRESHOLD:
-                    error_msg = f"【用户额外信息】：{choice_data}，【工具执行结果】：未找到足够相似的匹配 (相似度: {best_match_score:.2f}, 需要: {FUZZY_THRESHOLD})"
+                    error_msg = f"【工具结果】：未找到足够相似的匹配 (相似度: {best_match_score:.2f}, 需要: {FUZZY_THRESHOLD}) ;**【用户信息】：{choice_data}**"
                     # 显示附近的内容
                     start = max(0, start_line - 5)
                     end = min(len(result_lines), start_line + 5)
@@ -421,20 +434,20 @@ def apply_diff(path: str, diff: str, runtime: ToolRuntime = None) -> str:
             # 检查应用结果
             if applied_count == 0:
                 error_details = "\n".join([part["error"] for part in fail_parts])
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：应用差异失败: 未应用任何更改。所有diff部分都失败了。\n失败详情:\n{error_details}"
+                return f"【工具结果】：应用差异失败: 未应用任何更改。所有diff部分都失败了。\n失败详情:\n{error_details} ;**【用户信息】：{choice_data}**"
     
             # 写入修改后的内容
             new_content = line_ending.join(result_lines)
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
     
-            success_msg = f"【用户额外信息】：{choice_data}，【工具执行结果】：差异已成功应用到文件 '{path}'，应用了 {applied_count} 个更改"
+            success_msg = f"【工具结果】：差异已成功应用到文件 '{path}'，应用了 {applied_count} 个更改 ;**【用户信息】：{choice_data}**"
             if fail_parts:
                 error_details = "\n".join([part["error"] for part in fail_parts])
-                success_msg += f"【用户额外信息】：{choice_data}，【工具执行结果】： {len(fail_parts)} 个更改失败:\n{error_details}"
-    
-                return success_msg
+                success_msg += f"【工具结果】： {len(fail_parts)} 个更改失败:\n{error_details} ;**【用户信息】：{choice_data}**"
+
+            return success_msg
         except Exception as e:
-            return f"【用户额外信息】：{choice_data}，【工具执行结果】：应用差异失败: {str(e)}"
+            return f"【工具结果】：应用差异失败: {str(e)} ;**【用户信息】：{choice_data}**"
     else:
-        return f"【用户额外信息】：{choice_data}，【工具执行结果】：用户取消了工具"
+        return f"【工具结果】：用户取消了工具 ;**【用户信息】：{choice_data}**"

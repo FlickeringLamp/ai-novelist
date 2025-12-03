@@ -1,0 +1,150 @@
+/* 自动批准配置容器 */
+.auto-approve-container {
+  position: relative;
+  display: flex;
+  width: 100%;
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+/* 自动批准配置按钮 */
+.auto-approve-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 8px 12px;
+  background-color: var(--panel-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.auto-approve-button:hover {
+  border-color: var(--primary-color);
+  background-color: var(--hover-bg-color);
+}
+
+.auto-approve-status {
+  color: var(--text-color-primary);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.expand-icon {
+  color: var(--text-color-light);
+  font-size: 12px;
+  margin-left: 8px;
+  transition: transform 0.2s ease;
+}
+
+/* 自动批准配置面板 */
+.auto-approve-panel {
+  position: absolute;
+  bottom: 100%;
+  left: -150px;
+  right: -10px;
+  background-color: var(--panel-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+
+/* 自动批准配置内容 */
+.auto-approve-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--text-color-primary);
+  cursor: pointer;
+}
+
+.setting-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.setting-description {
+  font-size: 13px;
+  color: var(--text-color-light);
+  margin-left: 24px;
+  line-height: 1.4;
+}
+
+.delay-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 24px;
+}
+
+.delay-slider {
+  flex: 1;
+  min-width: 150px;
+}
+
+.delay-value {
+  font-weight: 500;
+  color: var(--text-color-primary);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* 加载状态 */
+.auto-approve-config.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  color: var(--text-color-light);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .auto-approve-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 5%;
+    right: 5%;
+    width: 90%;
+    max-height: 60vh;
+  }
+  
+  .delay-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .delay-slider {
+    width: 100%;
+    min-width: auto;
+  }
+}

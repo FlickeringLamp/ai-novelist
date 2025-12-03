@@ -71,7 +71,9 @@ function OverlayPanel({ children, isVisible = false }) {
       className="overlay-panel"
       style={overlayStyle}
     >
-      {children}
+      <div className="overlay-content">
+        {children}
+      </div>
     </div>
   );
 }

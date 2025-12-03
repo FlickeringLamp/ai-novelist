@@ -1,16 +1,18 @@
 /* 模式选择器容器 */
 .mode-selector-container {
   position: relative;
-  display: inline-block;
+  display: flex;
+  width: 100%;
   z-index: 100;
-  box-sizing: border-box; /* 确保容器也使用border-box */
+  box-sizing: border-box;
 }
 
-/* 模式选择器栏 */
-.mode-selector-bar {
+/* 模式选择器按钮 */
+.mode-selector-button {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  width: 100%;
   padding: 8px 12px;
   background-color: var(--panel-bg-color);
   border: 1px solid var(--border-color);
@@ -18,9 +20,10 @@
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 36px;
+  box-sizing: border-box;
 }
 
-.mode-selector-bar:hover {
+.mode-selector-button:hover {
   border-color: var(--primary-color);
   background-color: var(--hover-bg-color);
 }
@@ -34,20 +37,6 @@
   text-overflow: ellipsis;
 }
 
-.mode-search-input-bar {
-  width: 100%;
-  background: transparent;
-  border: none;
-  color: var(--text-color-primary);
-  font-size: 14px;
-  outline: none;
-  padding: 0;
-}
-
-.mode-search-input-bar::placeholder {
-  color: var(--text-color-light);
-}
-
 .expand-icon {
   color: var(--text-color-light);
   font-size: 12px;
@@ -55,11 +44,47 @@
   transition: transform 0.2s ease;
 }
 
+/* 模式选择器面板 */
+.mode-selector-panel {
+  position: absolute;
+  bottom: 100%;
+  left: -10px;
+  right: -150px;
+  background-color: var(--panel-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+
+/* 模式搜索输入框 */
+.mode-search-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--divider-color);
+  color: var(--text-color-primary);
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.mode-search-input::placeholder {
+  color: var(--text-color-light);
+}
+
 /* 模式列表 */
 .mode-list {
   flex: 1;
   overflow-y: auto;
 }
+
 .mode-item {
   display: flex;
   flex-direction: column;
@@ -68,7 +93,6 @@
   transition: background-color 0.2s ease;
   border-bottom: 1px solid var(--divider-color);
 }
-
 
 .mode-item:hover {
   background-color: var(--hover-bg-color);
@@ -99,7 +123,7 @@
   padding: 10px;
   border-top: 1px solid var(--divider-color);
   background-color: var(--panel-bg-color-alt);
-  min-height: 44px; /* 确保分页区域有足够高度 */
+  min-height: 44px;
 }
 
 .pagination-btn {
@@ -154,21 +178,4 @@
 
 .mode-list::-webkit-scrollbar-thumb:hover {
   background: var(--primary-color);
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .mode-selector-container {
-    width: 100%;
-  }
-  
-  .mode-selector-dropdown {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 300px;
-    max-height: 60vh;
-  }
 }

@@ -7,6 +7,7 @@ from langchain.tools import tool
 from langchain_core.tools import BaseTool
 from langchain_community.vectorstores import LanceDB
 from langchain_community.embeddings import DashScopeEmbeddings
+from langgraph.types import interrupt
 
 # 导入emb_service中的函数
 import sys
@@ -19,47 +20,54 @@ from embedding.emb_service import (
     list_available_tables,
     db_path
 )
+from backend.embedding.embedding_api import get_emb_model_key_url_dimensions
 
 class SearchEmbeddingInput(BaseModel):
     """嵌入搜索的输入参数"""
     query: str = Field(description="搜索查询文本")
-    table_name: Optional[str] = Field(default=None, description="指定搜索的表名，如果不指定则列出所有可用表")
+    table_name: str = Field(description="指定搜索的表名")
     top_k: Optional[int] = Field(default=5, description="返回的结果数量")
 
 
 @tool(args_schema=SearchEmbeddingInput)
-def search_embedding(query: str, table_name: Optional[str] = None,
+def search_embedding(query: str, table_name: str,
                     top_k: Optional[int] = 5) -> str:
     """在向量数据库中搜索相似内容便于文本参考
     Args:
         query: 搜索查询文本
-        table_name: 指定搜索的表名，如果不指定则列出所有可用表
+        table_name: 指定搜索的表名
         top_k: 返回的结果数量
     """
+    # 构造包含工具具体信息的中断数据
+    interrupt_data = {
+        "tool_name": "search_embedding",
+        "tool_display_name": "向量搜索",
+        "description": f"向量搜索: {query} (表: {table_name or '所有表'}, 结果数: {top_k})",
+        "parameters": {
+            "query": query,
+            "table_name": table_name,
+            "top_k": top_k
+        }
+    }
+    user_choice = interrupt(interrupt_data)
+    choice_action = user_choice.get("choice_action", "2")
+    choice_data = user_choice.get("choice_data", "无附加信息")
+    
+    if choice_action != "1":
+        return f"【工具结果】：用户取消了向量搜索 ;**【用户信息】：{choice_data}**"
+    
     try:
         # 加载配置
-        _config = load_config()
-        embedding_model = _config.get("embeddingModel")
-        embedding_url = _config.get("embeddingUrl")
-        embedding_api_key = _config.get("embeddingApiKey")
+        provider, embedding_model, embedding_url, api_key, dimensions = get_emb_model_key_url_dimensions()
         
         # 准备嵌入模型
-        embeddings = prepare_emb(embedding_model, embedding_url, embedding_api_key)
+        embeddings = prepare_emb(provider, embedding_model, embedding_url, api_key)
         
-        # 如果没有指定表名，列出所有可用表
-        if not table_name:
-            available_tables = list_available_tables(db_path, embeddings)
-            if not available_tables:
-                return "【工具执行结果】：没有可用的知识库表，请先创建知识库"
-            
-            table_names = [table["table_name"] for table in available_tables]
-            table_list = "\n".join([f"- {name}" for name in table_names])
-            return f"【工具执行结果】：可用知识库表：\n{table_list}\n\n请使用table_name参数指定要搜索的表"
         
         # 加载指定的向量数据库
         vector_store = load(embeddings, db_path, table_name)
         if not vector_store:
-            return f"【工具执行结果】：无法加载表 '{table_name}'，请检查表名是否正确"
+            return f"【工具结果】：无法加载表 '{table_name}'，请检查表名是否正确 ;**【用户信息】：{choice_data}**"
         
         # 执行搜索
         results = vector_store.similarity_search_with_score(
@@ -68,7 +76,7 @@ def search_embedding(query: str, table_name: Optional[str] = None,
         )
         
         if not results:
-            return f"【工具执行结果】：在表 '{table_name}' 中没有找到与查询 '{query}' 相关的内容"
+            return f"【工具结果】：在表 '{table_name}' 中没有找到与查询 '{query}' 相关的内容 ;**【用户信息】：{choice_data}**"
         
         # 格式化搜索结果
         formatted_results = []
@@ -85,10 +93,10 @@ def search_embedding(query: str, table_name: Optional[str] = None,
         
         results_text = "\n".join(formatted_results)
         
-        return f"【工具执行结果】：在表 '{table_name}' 中找到 {len(results)} 个与查询 '{query}' 相关的结果：\n\n{results_text}"
+        return f"【工具结果】：在表 '{table_name}' 中找到 {len(results)} 个与查询 '{query}' 相关的结果：\n\n{results_text} ;**【用户信息】：{choice_data}**"
         
     except Exception as e:
-        return f"【工具执行结果】：搜索过程中发生错误: {str(e)}"
+        return f"【工具结果】：搜索过程中发生错误: {str(e)} ;**【用户信息】：{choice_data}**"
 
 
 class ListKnowledgeBaseInput(BaseModel):
@@ -102,21 +110,34 @@ def list_knowledge_base(show_details: Optional[bool] = True) -> str:
     Args:
         show_details: 是否显示详细信息
     """
+    # 构造包含工具具体信息的中断数据
+    interrupt_data = {
+        "tool_name": "list_knowledge_base",
+        "tool_display_name": "列出知识库",
+        "description": f"列出所有知识库表 (详细信息: {show_details})",
+        "parameters": {
+            "show_details": show_details
+        }
+    }
+    user_choice = interrupt(interrupt_data)
+    choice_action = user_choice.get("choice_action", "2")
+    choice_data = user_choice.get("choice_data", "无附加信息")
+    
+    if choice_action != "1":
+        return f"【工具结果】：用户取消了列出知识库 ;**【用户信息】：{choice_data}**"
+    
     try:
         # 加载配置
-        _config = load_config()
-        embedding_model = _config.get("embeddingModel")
-        embedding_url = _config.get("embeddingUrl")
-        embedding_api_key = _config.get("embeddingApiKey")
+        provider, embedding_model, embedding_url, api_key, dimensions = get_emb_model_key_url_dimensions()
         
         # 准备嵌入模型
-        embeddings = prepare_emb(embedding_model, embedding_url, embedding_api_key) if show_details else None
+        embeddings = prepare_emb(provider, embedding_model, embedding_url, api_key) if show_details else None
         
         # 列出所有可用表
         available_tables = list_available_tables(db_path, embeddings)
         
         if not available_tables:
-            return "【工具执行结果】：没有可用的知识库表"
+            return f"【工具结果】：没有可用的知识库表 ;**【用户信息】：{choice_data}**"
         
         # 格式化结果
         if show_details:
@@ -127,18 +148,18 @@ def list_knowledge_base(show_details: Optional[bool] = True) -> str:
                 created_at = table.get("created_at", "未知")
                 total_chunks = table.get("total_chunks", "未知")
                 
-                table_info = f"表名: {table_name}\n"
+                table_info = f"table_name: {table_name}\n"
                 table_info += f"原始文件名: {original_filename}\n"
                 table_info += f"创建时间: {created_at}\n"
                 table_info += f"文档块数: {total_chunks}\n"
                 formatted_tables.append(table_info)
             
             tables_text = "\n".join(formatted_tables)
-            return f"【工具执行结果】：找到 {len(available_tables)} 个知识库表：\n\n{tables_text}"
+            return f"【工具结果】：找到 {len(available_tables)} 个知识库表：\n\n{tables_text} ;**【用户信息】：{choice_data}**"
         else:
             table_names = [table.get("table_name", "未知") for table in available_tables]
             tables_text = "\n".join([f"- {name}" for name in table_names])
-            return f"【工具执行结果】：可用的知识库表：\n{tables_text}"
+            return f"【工具结果】：可用的知识库表：\n{tables_text} ;**【用户信息】：{choice_data}**"
             
     except Exception as e:
-        return f"【工具执行结果】：列出知识库时发生错误: {str(e)}"
+        return f"【工具结果】：列出知识库时发生错误: {str(e)} ;**【用户信息】：{choice_data}**"

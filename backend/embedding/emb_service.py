@@ -12,29 +12,32 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_ollama import OllamaEmbeddings
 
-# 导入配置
+
 def load_config():
-    """从 store.json 加载配置"""
-    config_file = Path(__file__).parent.parent / "config" / "store.json"
-    if not config_file.exists():
-        return {}
+    """
+    加载配置文件
     
+    Returns:
+        dict: 配置字典
+    """
     try:
+        config_dir = os.path.join(os.path.dirname(__file__), "..", "data", "config")
+        config_file = os.path.join(config_dir, "store.json")
+        
+        # 如果配置文件不存在，创建空配置文件
+        if not os.path.exists(config_file):
+            os.makedirs(config_dir, exist_ok=True)
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump({}, f, ensure_ascii=False, indent=2)
+            print(f"已创建新配置文件: {config_file}")
+            return {}
+        
+        # 加载现有配置文件
         with open(config_file, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except (json.JSONDecodeError, Exception):
+    except Exception as e:
+        print(f"加载配置文件失败: {e}")
         return {}
-
-# 从配置中获取嵌入模型相关设置
-_config = load_config()
-embedding_model = _config.get("embeddingModel")
-embedding_url = _config.get("embeddingUrl")
-
-# 从配置中获取文档分块相关设置
-chunk_size = _config.get("ragChunkSize", 200)
-chunk_overlap = _config.get("ragChunkOverlap", 20)
-# 返回参数
-retrieval_top_k = _config.get("retrievalTopK", 5)
 
 
 def prepare_doc(orgfile_path,chunk_size,chunk_overlap):
@@ -45,6 +48,11 @@ def prepare_doc(orgfile_path,chunk_size,chunk_overlap):
     
     # 获取原始文件名
     original_filename = os.path.basename(orgfile_path)
+    
+    # 获取维度
+    config = load_config()
+    embedding_model_config = config.get("embeddingModels", {})
+    embedding_dimensions = embedding_model_config.get("dimensions", 0)
     
     # 使用配置的分块参数进行文档切分
     text_splitter = RecursiveCharacterTextSplitter(
@@ -68,48 +76,40 @@ def prepare_doc(orgfile_path,chunk_size,chunk_overlap):
             'total_chunks': len(documents),
             'chunk_size': chunk_size,
             'chunk_overlap': chunk_overlap,
+            'dimensions': embedding_dimensions,
             'created_at': datetime.now().isoformat()
         })
     
-    print(f"文档切分完成: 分块长度={chunk_size}, 重叠长度={chunk_overlap}, 切分后文档数量={len(documents)}")
+    print(f"文档切分完成: 分块长度={chunk_size}, 重叠长度={chunk_overlap}, 切分后文档数量={len(documents)},维度={embedding_dimensions}")
     return documents
 
-def prepare_emb(model_id,embedding_url,embedding_api_key=None):
-    if embedding_url == "https://dashscope.aliyuncs.com/compatible-mode/v1":
-        # 去掉id前面的提供商，比如openai/text-embedding-v4的openai
-        if '/' in model_id:
-            embedding_model = model_id.split('/', 1)[1]
-        else:
-            embedding_model = model_id
-        # 创建嵌入模型配置
+def prepare_emb(provider, model_id,embedding_url,embedding_api_key=None):
+    if provider == "aliyun":
         embeddings = DashScopeEmbeddings(
-            model=embedding_model, # 使用配置的嵌入模型名
+            model=model_id,
             dashscope_api_key=embedding_api_key
         )
-        print(f"1. 嵌入模型准备就绪")
+        print(f"aliyun嵌入模型准备就绪")
         return embeddings
-    elif embedding_url == "http://127.0.0.1:11434":
-        if '/' in model_id:
-            embedding_model = model_id.split('/', 1)[1]
-        else:
-            embedding_model = model_id
-        # 创建ollama嵌入模型配置
+
+    elif provider == "ollama":
         embeddings = OllamaEmbeddings(
-            model=embedding_model
+            model=model_id
         )
-        print("2. 嵌入模型准备就绪")
+        print("ollama嵌入模型准备就绪")
         return embeddings
+
     else:
-        # 其他openai兼容的嵌入模型，由于过网关，没必要去除
+        print(f"塞给openaiembeddings的模型名{model_id}")
         embeddings = OpenAIEmbeddings(
-            model=model_id, # 使用传入的模型ID
-            dimensions=None, # 暂时应为 None，使用模型的默认维度，但是需要提取维度信息作为记录。以后考虑增加自定义维度功能
-            openai_api_key="sk-123",
-            openai_api_base="http://127.0.0.1:4000",
+            model=model_id,
+            # dimensions=None,
+            openai_api_key=embedding_api_key,
+            openai_api_base=embedding_url,
             timeout=600,
-            check_embedding_ctx_length=False  # 禁用上下文长度检查，避免token化问题
+            check_embedding_ctx_length=False,  # 禁用上下文长度检查，避免token化问题————不禁用，则阿里云无法使用，openrouter无法使用。某些中转需要不禁用
         )
-        print("3. 嵌入模型准备就绪")
+        print("openai兼容嵌入模型准备就绪")
         return embeddings
 
 
@@ -205,7 +205,7 @@ def list_available_tables(db_path, embeddings=None):
                 # 获取第一条记录来提取元数据
                 # 使用limit(1)只获取一条记录以提高性能
                 results = vector_store.similarity_search_with_score(
-                    query="",  # 空查询，只是为了获取记录
+                    query="test",
                     k=1
                 )
                 
@@ -214,14 +214,20 @@ def list_available_tables(db_path, embeddings=None):
                     original_filename = doc.metadata.get('original_filename', '未知')
                     created_at = doc.metadata.get('created_at', '未知')
                     total_chunks = doc.metadata.get('total_chunks', '未知')
+                    chunk_size = doc.metadata.get('chunk_size', 0)
+                    chunk_overlap = doc.metadata.get('chunk_overlap', 0)
+                    dimensions = doc.metadata.get('dimensions', 0)
                     
                     table_info.update({
                         "original_filename": original_filename,
                         "created_at": created_at,
-                        "total_chunks": total_chunks
+                        "total_chunks": total_chunks,
+                        "chunk_size": chunk_size,
+                        "chunk_overlap": chunk_overlap,
+                        "dimensions": dimensions
                     })
                     
-                    print(f"- 表名: {table_name} | 文件名: {original_filename} | 创建时间: {created_at} | 片段数: {total_chunks}")
+                    print(f"- 表名: {table_name} | 文件名: {original_filename} | 创建时间: {created_at} | 片段数: {total_chunks} | 切分长度: {chunk_size} | 重叠长度: {chunk_overlap}")
                 else:
                     print(f"- 表名: {table_name} | 文件名: 未知 | 状态: 空表")
                     
@@ -315,76 +321,76 @@ def search_emb(vector_store,embeddings,search_input):
         print(f"* {doc.page_content} [{doc.metadata}]")
 
 
-# 主循环：
-def main():
-    while True:
-        user_input=input("1：获取列表，2：删除指定列表，3：嵌入文件，4：加载文件和查询文件，5：更新元数据")
-        if user_input == "1":
-            emb=prepare_emb(embedding_model, embedding_url)
-            available_tables=list_available_tables(db_path,emb)
-            print(available_tables)
-        elif user_input == "2":
-            user_input2=input("请输入要删除的列表")
-            del_result=delete_table(db_path,user_input2)
-            print(del_result)
-        elif user_input == "3":
-            user_input2=input("请输入要嵌入的路径")
-            orgfile_path=user_input2
-            doc=prepare_doc(orgfile_path,chunk_size,chunk_overlap)
-            emb=prepare_emb(embedding_model, embedding_url)
-            create_db(doc, emb, db_path)
-        elif user_input == "4":
-            available_tables=list_available_tables(db_path)
-            user_input2=input("请选择知识库文件")
-            user_input3=input("请输入查询文本")
-            emb=prepare_emb(embedding_model, embedding_url)
-            embdoc=load(emb, db_path, user_input2)
-            search_emb(embdoc,emb,user_input3)
-        elif user_input == "5":
-            # 更新元数据
-            emb=prepare_emb(embedding_model, embedding_url)
-            available_tables=list_available_tables(db_path, emb)
-            table_name = input("请输入要更新的表名: ")
+# # 早期开发时的主循环：
+# def main():
+#     while True:
+#         user_input=input("1：获取列表，2：删除指定列表，3：嵌入文件，4：加载文件和查询文件，5：更新元数据")
+#         if user_input == "1":
+#             emb=prepare_emb(embedding_model, embedding_url)
+#             available_tables=list_available_tables(db_path,emb)
+#             print(available_tables)
+#         elif user_input == "2":
+#             user_input2=input("请输入要删除的列表")
+#             del_result=delete_table(db_path,user_input2)
+#             print(del_result)
+#         elif user_input == "3":
+#             user_input2=input("请输入要嵌入的路径")
+#             orgfile_path=user_input2
+#             doc=prepare_doc(orgfile_path,chunk_size,chunk_overlap)
+#             emb=prepare_emb(embedding_model, embedding_url)
+#             create_db(doc, emb, db_path)
+#         elif user_input == "4":
+#             available_tables=list_available_tables(db_path)
+#             user_input2=input("请选择知识库文件")
+#             user_input3=input("请输入查询文本")
+#             emb=prepare_emb(embedding_model, embedding_url)
+#             embdoc=load(emb, db_path, user_input2)
+#             search_emb(embdoc,emb,user_input3)
+#         elif user_input == "5":
+#             # 更新元数据
+#             emb=prepare_emb(embedding_model, embedding_url)
+#             available_tables=list_available_tables(db_path, emb)
+#             table_name = input("请输入要更新的表名: ")
             
-            # 显示当前元数据
-            try:
-                vector_store = LanceDB(
-                    embedding=emb,
-                    uri=db_path,
-                    table_name=table_name
-                )
-                results = vector_store.similarity_search_with_score(query="", k=1)
-                if results:
-                    doc, score = results[0]
-                    print("当前元数据:")
-                    for key, value in doc.metadata.items():
-                        print(f"  {key}: {value}")
-                else:
-                    print("表中没有数据")
-                    continue
-            except Exception as e:
-                print(f"无法获取表信息: {e}")
-                continue
+#             # 显示当前元数据
+#             try:
+#                 vector_store = LanceDB(
+#                     embedding=emb,
+#                     uri=db_path,
+#                     table_name=table_name
+#                 )
+#                 results = vector_store.similarity_search_with_score(query="", k=1)
+#                 if results:
+#                     doc, score = results[0]
+#                     print("当前元数据:")
+#                     for key, value in doc.metadata.items():
+#                         print(f"  {key}: {value}")
+#                 else:
+#                     print("表中没有数据")
+#                     continue
+#             except Exception as e:
+#                 print(f"无法获取表信息: {e}")
+#                 continue
             
-            # 获取要更新的元数据
-            print("\n请输入要更新的元数据（格式: key=value，输入空行结束）:")
-            metadata_updates = {}
-            while True:
-                line = input().strip()
-                if not line:
-                    break
-                if '=' in line:
-                    key, value = line.split('=', 1)
-                    metadata_updates[key.strip()] = value.strip()
+#             # 获取要更新的元数据
+#             print("\n请输入要更新的元数据（格式: key=value，输入空行结束）:")
+#             metadata_updates = {}
+#             while True:
+#                 line = input().strip()
+#                 if not line:
+#                     break
+#                 if '=' in line:
+#                     key, value = line.split('=', 1)
+#                     metadata_updates[key.strip()] = value.strip()
             
-            if metadata_updates:
-                result = update_table_metadata(db_path, table_name, emb, metadata_updates)
-                print(f"更新结果: {result}")
-            else:
-                print("没有输入要更新的元数据")
-        else:
-            print("无效的输入，请重新选择")
+#             if metadata_updates:
+#                 result = update_table_metadata(db_path, table_name, emb, metadata_updates)
+#                 print(f"更新结果: {result}")
+#             else:
+#                 print("没有输入要更新的元数据")
+#         else:
+#             print("无效的输入，请重新选择")
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

@@ -164,21 +164,52 @@ const ReactMarkdownMessageRenderer = memo(({
     blockquote: CustomBlockquote,
     
     // 图片组件 - 添加加载错误处理
-    img: ({ src, alt, ...props }) => (
-      <img
-        src={src}
-        alt={alt}
-        style={{ 
-          maxWidth: '100%', 
-          height: 'auto',
-          borderRadius: '4px',
-        }}
-        onError={(e) => {
-          e.target.style.display = 'none';
-        }}
-        {...props}
-      />
-    ),
+    img: ({ src, alt, ...props }) => {
+      // 对于placeholder.com的图片，替换为本地默认图片或隐藏
+      if (src && src.includes('via.placeholder.com')) {
+        return (
+          <div
+            style={{
+              maxWidth: '100%',
+              height: '150px',
+              backgroundColor: '#444',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#aaa',
+              fontStyle: 'italic',
+              margin: '0.5em 0'
+            }}
+            {...props}
+          >
+            {alt || '图片'}
+          </div>
+        );
+      }
+      
+      return (
+        <img
+          src={src}
+          alt={alt}
+          style={{
+            maxWidth: '100%',
+            height: 'auto',
+            borderRadius: '4px',
+          }}
+          onError={(e) => {
+            // 图片加载失败时显示占位符
+            e.target.onerror = null; // 防止无限循环
+            e.target.style.display = 'none';
+            const placeholder = document.createElement('div');
+            placeholder.style.cssText = 'max-width:100%;height:150px;background-color:#444;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#aaa;font-style:italic;margin:0.5em 0';
+            placeholder.textContent = alt || '图片加载失败';
+            e.target.parentNode.insertBefore(placeholder, e.target.nextSibling);
+          }}
+          {...props}
+        />
+      );
+    },
     
     // 标题组件 - 添加锚点支持
     h1: ({ children, ...props }) => (
@@ -211,12 +242,11 @@ const ReactMarkdownMessageRenderer = memo(({
         {children}
       </h6>
     ),
-    
-    // 段落组件
+    // 段落组件 - 总是使用div而不是p，以避免嵌套问题
     p: ({ children, ...props }) => (
-      <p style={{ margin: '0.5em 0', lineHeight: '1.6' }} {...props}>
+      <div style={{ margin: '0.5em 0', lineHeight: '1.6' }} {...props}>
         {children}
-      </p>
+      </div>
     ),
     
     // 列表组件
@@ -323,6 +353,11 @@ const styles = `
   padding-left: 1em;
   color: #aaa;
   font-style: italic;
+}
+
+/* 为段落(div)添加样式，因为我们将p替换为div */
+.react-markdown-renderer div[style*="margin: 0.5em 0"] {
+  display: block;
 }
 `;
 

@@ -1,3 +1,51 @@
+/* 模型选择按钮样式 */
+.model-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #3C3C3C 0%, #333333 100%);
+  border: 1px solid #555555;
+  border-radius: 20px; /* 胶囊形状 */
+  color: #E0E0E0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 180px; /* 固定宽度 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.model-button:hover {
+  background: linear-gradient(135deg, #4A4A4A 0%, #404040 100%);
+  border-color: #00AD62;
+  box-shadow: 0 4px 8px rgba(0, 173, 98, 0.2);
+  transform: translateY(-1px);
+}
+
+.model-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 按钮内文本样式 */
+.model-name-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
+}
+
+.model-select-hint {
+  margin-left: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
 /* 模型选择面板样式 - 模仿知识库面板样式 */
 .model-selector-panel {
   position: absolute;

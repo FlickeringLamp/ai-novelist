@@ -1,5 +1,6 @@
 // RAG 服务 - 负责知识库管理、文件上传、检索设置等操作
 import httpClient from '../utils/httpClient.js';
+import globalProviderService from './providerService.js'
 
 class RagService {
   constructor() {
@@ -34,12 +35,14 @@ class RagService {
 
   /**
    * 获取嵌入维度
-   * @param {string} modelId - 模型ID
+   * @param {string} modelInfo - 模型信息，格式为"模型提供商：模型id"
    * @returns {Promise<Object>} 嵌入维度数据
    */
-  async getEmbeddingDimensions(modelId) {
+  async getEmbeddingDimensions(modelInfo) {
     try {
-      const response = await httpClient.get(`/api/embedding/dimensions/${modelId}`);
+      const response = await httpClient.post('/api/embedding/dimensions', {
+        model_info: modelInfo
+      });
       
       // 确保response存在
       if (!response) {
@@ -61,7 +64,7 @@ class RagService {
         success: responseData.success !== undefined ? responseData.success : true,
         dimensions: responseData.dimensions || 1024,
         message: responseData.message || '获取嵌入维度成功',
-        modelId: modelId
+        modelId: modelInfo
       };
     } catch (error) {
       console.error('获取嵌入维度失败:', error);
@@ -72,128 +75,31 @@ class RagService {
       };
     }
   }
+
   /**
-   * 获取嵌入模型列表 - 从litellm网关获取
-   * @returns {Promise<Object>} 嵌入模型列表数据
+   * 获取嵌入模型列表 - 调用provider服务
+   * @param {string} provider_id - 提供商ID
+   * @returns {Promise} 嵌入模型列表
    */
-  async getEmbeddingModels() {
-    try {
-      // 从litellm网关获取模型列表
-      const response = await fetch('http://127.0.0.1:4000/model/info', {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // 根据实际返回的数据结构获取模型列表
-      const modelsData = data.all_models || data.data || data.models || [];
-      console.log('从litellm获取的原始数据:', data);
-      console.log('解析出的模型数据:', modelsData);
-      
-      // 转换litellm返回的数据格式为前端期望的格式
-      const models = this._convertLiteLLMModels(modelsData);
-      
-      // 只保留嵌入模型
-      const embeddingModels = this._filterEmbeddingModels(models);
-      
-      return {
-        success: true,
-        models: embeddingModels,
-        message: '嵌入模型列表获取成功'
-      };
-    } catch (error) {
-      console.error('获取嵌入模型列表失败:', error);
+  async getEmbeddingModels(provider_id) {
+    const response = await globalProviderService.getProviderModels(provider_id);
+    
+    // 检查响应是否成功
+    if (!response.success) {
       return {
         success: false,
-        error: '从litellm网关获取嵌入模型列表失败: ' + error.message,
-        models: []
+        error: response.error || '获取模型列表失败',
+        data: []
       };
     }
-  }
-
-  /**
-   * 转换litellm返回的模型数据格式为前端期望的格式
-   * @param {Array} litellmModels - litellm网关返回的模型数据
-   * @returns {Array} 转换后的模型数据
-   */
-  _convertLiteLLMModels(litellmModels) {
-    if (!Array.isArray(litellmModels)) {
-      console.warn('_convertLiteLLMModels: 输入不是数组', litellmModels);
-      return [];
-    }
-
-    return litellmModels.map(model => {
-      // 根据实际数据结构获取模型名称
-      const modelName = model.model_name || model.id?.model_name || model.id || '';
-      
-      // 使用智能提供商推断逻辑
-      const provider = this._inferProviderFromModelName(modelName);
-      
-      console.log(`转换模型: ${modelName} -> 提供商: ${provider}`);
-
-      return {
-        id: modelName,
-        provider: provider,
-        // 保留原始数据以备后用
-        originalData: model
-      };
-    });
-  }
-
-  /**
-   * 根据模型名称智能推断提供商
-   * @param {string} modelName - 模型名称
-   * @returns {string} 提供商名称
-   */
-  _inferProviderFromModelName(modelName) {
-    if (!modelName) {
-      return 'unknown';
-    }
-
-    // 定义模型名称前缀与提供商的映射
-    const providerMapping = {
-      'openai/deepseek': 'DeepSeek',
-      'openai/qwen': '阿里云',
-      'openai/qwen3': '阿里云',
-      'openai/kimi': 'Kimi',
-      'openai/glm': '智谱AI',
-      'openai/deepseek-ai': '硅基流动',
-      'gemini/gemini': 'Google Gemini',
-      'ollama/': 'Ollama',
+    
+    // 过滤嵌入模型
+    const embedding_list = this._filterEmbeddingModels(response.data || []);
+    return {
+      success: true,
+      data: embedding_list,
+      message: `已获取 ${embedding_list.length} 个嵌入模型`
     };
-
-    // 检查模型名称是否匹配已知前缀
-    for (const [prefix, providerName] of Object.entries(providerMapping)) {
-      if (modelName.startsWith(prefix)) {
-        return providerName;
-      }
-    }
-
-    // 如果没有匹配到已知前缀，尝试从斜杠前推断
-    if (modelName.includes('/')) {
-      const firstPart = modelName.split('/')[0];
-      const prefixToProvider = {
-        'openai': 'OpenAI兼容',
-        'gemini': 'Google Gemini',
-        'ollama': 'Ollama',
-        'anthropic': 'Anthropic',
-        'cohere': 'Cohere',
-        'azure': 'Azure OpenAI'
-      };
-      
-      if (prefixToProvider[firstPart]) {
-        return prefixToProvider[firstPart];
-      }
-    }
-
-    return 'unknown';
   }
 
   /**
@@ -229,6 +135,12 @@ class RagService {
       return false;
     }
 
+    // 重排序模型的关键词 - 需要排除的模型
+    const rerankKeywords = [
+      'rerank',
+      'reranker'
+    ];
+
     // 嵌入模型的关键词
     const embeddingKeywords = [
       'embedding',
@@ -240,8 +152,15 @@ class RagService {
       'qwen3-embedding' // 添加特定的qwen3嵌入模型
     ];
 
-    // 检查模型名称是否包含嵌入模型的关键词
+    // 检查模型名称是否包含重排序模型的关键词
     const lowerModelName = modelName.toLowerCase();
+    
+    // 如果包含重排序关键词，则不是嵌入模型
+    if (rerankKeywords.some(keyword => lowerModelName.includes(keyword))) {
+      return false;
+    }
+
+    // 检查模型名称是否包含嵌入模型的关键词
     return embeddingKeywords.some(keyword => lowerModelName.includes(keyword));
   }
 
@@ -252,6 +171,7 @@ class RagService {
   async listKnowledgeBaseFiles() {
     try {
       const response = await httpClient.get('/api/embedding/rag/files');
+      console.log("文件列表",response.files)
       return {
         success: true,
         files: response.files || [],
@@ -325,20 +245,8 @@ class RagService {
       console.log('准备发送请求到: /api/embedding/rag/chunk-settings');
       const response = await httpClient.get('/api/embedding/rag/chunk-settings');
       console.log('收到响应:', response);
-      console.log('response.data:', response.data);
-      console.log('response.chunkSize:', response?.chunkSize);
-      console.log('response.chunkOverlap:', response?.chunkOverlap);
       
-      // 直接从response对象获取数据，而不是从response.data
-      const chunkSize = response?.chunkSize || response.data?.chunkSize || 100;
-      const chunkOverlap = response?.chunkOverlap || response.data?.chunkOverlap || 20;
-      
-      return {
-        success: true,
-        chunkSize: chunkSize,
-        chunkOverlap: chunkOverlap,
-        message: 'RAG分块设置获取成功'
-      };
+      return response;
     } catch (error) {
       console.error('获取RAG分块设置失败:', error);
       console.error('错误详情:', error.stack);
@@ -347,6 +255,33 @@ class RagService {
         error: 'HTTP 请求失败: ' + error.message,
         chunkSize: 100,
         chunkOverlap: 20
+      };
+    }
+  }
+
+  /**
+   * 保存 RAG 分块设置
+   * @param {number} chunkSize - 分块大小
+   * @param {number} chunkOverlap - 分块重叠大小
+   * @returns {Promise<Object>} 保存结果
+   */
+  async saveRagChunkSettings(chunkSize, chunkOverlap) {
+    console.log('开始保存RAG分块设置...', { chunkSize, chunkOverlap });
+    try {
+      const response = await httpClient.post('/api/embedding/rag/chunk-settings', {
+        chunkSize: parseInt(chunkSize),
+        chunkOverlap: parseInt(chunkOverlap)
+      });
+      console.log('保存RAG分块设置响应:', response);
+      
+      return response;
+    } catch (error) {
+      console.error('保存RAG分块设置失败:', error);
+      return {
+        success: false,
+        error: 'HTTP 请求失败: ' + error.message,
+        chunkSize: chunkSize,
+        chunkOverlap: chunkOverlap
       };
     }
   }

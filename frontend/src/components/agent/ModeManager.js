@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import useHttpService from '../../hooks/useHttpService';
+import configStoreService from '../../services/configStoreService.js';
 
 /**
  * 内置模式配置
@@ -25,14 +25,11 @@ export const BUILTIN_MODES = {
   }
 };
 
-
 /**
  * 模式管理模块 - 作为单一数据源管理所有模式状态
  * 职责：管理所有模式（内置 + 自定义）的状态和操作
  */
 export const useModeManager = () => {
-  const { getStoreValue, setStoreValue } = useHttpService();
-  
   // 模式状态管理 - 单一数据源
   const [customModes, setCustomModes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,7 +40,7 @@ export const useModeManager = () => {
   const initialize = async () => {
     setIsLoading(true);
     try {
-      const storedCustomModes = await getStoreValue('customModes') || [];
+      const storedCustomModes = await configStoreService.getStoreValue('customModes') || [];
       setCustomModes(storedCustomModes);
       console.log('[ModeManager] 初始化完成，自定义模式:', storedCustomModes);
     } catch (error) {
@@ -74,7 +71,7 @@ export const useModeManager = () => {
   const addCustomMode = async (newMode) => {
     try {
       const updatedCustomModes = [...customModes, newMode];
-      await setStoreValue('customModes', updatedCustomModes);
+      await configStoreService.setStoreValue('customModes', updatedCustomModes);
       setCustomModes(updatedCustomModes);
       console.log('[ModeManager] 添加自定义模式:', newMode);
       return updatedCustomModes;
@@ -92,7 +89,7 @@ export const useModeManager = () => {
       const updatedCustomModes = customModes.map(mode =>
         mode.id === modeId ? updatedMode : mode
       );
-      await setStoreValue('customModes', updatedCustomModes);
+      await configStoreService.setStoreValue('customModes', updatedCustomModes);
       setCustomModes(updatedCustomModes);
       console.log('[ModeManager] 编辑自定义模式:', updatedMode);
       return updatedCustomModes;
@@ -108,7 +105,7 @@ export const useModeManager = () => {
   const deleteCustomMode = async (modeId) => {
     try {
       const updatedCustomModes = customModes.filter(mode => mode.id !== modeId);
-      await setStoreValue('customModes', updatedCustomModes);
+      await configStoreService.setStoreValue('customModes', updatedCustomModes);
       setCustomModes(updatedCustomModes);
       console.log('[ModeManager] 删除自定义模式:', modeId);
       return updatedCustomModes;
@@ -124,40 +121,40 @@ export const useModeManager = () => {
   const cleanupModeSettings = async (modeId) => {
     try {
       // 获取当前设置
-      const [customPrompts, modeFeatureSettings, additionalInfo, ragSettings] = await Promise.all([
-        getStoreValue('customPrompts') || {},
-        getStoreValue('modeFeatureSettings') || {},
-        getStoreValue('additionalInfo') || {},
-        getStoreValue('ragSettings') || {}
+      const [customPrompts, additionalInfo, aiParameters, ragSettings] = await Promise.all([
+        configStoreService.getStoreValue('customPrompts') || {},
+        configStoreService.getStoreValue('additionalInfo') || {},
+        configStoreService.getStoreValue('aiParameters') || {},
+        configStoreService.getStoreValue('ragSettings') || {}
       ]);
       
       // 删除相关的设置数据
       const updatedPrompts = { ...customPrompts };
       delete updatedPrompts[modeId];
       
-      const updatedFeatureSettings = { ...modeFeatureSettings };
-      delete updatedFeatureSettings[modeId];
-      
       const updatedAdditionalInfo = { ...additionalInfo };
       delete updatedAdditionalInfo[modeId];
+      
+      const updatedAiParameters = { ...aiParameters };
+      delete updatedAiParameters[modeId];
       
       const updatedRagSettings = { ...ragSettings };
       delete updatedRagSettings[modeId];
       
       // 保存清理后的设置
       await Promise.all([
-        setStoreValue('customPrompts', updatedPrompts),
-        setStoreValue('modeFeatureSettings', updatedFeatureSettings),
-        setStoreValue('additionalInfo', updatedAdditionalInfo),
-        setStoreValue('ragSettings', updatedRagSettings)
+        configStoreService.setStoreValue('customPrompts', updatedPrompts),
+        configStoreService.setStoreValue('additionalInfo', updatedAdditionalInfo),
+        configStoreService.setStoreValue('aiParameters', updatedAiParameters),
+        configStoreService.setStoreValue('ragSettings', updatedRagSettings)
       ]);
       
       console.log('[ModeManager] 清理模式设置完成:', modeId);
       
       return {
         customPrompts: updatedPrompts,
-        modeFeatureSettings: updatedFeatureSettings,
         additionalInfo: updatedAdditionalInfo,
+        aiParameters: updatedAiParameters,
         ragSettings: updatedRagSettings
       };
     } catch (error) {
@@ -286,8 +283,14 @@ export const useModeManager = () => {
   /**
    * 获取所有内置模式的默认提示词
    */
-  const getAllDefaultPrompts = () => {
-    return {};
+  const getAllDefaultPrompts = async () => {
+    try {
+      const result = await configStoreService.getDefaultPrompts();
+      return result.prompts || {};
+    } catch (error) {
+      console.error('获取默认提示词失败:', error);
+      return {};
+    }
   };
 
   // 组件挂载时初始化

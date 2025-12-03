@@ -1,391 +1,710 @@
-import React, { useEffect, useRef, useCallback, memo, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import {
-  setQuestionCard,
-  setMessages,
-  stopStreaming,
-} from '../../store/slices/chatSlice';
-import {
-  setSessionHistory,
-  clearInterruptCard
-} from '../../store/slices/messageSlice';
-import {
-  selectChatPanelState
-} from '../../store/selectors';
-import useHttpService from '../../hooks/useHttpService.js';
-import ChatService from '../../services/chatService.js';
-import SettingsManager from './services/SettingsManager';
-import MessageServiceNew from './services/MessageServiceNew';
-import EventListenerManager from './services/EventListenerManager';
-import sessionService from '../../services/sessionService.js';
-import NotificationModal from '../others/NotificationModal';
-import ConfirmationModal from '../others/ConfirmationModal';
-import StreamingSupport from './messagedisplay/StreamingSupport';
-import ChatHeader from './header/ChatHeader';
-import MessageDisplay from './messagedisplay/MessageDisplay';
-import ChatHistoryPanel from './header/ChatHistoryPanel';
-import ModelSelectorPanel from './header/ModelSelectorPanel';
-import ToolActionBar from './input/ToolActionBar';
-import QuestionCard from './input/QuestionCard';
-import ChatInputArea from './input/ChatInputArea';
+import React, { useState, useRef, useEffect } from "react";
 import './ChatPanel.css';
+import ChatHistoryPanel from './header/ChatHistoryPanel.jsx'
+import ModelSelectorPanel from './header/ModelSelectorPanel.jsx'
+import ModeSelector from './input/ModeSelector'
+import MessageInput from './input/MessageInput'
+import MessageDisplay from './messagedisplay/MessageDisplay'
+import AutoApproveConfig from './input/AutoApproveConfig'
+import chatService from '../../services/chatService.js'
+import sessionService from '../../services/sessionService.js'
 
-
-const ChatPanel = memo(() => {
-  const dispatch = useDispatch();
-  // 使用记忆化的选择器获取状态
-  const {
-    messages,
-    questionCard,
-    interruptCard,
-    isHistoryPanelVisible,
-    aliyunEmbeddingApiKey,
-    enableStream,
-    modeFeatureSettings,
-    isStreaming,
-    aiParameters,
-    toolCallState,
-    pendingToolCalls,
-    sessionHistory
-  } = useSelector(selectChatPanelState);
+const ChatPanel = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [currentAiMessage, setCurrentAiMessage] = useState('');
+  const [interruptInfo, setInterruptInfo] = useState(null);
+  const [autoApproveSettings, setAutoApproveSettings] = useState({
+    enabled: false,
+    delay: 1000
+  });
+  const messagesEndRef = useRef(null);
   
-  // 使用 ref 来获取最新的状态值，避免闭包问题
-  const latestAliyunEmbeddingApiKey = useRef(aliyunEmbeddingApiKey);
-  latestAliyunEmbeddingApiKey.current = aliyunEmbeddingApiKey;
+  // 用于生成唯一ID的计数器
+  const messageIdCounter = useRef(0);
   
+  // 生成唯一消息ID的函数
+  const generateMessageId = () => {
+    messageIdCounter.current += 1;
+    return `${Date.now()}_${messageIdCounter.current}`;
+  };
 
-  // 从 novel slice 获取状态
-  const { openTabs } = useSelector((state) => state.novel);
- 
-  const chatDisplayRef = useRef(null);
-  const messageDisplayRef = useRef(null);
-  const currentSessionIdRef = useRef(null);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [confirmationMessage, setConfirmationMessage] = useState('');
-  const [onConfirmCallback, setOnConfirmCallback] = useState(null);
-  const [onCancelCallback, setOnCancelCallback] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '' });
-  const [currentMode, setCurrentMode] = useState('outline'); // 新增：当前创作模式
-  const [customModes, setCustomModes] = useState([]); // 新增：自定义模式列表
-  const [showModelSelectorPanel, setShowModelSelectorPanel] = useState(false);
+  // 自动滚动到最新消息
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
-  const { invoke, getStoreValue, setStoreValue, listAvailableModels, send, on, removeListener, stopStreaming: stopStreamingIpc } = useHttpService();
-  
-  // 创建设置管理器实例
-  const settingsManagerRef = useRef(null);
-  if (!settingsManagerRef.current) {
-    settingsManagerRef.current = new SettingsManager(dispatch);
-    // 设置当前模式变化的回调函数，给settingsManager使用
-    settingsManagerRef.current.onCurrentModeChange = (mode) => {
-      console.log(`[ChatPanel] SettingsManager 请求设置当前模式为: ${mode}`);
-      setCurrentMode(mode);
-    };
-  }
-  // 创建消息服务实例
-  const messageServiceRef = useRef(null);
-  if (!messageServiceRef.current) {
-    messageServiceRef.current = new MessageServiceNew(dispatch);
-  }
-
-
-  // 创建事件监听管理器实例
-  const eventListenerManagerRef = useRef(null);
-  if (!eventListenerManagerRef.current) {
-    eventListenerManagerRef.current = new EventListenerManager(dispatch);
-  }
-
-
-
-  // 将 loadSettings 定义为 useCallback，确保其稳定性
-  // 使用设置管理器加载设置
-  const loadSettings = useCallback(async () => {
-    try {
-      console.log('ChatPanel: 开始使用SettingsManager加载设置...');
-      await settingsManagerRef.current.loadSettings();
-      console.log('ChatPanel: SettingsManager加载设置完成');
-    } catch (error) {
-      console.error('ChatPanel: 使用SettingsManager加载设置失败:', error);
-    }
-  }, []);
-
-  // 新增：处理中断响应
-  const handleInterruptResponse = useCallback(async (interruptData) => {
-    try {
-      console.log('ChatPanel: 处理中断响应:', interruptData);
-      
-      // 立即清除中断卡片，让用户知道响应已发送
-      dispatch(clearInterruptCard());
-      
-      // 使用后端连接器发送中断响应
-      const stream = await ChatService.sendInterruptResponse(interruptData);
-      
-      console.log('中断响应发送成功，开始处理流式响应');
-      
-      // 流式传输开始
-      dispatch({
-        type: 'message/handleStreamingMessage',
-        payload: {
-          type: 'streaming_started'
-        }
-      });
-      
-      // 处理中断响应的流式响应
-      // 如果后端返回新的中断，MessageServiceNew.handleStreamResponse 会自动再次设置中断卡片
-      await messageServiceRef.current.handleStreamResponse(stream, interruptData.threadId);
-      
-    } catch (error) {
-      console.error('ChatPanel: 处理中断响应失败:', error);
-    }
-  }, [dispatch]);
-
-  const handleSendMessage = useCallback(async (messageText) => {
-    try {
-      await messageServiceRef.current.handleSendMessage(messageText, {
-        questionCard,
-        currentSessionIdRef,
-        enableStream,
-        currentMode,
-        modeFeatureSettings,
-        aiParameters,
-        messages,
-        getStoreValue,
-        messageDisplayRef // 新增：传递消息显示组件的引用
-      });
-    } catch (error) {
-      console.error('ChatPanel: 发送消息失败:', error);
-    }
-  }, [questionCard, enableStream, currentMode, modeFeatureSettings, aiParameters, messages]);
-
-
-
-  // 新增：处理模式切换回调
-  const handleModeSwitch = useCallback((mode) => {
-    setCurrentMode(mode);
-    setStoreValue('currentMode', mode);
-  }, [setStoreValue]);
-
-
-  // 新增：处理进入调整模式
-  const handleEnterAdjustmentMode = useCallback(() => {
-    setCurrentMode('adjustment');
-    setStoreValue('currentMode', 'adjustment');
-  }, [setStoreValue]);
-
-  // 从后端加载会话历史
-  const loadSessionHistory = useCallback(async () => {
-    try {
-      const sessionsResult = await sessionService.listSessions();
-      if (sessionsResult.success) {
-        dispatch(setSessionHistory(sessionsResult.sessions));
-      } else {
-        console.error('加载会话历史失败:', sessionsResult.error);
-      }
-    } catch (error) {
-      console.error('加载会话历史失败:', error);
-    }
-  }, [dispatch]);
-
-  const handleResetChat = useCallback(async () => { // 将 handleResetChat 封装为 useCallback
-    try {
-      // 调用后端清除消息API，后端会重新分配会话ID
-      const clearResult = await sessionService.clearMessages();
-      if (clearResult.success) {
-        console.log('[ChatPanel] 消息已清除，新会话ID:', clearResult.new_session_id);
-        
-        // 清除前端消息
-        dispatch(setMessages([])); // 清除聊天消息
-        dispatch(setQuestionCard(null)); // 清除提问卡片
-        dispatch(clearInterruptCard()); // 清除中断卡片
-        currentSessionIdRef.current = clearResult.new_session_id; // 更新当前会话ID
-        
-        // 显示成功消息
-        setNotification({
-          show: true,
-          message: '消息已清除，已开始新的会话'
-        });
-      } else {
-        console.error('[ChatPanel] 清除消息失败:', clearResult.error);
-        setNotification({
-          show: true,
-          message: '清除消息失败: ' + clearResult.error
-        });
-      }
-    } catch (error) {
-      console.error('[ChatPanel] 调用清除消息API失败:', error);
-      setNotification({
-        show: true,
-        message: '清除消息失败: ' + error.message
-      });
-    }
-  }, [dispatch]);
-
-
-
-  // 设置事件监听器
   useEffect(() => {
-    eventListenerManagerRef.current.setupAllListeners(openTabs);
+    scrollToBottom();
+  }, [messages, currentAiMessage]);
 
-    return () => {
-      eventListenerManagerRef.current.cleanupAllListeners();
-    };
-  }, [openTabs]);
-
-  // WebSocket 连接现在在 App 级别管理，这里不再需要
-
-  // 应用启动时加载一次设置
+  // 组件挂载时加载当前thread_id的历史消息
   useEffect(() => {
-    console.log('ChatPanel: 组件挂载，开始加载设置和模型列表');
-    loadSettings();
-  }, [loadSettings]); // loadSettings 已经是 useCallback，依赖稳定
-
-  // 轮询监听存储中customModes的变化，实时更新状态
-  useEffect(() => {
-    let pollingInterval = null;
-    
-    const pollCustomModes = async () => {
+    const loadCurrentThreadMessages = async () => {
       try {
-        const storedCustomModes = await getStoreValue('customModes');
-        // 现在getStoreValue直接返回值，而不是嵌套结构
-        const customModesArray = Array.isArray(storedCustomModes) ? storedCustomModes : [];
-        setCustomModes(prevCustomModes => {
-          // 只有当customModes实际发生变化时才更新状态
-          if (JSON.stringify(prevCustomModes) !== JSON.stringify(customModesArray)) {
-            console.log('[ChatPanel] 检测到customModes存储变化，更新状态:', customModesArray);
-            return customModesArray;
-          }
-          return prevCustomModes;
-        });
-      } catch (error) {
-        console.error('[ChatPanel] 轮询customModes失败:', error);
-      }
-    };
-
-    // 每2秒轮询一次
-    pollingInterval = setInterval(pollCustomModes, 2000);
-    
-    // 立即执行一次
-    pollCustomModes();
-
-    return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
-    };
-  }, [getStoreValue]);
-
-
-
-
-
-
-  // 当历史面板显示时，从后端加载会话历史
-  useEffect(() => {
-    if (isHistoryPanelVisible) {
-      loadSessionHistory();
-    }
-  }, [isHistoryPanelVisible, loadSessionHistory]);
-
-  // 自动滚动聊天区到底部 (此 useEffect 保留)
-  useEffect(() => {
-    if (chatDisplayRef.current) {
-      chatDisplayRef.current.scrollTop = chatDisplayRef.current.scrollHeight;
-    }
-  }, [messages, questionCard, isHistoryPanelVisible]);
-
-  return (
-    <React.Fragment>
-      {/* 流式传输支持组件 */}
-      <StreamingSupport
-        isStreaming={isStreaming}
-        onStopStreaming={() => dispatch(stopStreaming())}
-      />
-      
-      <div className="chat-panel-content">
-        {/* 头部操作栏 */}
-        <ChatHeader
-          showModelSelectorPanel={showModelSelectorPanel}
-          setShowModelSelectorPanel={setShowModelSelectorPanel}
-          setStoreValue={setStoreValue}
-        />
-
-        <button className="reset-chat-button" onClick={handleResetChat}>×</button>
-        
-        {/* 消息展示框 */}
-        <MessageDisplay
-          ref={messageDisplayRef}
-          messages={messages}
-          currentMode={currentMode}
-          currentSessionId={currentSessionIdRef.current}
-          onSetConfirmation={({ message, onConfirm, onCancel, show }) => {
-            if (show === false) {
-              setShowConfirmationModal(false);
+        // 获取当前的thread_id
+        const threadResponse = await chatService.getCurrentThreadId();
+        if (threadResponse.success && threadResponse.thread_id) {
+          const threadId = threadResponse.thread_id;
+          console.log('加载当前thread_id的历史消息:', threadId);
+          // 获取该thread_id的历史消息
+          const messagesResult = await sessionService.getSessionMessages(threadId);
+          if (messagesResult.success && messagesResult.messages && messagesResult.messages.length > 0) {
+            // 将消息转换为前端期望的格式
+            const formattedMessages = messagesResult.messages.map(msg => {
+              // 将后端消息类型转换为前端角色
+              let role;
+              if (msg.message_type === 'human') {
+                role = 'user';
+              } else if (msg.message_type === 'ai') {
+                role = 'assistant';
+              } else {
+                role = msg.message_type; // 'tool' 或其他类型
+              }
+              
+              return {
+                id: msg.message_id || `msg_${msg.index}`,
+                role: role,
+                content: msg.content,
+                tool_calls: msg.tool_calls
+              };
+            });
+            
+            // 检查最后一条消息是否是包含工具调用的AI消息
+            const lastMessage = formattedMessages[formattedMessages.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+              // 如果最后一条消息是包含工具调用的AI消息，需要将其转换为工具请求状态
+              // 1. 将AI消息的内容和工具调用分开
+              const aiMessage = {
+                ...lastMessage,
+                tool_calls: [] // AI消息本身不包含工具调用
+              };
+              
+              // 2. 创建工具请求消息
+              const toolRequestMessage = {
+                id: generateMessageId(),
+                role: 'tool_request',
+                content: '',
+                tool_calls: lastMessage.tool_calls
+              };
+              
+              // 3. 替换最后一条消息并添加工具请求消息
+              const updatedMessages = [...formattedMessages.slice(0, -1), aiMessage, toolRequestMessage];
+              
+              // 4. 设置中断信息以显示批准/拒绝按钮
+              if (lastMessage.tool_calls.length > 0) {
+                const toolCall = lastMessage.tool_calls[0];
+                const toolInfo = {
+                  id: `historic_tool_${Date.now()}`, // 创建一个唯一ID
+                  tool_name: toolCall.name,
+                  parameters: toolCall.args || {},
+                  description: `历史工具调用: ${toolCall.name}`,
+                  isHistoric: true // 标记这是历史工具调用
+                };
+                
+                setInterruptInfo(toolInfo);
+              }
+              
+              setMessages(updatedMessages);
             } else {
-              setConfirmationMessage(message);
-              setOnConfirmCallback(() => onConfirm);
-              setOnCancelCallback(() => onCancel);
-              setShowConfirmationModal(true);
+              setMessages(formattedMessages);
             }
-          }}
-          onSetNotification={setNotification}
-          onEnterAdjustmentMode={handleEnterAdjustmentMode}
-        />
+            
+            console.log(`已加载 ${formattedMessages.length} 条历史消息`);
+          } else {
+            console.log('当前thread_id没有历史消息或加载失败');
+          }
+        } else {
+          console.log('获取当前thread_id失败');
+        }
+      } catch (error) {
+        console.error('加载当前thread_id历史消息失败:', error);
+      }
+    };
 
-        {/* 历史对话面板 */}
-        {isHistoryPanelVisible && (
-          <ChatHistoryPanel
-            history={sessionHistory}
-          />
-        )}
+    loadCurrentThreadMessages();
+  }, []); // 只在组件挂载时执行一次
 
-        {/* 模型选择面板 */}
-        {showModelSelectorPanel && (
-          <ModelSelectorPanel
-            onModelChange={() => {
-              // 新的模型选择服务会自动保存到后端
-              setShowModelSelectorPanel(false);
-            }}
-            onClose={() => setShowModelSelectorPanel(false)}
-          />
-        )}
+  const handleSendMessage = async (message) => {
+    if (!message.trim()) return;
+    
+    // 添加用户消息到消息列表
+    const userMessage = {
+      id: generateMessageId(),
+      role: 'user',
+      content: message
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+    setCurrentAiMessage('');
+    
+    try {
+      // 构造消息数据
+      const messageData = {
+        message: message
+      };
+      
+      // 调用chatService发送消息
+      const responseStream = await chatService.sendChatMessage(messageData);
+      
+      // 处理流式响应
+      let aiResponse = '';
+      let currentToolCalls = []; // 用于收集工具调用信息
+      
+      for await (const chunk of responseStream) {
+        
+        // 检查是否是完成标记
+        if (chunk && chunk.type === 'done') {
+          break;
+        }
+        
+        // 检查是否是错误
+        if (chunk && chunk.error) {
+          console.error('流式响应错误:', chunk.error);
+          aiResponse = `错误: ${chunk.error}`;
+          setCurrentAiMessage(aiResponse);
+          break;
+        }
+        
+        // 检查是否是中断信息
+        if (chunk && chunk.type === 'interrupt') {
+          
+          // 从中断信息中提取工具信息
+          let toolInfo = null;
+          if (chunk.interrupts && chunk.interrupts.length > 0) {
+            const interrupt = chunk.interrupts[0];
+            if (interrupt.value && interrupt.value.tool_name) {
+              toolInfo = interrupt.value;
+              toolInfo.id = interrupt.id; // 添加中断ID
+              
+              // 创建工具请求消息
+              const toolRequestMessage = {
+                id: generateMessageId(),
+                role: 'tool_request',
+                content: '',
+                tool_calls: [{
+                  name: toolInfo.tool_name,
+                  args: {
+                    ...toolInfo.parameters,
+                    // 对于 ask_user 工具，确保问题内容被包含在 args 中
+                    ...(toolInfo.tool_name === 'ask_user' && toolInfo.question ? { question: toolInfo.question } : {})
+                  }
+                }]
+              };
+              
+              // 添加工具请求消息到消息列表，并确保它默认折叠
+              setMessages(prev => {
+                const newMessages = [...prev, toolRequestMessage];
+                // 触发MessageDisplay组件的useEffect来设置折叠状态
+                return newMessages;
+              });
+            }
+          }
+          
+          if (toolInfo) {
+            // 对于 ask_user 工具，只传递必要的信息用于渲染按钮
+            if (toolInfo.tool_name === 'ask_user') {
+              setInterruptInfo({
+                ...toolInfo,
+                // 标记这是一个简化的中断信息，只用于渲染按钮
+                isSimpleInterrupt: true
+              });
+            } else {
+              setInterruptInfo(toolInfo);
+            }
+          } else {
+            // 如果没有找到工具信息，使用原始中断信息
+            setInterruptInfo(chunk);
+          }
+          
+          // 暂停处理流式响应，等待用户处理中断
+          break;
+        }
+        
+        // 处理不同类型的消息
+        if (chunk && chunk.type) {
+          // 处理系统消息
+          if (chunk.type === 'systemmessage') {
+            const systemMessage = {
+              id: generateMessageId(),
+              role: 'system',
+              content: chunk.content || ''
+            };
+            setMessages(prev => [...prev, systemMessage]);
+          }
+          // 处理工具消息
+          else if (chunk.type === 'toolmessage') {
+            const toolMessage = {
+              id: generateMessageId(),
+              role: 'tool',
+              content: chunk.content || '',
+              tool_calls: chunk.tool_calls || []
+            };
+            setMessages(prev => [...prev, toolMessage]);
+          }
+          // 处理AI消息内容
+          else if (chunk.type === 'aimessagechunk' && chunk.content) {
+            aiResponse += chunk.content;
+            setCurrentAiMessage(aiResponse);
+            
+            // 检查是否有工具调用信息
+            if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+              currentToolCalls = chunk.tool_calls;
+            }
+          }
+          // 处理完整的AI消息（包含工具调用）
+          else if (chunk.type === 'aimessage') {
+            // 如果是完整的AI消息，直接使用其内容
+            aiResponse = chunk.content || '';
+            setCurrentAiMessage(aiResponse);
+            
+            // 如果有工具调用信息，保存它们
+            if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+              currentToolCalls = chunk.tool_calls;
+            }
+          }
+        }
+      }
+      
+      // 流式响应完成后，将AI消息添加到消息列表
+      // 先添加普通AI消息（如果有内容）
+      if (aiResponse) {
+        const aiMessage = {
+          id: generateMessageId(),
+          role: 'assistant',
+          content: aiResponse,
+          tool_calls: [] // 普通AI消息不包含工具调用
+        };
+        setMessages(prev => [...prev, aiMessage]);
+      }
+      
+      // 然后添加工具请求消息（如果有工具调用）
+      if (currentToolCalls.length > 0) {
+        const toolRequestMessage = {
+          id: generateMessageId(),
+          role: 'tool_request', // 使用新的角色类型
+          content: '', // 工具请求消息不需要正文内容
+          tool_calls: currentToolCalls
+        };
+        setMessages(prev => [...prev, toolRequestMessage]);
+      }
+      
+      // 立即清空当前AI消息，避免重复显示
+      setCurrentAiMessage('');
+    } catch (error) {
+      console.error('发送消息失败:', error);
+      // 添加错误消息
+      const errorMessage = {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: '抱歉，发生了错误，请稍后再试。'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        {/* 工具调用操作栏 */}
-        <ToolActionBar
-          interruptInfo={interruptCard}
-          onInterruptResponse={handleInterruptResponse}
-        />
+  // 处理中断响应
+  // 处理中断响应
+  const handleInterruptResponse = async (response) => {
+    console.log('处理中断响应:', response);
+    
+    try {
+      // 检查是否是历史工具调用
+      if (interruptInfo && interruptInfo.isHistoric) {
+        // 对于历史工具调用，我们需要重新执行工具调用
+        // 首先找到对应的工具请求消息
+        const toolRequestMessage = messages.find(msg =>
+          msg.role === 'tool_request' &&
+          msg.tool_calls &&
+          msg.tool_calls.length > 0 &&
+          msg.tool_calls[0].name === interruptInfo.tool_name
+        );
+        
+        if (toolRequestMessage && response.action === 'approve') {
+          // 如果用户批准，则重新执行工具调用
+          try {
+            // 创建一个新的中断响应，模拟原始工具调用
+            const newInterruptResponse = {
+              interruptId: `historic_${Date.now()}`,
+              choice: '1', // '1'=恢复
+              additionalData: response.additionalData || ''
+            };
+            
+            // 调用chatService发送中断响应
+            const responseStream = await chatService.sendInterruptResponse(newInterruptResponse);
+            
+            // 清除中断信息
+            setInterruptInfo(null);
+            
+            // 处理响应流
+            await processStreamResponse(responseStream);
+          } catch (error) {
+            console.error('执行历史工具调用失败:', error);
+            // 添加错误消息
+            const errorMessage = {
+              id: generateMessageId(),
+              role: 'assistant',
+              content: `执行历史工具调用失败: ${error.message}`
+            };
+            setMessages(prev => [...prev, errorMessage]);
+            setInterruptInfo(null);
+          }
+        } else {
+          // 如果用户拒绝，只清除中断信息
+          setInterruptInfo(null);
+          
+          // 添加拒绝消息
+          const rejectMessage = {
+            id: generateMessageId(),
+            role: 'assistant',
+            content: `已拒绝执行工具: ${interruptInfo.tool_name}`
+          };
+          setMessages(prev => [...prev, rejectMessage]);
+        }
+        return;
+      }
+      
+      // 发送中断响应到后端
+      const interruptResponse = {
+        interruptId: interruptInfo.id,
+        choice: response.choice || (response.action === 'approve' ? '1' : '2'), // '1'=恢复, '2'=取消
+        additionalData: response.additionalData || ''
+      };
+      
+      // 调用chatService发送中断响应
+      const responseStream = await chatService.sendInterruptResponse(interruptResponse);
+      
+      // 清除中断信息
+      setInterruptInfo(null);
+      
+      // 处理响应流
+      await processStreamResponse(responseStream);
+    } catch (error) {
+      console.error('处理中断响应失败:', error);
+      // 清除中断信息
+      setInterruptInfo(null);
+      // 添加错误消息
+      const errorMessage = {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: '抱歉，处理中断响应时发生错误，请稍后再试。'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+  
+  // 处理流式响应的辅助函数
+  const processStreamResponse = async (responseStream) => {
+    // 处理中断响应的流式响应
+    let aiResponse = '';
+    let currentToolCalls = []; // 用于收集工具调用信息
+    
+    for await (const chunk of responseStream) {
+      
+      // 检查是否是完成标记
+      if (chunk && chunk.type === 'done') {
+        break;
+      }
+      
+      // 检查是否是错误
+      if (chunk && chunk.error) {
+        console.error('中断响应流式错误:', chunk.error);
+        aiResponse = `错误: ${chunk.error}`;
+        setCurrentAiMessage(aiResponse);
+        break;
+      }
+      
+      // 检查是否是再次中断
+      if (chunk && chunk.type === 'interrupt') {
+        console.log('收到再次中断信息:', chunk);
+        
+        // 从中断信息中提取工具信息
+        let toolInfo = null;
+        if (chunk.interrupts && chunk.interrupts.length > 0) {
+          const interrupt = chunk.interrupts[0];
+          if (interrupt.value && interrupt.value.tool_name) {
+            toolInfo = interrupt.value;
+            toolInfo.id = interrupt.id; // 添加中断ID
+            
+            // 创建工具请求消息
+            const toolRequestMessage = {
+              id: generateMessageId(),
+              role: 'tool_request',
+              content: '',
+              tool_calls: [{
+                name: toolInfo.tool_name,
+                args: {
+                  ...toolInfo.parameters,
+                  // 对于 ask_user 工具，确保问题内容被包含在 args 中
+                  ...(toolInfo.tool_name === 'ask_user' && toolInfo.question ? { question: toolInfo.question } : {})
+                }
+              }]
+            };
+            
+            // 添加工具请求消息到消息列表，并确保它默认折叠
+            setMessages(prev => {
+              const newMessages = [...prev, toolRequestMessage];
+              // 触发MessageDisplay组件的useEffect来设置折叠状态
+              return newMessages;
+            });
+          }
+        }
+        
+        if (toolInfo) {
+          // 对于 ask_user 工具，只传递必要的信息用于渲染按钮
+          if (toolInfo.tool_name === 'ask_user') {
+            setInterruptInfo({
+              ...toolInfo,
+              // 标记这是一个简化的中断信息，只用于渲染按钮
+              isSimpleInterrupt: true
+            });
+          } else {
+            setInterruptInfo(toolInfo);
+          }
+        } else {
+          // 如果没有找到工具信息，使用原始中断信息
+          setInterruptInfo(chunk);
+        }
+        
+        // 暂停处理流式响应，等待用户处理中断
+        break;
+      }
+      
+      // 处理不同类型的消息
+      if (chunk && chunk.type) {
+        // 处理系统消息
+        if (chunk.type === 'systemmessage') {
+          const systemMessage = {
+            id: generateMessageId(),
+            role: 'system',
+            content: chunk.content || ''
+          };
+          setMessages(prev => [...prev, systemMessage]);
+        }
+        // 处理工具消息
+        else if (chunk.type === 'toolmessage') {
+          const toolMessage = {
+            id: generateMessageId(),
+            role: 'tool',
+            content: chunk.content || '',
+            tool_calls: chunk.tool_calls || []
+          };
+          setMessages(prev => [...prev, toolMessage]);
+        }
+        // 处理AI消息内容
+        else if (chunk.type === 'aimessagechunk' && chunk.content) {
+          aiResponse += chunk.content;
+          setCurrentAiMessage(aiResponse);
+          
+          // 检查是否有工具调用信息
+          if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+            currentToolCalls = chunk.tool_calls;
+          }
+        }
+        // 处理完整的AI消息（包含工具调用）
+        else if (chunk.type === 'aimessage') {
+          // 如果是完整的AI消息，直接使用其内容
+          aiResponse = chunk.content || '';
+          setCurrentAiMessage(aiResponse);
+          
+          // 如果有工具调用信息，保存它们
+          if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+            currentToolCalls = chunk.tool_calls;
+          }
+        }
+      }
+    }
+    
+    // 流式响应完成后，将AI消息添加到消息列表
+    // 先添加普通AI消息（如果有内容）
+    if (aiResponse) {
+      const aiMessage = {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: aiResponse,
+        tool_calls: [] // 普通AI消息不包含工具调用
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    }
+    
+    // 然后添加工具请求消息（如果有工具调用）
+    if (currentToolCalls.length > 0) {
+      const toolRequestMessage = {
+        id: generateMessageId(),
+        role: 'tool_request', // 使用新的角色类型
+        content: '', // 工具请求消息不需要正文内容
+        tool_calls: currentToolCalls
+      };
+      setMessages(prev => [...prev, toolRequestMessage]);
+    }
+    
+    // 立即清空当前AI消息，避免重复显示
+    setCurrentAiMessage('');
+  };
 
+  // 处理加载历史消息的回调函数
+  const handleLoadHistory = (historyMessages) => {
+    console.log('ChatPanel接收到历史消息:', historyMessages);
+    
+    // 检查最后一条消息是否是包含工具调用的AI消息
+    const lastMessage = historyMessages[historyMessages.length - 1];
+    let finalMessages = historyMessages;
+    
+    if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+      // 如果最后一条消息是包含工具调用的AI消息，需要将其转换为工具请求状态
+      // 1. 将AI消息的内容和工具调用分开
+      const aiMessage = {
+        ...lastMessage,
+        tool_calls: [] // AI消息本身不包含工具调用
+      };
+      
+      // 2. 创建工具请求消息
+      const toolRequestMessage = {
+        id: `load_history_tool_${Date.now()}`, // 创建一个唯一ID
+        role: 'tool_request',
+        content: '',
+        tool_calls: lastMessage.tool_calls
+      };
+      
+      // 3. 替换最后一条消息并添加工具请求消息
+      finalMessages = [...historyMessages.slice(0, -1), aiMessage, toolRequestMessage];
+      
+      // 4. 设置中断信息以显示批准/拒绝按钮
+      if (lastMessage.tool_calls.length > 0) {
+        const toolCall = lastMessage.tool_calls[0];
+        const toolInfo = {
+          id: `load_history_interrupt_${Date.now()}`, // 创建一个唯一ID
+          tool_name: toolCall.name,
+          parameters: toolCall.args || {},
+          description: `历史工具调用: ${toolCall.name}`,
+          isHistoric: true // 标记这是历史工具调用
+        };
+        
+        setInterruptInfo(toolInfo);
+      }
+    }
+    
+    setMessages(finalMessages);
+  };
 
+  // 处理创建新会话
+  const handleCreateNewThread = async () => {
+    try {
+      // 调用API创建新thread_id
+      const response = await chatService.createNewThread();
+      
+      if (response.success) {
+        // 清空消息面板
+        setMessages([]);
+        setCurrentAiMessage('');
+        setInterruptInfo(null);
+        console.log('新会话创建成功:', response.thread_id);
+      }
+    } catch (error) {
+      console.error('创建新会话失败:', error);
+    }
+  };
 
-        {/* 信息输入栏 */}
-        <ChatInputArea
-          currentMode={currentMode}
-          customModes={customModes}
-          handleModeSwitch={handleModeSwitch}
-          handleSendMessage={handleSendMessage}
-          stopStreamingIpc={stopStreamingIpc}
-          setStoreValue={setStoreValue}
-        />
+  // 处理总结对话
+  const handleSummarizeConversation = async () => {
+    try {
+      setIsLoading(true);
+      
+      // 调用总结API
+      const response = await chatService.summarizeConversation();
+      
+      if (response.success && response.summary) {
+        // 创建总结消息
+        const summaryMessage = {
+          id: generateMessageId(),
+          role: 'summary',
+          content: response.summary,
+          isCollapsible: true // 标记为可折叠的消息
+        };
+        
+        // 添加总结消息到消息列表
+        setMessages(prev => [...prev, summaryMessage]);
+        
+        console.log('对话总结成功:', response.summary);
+      } else {
+        // 添加错误消息
+        const errorMessage = {
+          id: generateMessageId(),
+          role: 'assistant',
+          content: response.message || '总结失败，请稍后再试。'
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('总结对话失败:', error);
+      // 添加错误消息
+      const errorMessage = {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: '总结对话时发生错误，请稍后再试。'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+// 处理自动批准设置变更
+const handleAutoApproveSettingsChange = (newSettings) => {
+  setAutoApproveSettings(newSettings);
+};
+
+return(
+  <div className="chat-panel">
+    <div className="header-buttons">
+      <div className="header-left-buttons">
+        <ChatHistoryPanel onLoadHistory={handleLoadHistory} />
+        <ModelSelectorPanel />
+        <button
+          className="summarize-button"
+          onClick={handleSummarizeConversation}
+          disabled={isLoading}
+          title="总结对话"
+        >
+          📝
+        </button>
       </div>
-
-
-      {showConfirmationModal && (
-        <ConfirmationModal
-          message={confirmationMessage}
-          onConfirm={onConfirmCallback}
-          onCancel={onCancelCallback}
-        />
-      )}
-
-      {notification.show && (
-        <NotificationModal
-          message={notification.message}
-          onClose={() => setNotification({ show: false, message: '' })}
-        />
-      )}
-
-
-    </React.Fragment>
+      <button
+        className="new-thread-button"
+        onClick={handleCreateNewThread}
+        title="创建新会话"
+      >
+        ×
+      </button>
+    </div>
+    
+    <div className="chat-content">
+      {/* 消息显示区域 */}
+      <div className="messages-container">
+        <MessageDisplay messages={messages} currentAiMessage={currentAiMessage} isLoading={isLoading} />
+        
+        {/* 用于自动滚动到底部的元素 */}
+        <div ref={messagesEndRef} />
+      </div>
+    </div>
+    <div className="chat-input">
+      <MessageInput
+        onSendMessage={handleSendMessage}
+        disabled={isLoading}
+        interruptInfo={interruptInfo}
+        onInterruptResponse={handleInterruptResponse}
+        autoApproveSettings={autoApproveSettings}
+      />
+    </div>
+    
+    <div className="chat-controls">
+      <ModeSelector />
+      <AutoApproveConfig onSettingsChange={handleAutoApproveSettingsChange} />
+    </div>
+  </div>
   );
-});
+}
 
 export default ChatPanel;

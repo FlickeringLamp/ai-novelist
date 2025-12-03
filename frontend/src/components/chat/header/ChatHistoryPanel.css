@@ -1,3 +1,70 @@
+/* 历史会话按钮样式 */
+.history-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #3C3C3C 0%, #333333 100%);
+  border: 1px solid #555555;
+  border-radius: 20px; /* 胶囊形状 */
+  color: #E0E0E0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 45px; /* 固定宽度，只显示图标 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.history-button:hover {
+  background: linear-gradient(135deg, #4A4A4A 0%, #404040 100%);
+  border-color: #00AD62;
+  box-shadow: 0 4px 8px rgba(0, 173, 98, 0.2);
+  transform: translateY(-1px);
+}
+
+.history-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 消息回档按钮样式 */
+.checkpoint-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #3C3C3C 0%, #333333 100%);
+  border: 1px solid #555555;
+  border-radius: 20px; /* 胶囊形状 */
+  color: #E0E0E0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 45px; /* 固定宽度，只显示图标 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  margin-left: 8px; /* 与历史按钮的间距 */
+}
+
+.checkpoint-button:hover {
+  background: linear-gradient(135deg, #4A4A4A 0%, #404040 100%);
+  border-color: #FF6B6B;
+  box-shadow: 0 4px 8px rgba(255, 107, 107, 0.2);
+  transform: translateY(-1px);
+}
+
+.checkpoint-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .chat-history-panel {
     position: absolute;
     top: 63px; /* 从顶部操作区底部开始 */
@@ -134,5 +201,271 @@
 }
 
 .delete-button:hover {
-    background-color: var(--hover-bg-color); /* 改为悬停背景色 */
+  background-color: var(--hover-bg-color); /* 改为悬停背景色 */
+}
+
+/* 历史会话项按钮容器 */
+.history-item-buttons {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+/* 回档按钮样式 */
+.rollback-button {
+  background-color: #4A90E2;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.rollback-button:hover {
+  background-color: #357ABD;
+}
+
+/* 回档模态框样式 */
+.rollback-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.rollback-modal {
+  width: 80%;
+  max-width: 700px;
+  max-height: 80vh;
+  background-color: #333333;
+  border: 1px solid #555555;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rollback-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #444444;
+  border-bottom: 1px solid #555555;
+}
+
+.rollback-modal-header h3 {
+  margin: 0;
+  color: #eeeeee;
+}
+
+.close-modal-button {
+  background: none;
+  border: none;
+  color: #eeeeee;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.close-modal-button:hover {
+  background-color: #555555;
+}
+
+.rollback-modal-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.loading-message,
+.no-checkpoints-message {
+  text-align: center;
+  padding: 20px;
+  color: #cccccc;
+  font-size: 16px;
+}
+
+.checkpoints-section h4 {
+  margin: 0 0 15px 0;
+  color: #eeeeee;
+  font-size: 16px;
+}
+
+.checkpoints-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #555555;
+  border-radius: 5px;
+  background-color: #444444;
+}
+
+.checkpoint-option {
+  padding: 12px 15px;
+  border-bottom: 1px solid #555555;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.checkpoint-option:last-child {
+  border-bottom: none;
+}
+
+.checkpoint-option:hover {
+  background-color: #555555;
+}
+
+.checkpoint-option.selected {
+  background-color: #4A90E2;
+  color: white;
+}
+
+.checkpoint-info {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.checkpoint-index {
+  font-weight: bold;
+  color: #4A90E2;
+}
+
+.checkpoint-option.selected .checkpoint-index {
+  color: white;
+}
+
+.checkpoint-node,
+.checkpoint-type {
+  color: #cccccc;
+}
+
+.checkpoint-option.selected .checkpoint-node,
+.checkpoint-option.selected .checkpoint-type {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.checkpoint-content {
+  font-size: 14px;
+  color: #eeeeee;
+  line-height: 1.4;
+}
+
+.checkpoint-option.selected .checkpoint-content {
+  color: white;
+}
+
+.rollback-input-section {
+  margin-top: 20px;
+}
+
+.rollback-input-section h4 {
+  margin: 0 0 10px 0;
+  color: #eeeeee;
+  font-size: 16px;
+}
+
+.rollback-input-section textarea {
+  width: 100%;
+  padding: 10px;
+  background-color: #444444;
+  border: 1px solid #555555;
+  border-radius: 5px;
+  color: #eeeeee;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  box-sizing: border-box;
+}
+
+.rollback-input-section textarea:focus {
+  outline: none;
+  border-color: #4A90E2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.rollback-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.confirm-rollback-button {
+  padding: 10px 20px;
+  background-color: #4A90E2;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.confirm-rollback-button:hover:not(:disabled) {
+  background-color: #357ABD;
+}
+
+.confirm-rollback-button:disabled {
+  background-color: #666666;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.cancel-rollback-button {
+  padding: 10px 20px;
+  background-color: #666666;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.cancel-rollback-button:hover {
+  background-color: #555555;
+}
+
+/* 滚动条样式 */
+.checkpoints-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.checkpoints-list::-webkit-scrollbar-track {
+  background: #333333;
+}
+
+.checkpoints-list::-webkit-scrollbar-thumb {
+  background: #555555;
+  border-radius: 4px;
+}
+
+.checkpoints-list::-webkit-scrollbar-thumb:hover {
+  background: #666666;
 }

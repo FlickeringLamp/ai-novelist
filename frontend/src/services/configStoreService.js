@@ -33,6 +33,7 @@ class ConfigStoreService {
    */
   async setStoreValue(key, value) {
     try {
+      console.log('发送到后端的请求数据:', { key, value });
       // 使用后端配置存储 API
       const response = await httpClient.post('/api/config/store', {
         key,
@@ -44,6 +45,7 @@ class ConfigStoreService {
       };
     } catch (error) {
       console.error('设置存储值失败:', error);
+      console.error('错误详情:', error.details);
       return {
         success: false,
         error: '存储操作失败: ' + error.message
@@ -96,53 +98,6 @@ class ConfigStoreService {
     }
   }
 
-  /**
-   * 根据模型名称获取对应的API URL
-   * @param {string} modelName - 模型名称
-   * @returns {Promise<Object>} 模型URL数据
-   */
-  async getModelUrl(modelName) {
-    try {
-      const response = await httpClient.get(`/api/config/model-url?model_name=${encodeURIComponent(modelName)}`);
-      
-      return {
-        success: response.success || true,
-        url: response.data || 'http://127.0.0.1:4000',
-        message: response.message || '获取模型URL成功'
-      };
-    } catch (error) {
-      console.error('获取模型URL失败:', error);
-      return {
-        success: false,
-        error: '获取模型URL失败: ' + error.message,
-        url: 'http://127.0.0.1:4000' // 默认URL
-      };
-    }
-  }
-
-  /**
-   * 根据模型名称获取对应的API密钥
-   * @param {string} modelName - 模型名称
-   * @returns {Promise<Object>} 模型API密钥数据
-   */
-  async getModelApiKey(modelName) {
-    try {
-      const response = await httpClient.get(`/api/config/model-api-key?model_name=${encodeURIComponent(modelName)}`);
-      
-      return {
-        success: response.success || true,
-        apiKey: response.data || '',
-        message: response.message || '获取模型API密钥成功'
-      };
-    } catch (error) {
-      console.error('获取模型API密钥失败:', error);
-      return {
-        success: false,
-        error: '获取模型API密钥失败: ' + error.message,
-        apiKey: ''
-      };
-    }
-  }
 }
 
 // 创建全局配置存储服务实例

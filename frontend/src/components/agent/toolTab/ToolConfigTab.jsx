@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck, faTimes, faUndo } from '@fortawesome/free-solid-svg-icons';
-import useHttpService from '../../../hooks/useHttpService';
-import { setAutoApproveEnabled, setAutoApproveDelay } from '../../../store/slices/chatSlice';
+import { faUndo } from '@fortawesome/free-solid-svg-icons';
+import toolConfigService from '../../../services/toolConfigService.js';
 import './ToolConfigTab.css';
 
 /**
@@ -11,13 +9,6 @@ import './ToolConfigTab.css';
  * 负责管理每个模式的工具启用状态
  */
 const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
-  const dispatch = useDispatch();
-  const {
-    getModeToolConfig,
-    updateModeToolConfig,
-    resetModeToolConfig
-  } = useHttpService();
-  
   // 状态管理
   const [toolConfig, setToolConfig] = useState({
     enabled_tools: [],
@@ -28,14 +19,11 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [originalConfig, setOriginalConfig] = useState(null);
 
-  // 自动批准设置
-  const { autoApproveSettings } = useSelector((state) => state.chat.mode);
-
   // 加载工具配置
   const loadToolConfig = async () => {
     setIsLoading(true);
     try {
-      const result = await getModeToolConfig(mode);
+      const result = await toolConfigService.getModeToolConfig(mode);
       if (result.success) {
         setToolConfig(result.data);
         setOriginalConfig(result.data);
@@ -60,7 +48,7 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
   // 重置工具配置
   const resetToolConfig = async () => {
     try {
-      const result = await resetModeToolConfig(mode);
+      const result = await toolConfigService.resetModeToolConfig(mode);
       if (result.success) {
         setToolConfig(result.data);
         setOriginalConfig(result.data);
@@ -181,49 +169,8 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
 
       <div className="tool-config-description">
         <p>
-          在此配置模式下AI可以使用的工具。启用工具后，AI将能够自动调用这些工具来完成相关任务。
+          在此配置模式下AI可以使用的工具。启用工具后，AI将能够调用这些工具来完成相关任务。
         </p>
-      </div>
-
-      {/* 自动批准设置 */}
-      <div className="auto-approve-settings">
-        <h5>自动批准设置</h5>
-        <div className="auto-approve-content">
-          <div className="setting-group">
-            <label className="setting-label">
-              <input
-                type="checkbox"
-                checked={autoApproveSettings.enabled}
-                onChange={(e) => dispatch(setAutoApproveEnabled(e.target.checked))}
-              />
-              <span className="checkmark"></span>
-              启用自动批准
-            </label>
-            <div className="setting-description">
-              启用后，工具调用将自动在延迟后批准，无需手动确认
-            </div>
-          </div>
-          
-          {autoApproveSettings.enabled && (
-            <div className="setting-group">
-              <label className="setting-label">延迟时间（秒）</label>
-              <div className="delay-controls">
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={autoApproveSettings.delay / 1000}
-                  onChange={(e) => dispatch(setAutoApproveDelay(parseInt(e.target.value) * 1000))}
-                  className="delay-slider"
-                />
-                <span className="delay-value">{autoApproveSettings.delay / 1000}秒</span>
-              </div>
-              <div className="setting-description">
-                设置自动批准前的等待时间，让用户有时间取消操作
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* 工具分类列表 */}
@@ -290,7 +237,9 @@ const getToolDisplayName = (toolName) => {
     'insert_content': '插入内容',
     'search_file': '搜索文件',
     'search_and_replace': '搜索替换',
-    'ask_user_question': '询问用户'
+    'ask_user_question': '询问用户',
+    'search_embedding': '搜索嵌入',
+    'list_knowledge_base': '列出知识库'
   };
   return displayNames[toolName] || toolName;
 };
@@ -304,7 +253,9 @@ const getToolDescription = (toolName) => {
     'insert_content': '在文件中插入内容',
     'search_file': '搜索文件中的内容',
     'search_and_replace': '搜索并替换文件内容',
-    'ask_user_question': '向用户提问获取信息'
+    'ask_user_question': '向用户提问获取信息',
+    'search_embedding': '在知识库中搜索相关内容',
+    'list_knowledge_base': '列出知识库中的文件'
   };
   return descriptions[toolName] || '工具功能描述';
 };
@@ -313,7 +264,8 @@ const getToolDescription = (toolName) => {
 const getCategoryDisplayName = (categoryName) => {
   const displayNames = {
     'file_operations': '文件操作',
-    'user_interaction': '用户交互'
+    'user_interaction': '用户交互',
+    'knowledge_base': '知识库操作'
   };
   return displayNames[categoryName] || categoryName;
 };

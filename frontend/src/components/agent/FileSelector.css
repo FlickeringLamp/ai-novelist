@@ -1,0 +1,118 @@
+.file-selector {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 15px;
+}
+
+.file-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+  background-color: #f0f0f0;
+}
+
+.file-selector-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.refresh-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  padding: 4px;
+  border-radius: 3px;
+}
+
+.refresh-button:hover {
+  background-color: #e0e0e0;
+}
+
+.search-container {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 8px;
+  color: #999;
+}
+
+.search-input {
+  width: 100%;
+  padding: 6px 8px 6px 30px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #4a90e2;
+}
+
+.file-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.file-item {
+  user-select: none;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  margin: 0 4px;
+}
+
+.file-row:hover {
+  background-color: #e6f3ff;
+}
+
+.file-row.file {
+  padding-left: 32px;
+}
+
+.folder-icon, .file-icon {
+  margin-right: 8px;
+  color: #666;
+}
+
+.file-name {
+  font-size: 13px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-children {
+  margin-left: 4px;
+}
+
+.loading, .no-files {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+}

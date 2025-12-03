@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 import base64
 from fastapi import UploadFile, HTTPException
 import aiofiles
-from config import settings
+from backend.config import settings
 
 class ImageUploadService:
     def __init__(self):

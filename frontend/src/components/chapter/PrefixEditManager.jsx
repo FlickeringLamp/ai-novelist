@@ -1,5 +1,6 @@
 import React from 'react';
 import chapterService from '../../services/chapterService';
+import fileService from '../../services/fileService';
 
 /**
  * 前缀编辑管理模块
@@ -91,13 +92,13 @@ const PrefixEditManager = ({
       let result;
       if (targetItem.isFolder) {
         // 如果是文件夹，更新文件夹顺序
-        result = await chapterService.updateFolderOrder(
+        result = await fileService.updateFolderOrder(
           editingPrefix.currentPath || '',
           newFolderIds
         );
       } else {
         // 如果是文件，更新文件顺序
-        result = await chapterService.updateFileOrder(
+        result = await fileService.updateFileOrder(
           editingPrefix.currentPath || '',
           newFileIds
         );

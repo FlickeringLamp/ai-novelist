@@ -271,6 +271,72 @@
   cursor: not-allowed;
 }
 
+/* 附加文件部分样式 */
+.additional-files-section {
+  margin-top: 20px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 15px;
+}
+
+.additional-files-section h4 {
+  margin-bottom: 10px;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--text-color-primary);
+}
+
+.additional-files-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.attached-files-list {
+  margin-top: 10px;
+}
+
+.attached-files-list h5 {
+  margin-bottom: 8px;
+  font-size: 0.9em;
+  color: var(--text-color-light);
+}
+
+.attached-file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background-color: var(--panel-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+  margin-bottom: 5px;
+}
+
+.attached-file-item .file-name {
+  font-size: 0.9em;
+  color: var(--text-color-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.remove-file-button {
+  background: none;
+  border: none;
+  color: var(--text-color-light);
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: var(--border-radius-small);
+  margin-left: 8px;
+  transition: all 0.2s ease;
+}
+
+.remove-file-button:hover {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: #ff6b6b;
+}
+
 /* 功能设置样式 */
 .feature-info {
   margin-bottom: 16px;

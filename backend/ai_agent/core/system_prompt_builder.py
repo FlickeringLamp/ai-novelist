@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from ..config import ai_settings
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from file.utils.file_tree_builder import file_tree_builder
-from config import settings
+from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class SystemPromptBuilder:
     def _load_store_config(self) -> Dict[str, Any]:
         """加载存储配置"""
         try:
-            config_path = Path(__file__).parent.parent.parent / "config" / "store.json"
+            config_path = Path(__file__).parent.parent.parent / "data" / "config" / "store.json"
             if not config_path.exists():
                 logger.warning("配置文件不存在，返回空配置")
                 return {}
@@ -72,20 +72,18 @@ class SystemPromptBuilder:
             # 构建格式化的持久记忆信息
             memory_parts = []
             
-            # 大纲信息
-            outline = mode_info.get("outline", "").strip()
-            if outline:
-                memory_parts.append(f"大纲信息:\n{outline}")
-            
-            # 上一章全文
-            previous_chapter = mode_info.get("previousChapter", "").strip()
-            if previous_chapter:
-                memory_parts.append(f"上一章全文:\n{previous_chapter}")
-            
-            # 本章重要人设
-            character_settings = mode_info.get("characterSettings", "").strip()
-            if character_settings:
-                memory_parts.append(f"本章重要人物设定:\n{character_settings}")
+            # 新格式：content 对象包含 path 和 content
+            content_info = mode_info.get("content", {})
+            if content_info:
+                content = content_info.get("content", "").strip()
+                path = content_info.get("path", "").strip()
+                
+                if content:
+                    # 如果有路径信息，添加路径标识
+                    if path:
+                        memory_parts.append(f"[额外信息 - 来源: {path}]:\n{content}")
+                    else:
+                        memory_parts.append(f"[额外信息]:\n{content}")
             
             if memory_parts:
                 return "\n\n".join(memory_parts)

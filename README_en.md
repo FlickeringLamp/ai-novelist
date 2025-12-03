@@ -12,7 +12,7 @@ Qingzhu (Official Name) is an intelligent writing assistant tool with a Python b
 **Core Features**:
 *   **AI Smart Interaction**: Real-time conversation with AI to assist in creative writing.
 *   **Chapter Management**: Create, edit, delete, and organize chapters.
-*   **Content Editor**: Rich text editor based on Tiptap.
+*   **Content Editor**: Markdown editor based on Vditor.
 *   **Writing Style Imitation**: Based on RAG technology, retrieves text fragments to enhance AI capabilities.
 *   **Tool Calling**: Supports tool calling similar to vibecoding to solve problems, with some features still under development.
 
@@ -20,13 +20,12 @@ Qingzhu (Official Name) is an intelligent writing assistant tool with a Python b
 
 ### Frontend Technologies
 *   **React**: Frontend user interface framework
-*   **Redux**: Frontend state management library
-*   **Tiptap**: Rich text editor framework
+*   **Redux**: Frontend state management library (being removed)
+*   **Vditor**: Markdown editor
 
 ### Backend Technologies
 *   **LangChain**: Toolchain for building AI applications
 *   **LangGraph**: Graph-based AI workflow orchestration framework
-*   **LiteLLM**: Unified AI model calling interface
 *   **LanceDB**: Vector database providing semantic search and knowledge base management
 
 
@@ -53,25 +52,17 @@ Qingzhu (Official Name) is an intelligent writing assistant tool with a Python b
 
 
 3.  **Install backend dependencies**:
-    From the root directory (`ai-novelist`), create a virtual environment, activate it, install backend dependencies, and start:
+    From the root directory (`ai-novelist`), create a virtual environment, activate it, install backend dependencies, return to root directory, and start:
     ```bash
     python -m venv backend_env
     backend_env\Scripts\activate
     cd backend
     pip install -r requirements.txt
+    cd ..
     python main.py
     ```
 
-4.  **Install litellm gateway**:
-    Enter the root directory (`ai-novelist`), create a virtual environment (any name), install litellm, and start it. (Configure `backend/api_provider/config.yaml` yourself)
-    ```bash
-    python -m venv litellm_env
-    litellm_env\Scripts\activate
-    pip install 'litellm[proxy]'
-    litellm --config backend/api_provider/config.yaml --port 4000 --host 0.0.0.0 --debug
-    ```
-
-5.  **Browser Access**:
+4. **Browser Access**:
     Access localhost:3000 in your browser
 
 
@@ -95,7 +86,7 @@ This project uses the [MIT License](LICENSE).
 
 ---
 
-## Acknowledgements
+## Acknowledgements (致谢)
 
 This project's development has been heavily inspired by the `roo-code` project. We extend our sincere gratitude to the developers of `roo-code`.
 

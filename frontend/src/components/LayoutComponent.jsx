@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { useSelector, useDispatch } from 'react-redux';
-import {
-  setShowGeneralSettingsModal,
-  setShowApiSettingsModal
-} from '../store/slices/chatSlice';
+import { useSelector } from 'react-redux';
 import TabBar from './editor/TabBar'; // 引入 TabBar
 import SidebarComponent from './SidebarComponent'; // 引入侧边栏组件
 import SplitViewPanel from './editor/SplitViewPanel'; // 引入分屏对比组件
@@ -13,25 +9,19 @@ import ProviderSettingsPanel from './aiprovider/ProviderSettingsPanel'; // 引�
 import RagManagementPanel from './rag/RagManagementPanel'; // 引入RAG管理面板（已合并模态框功能）
 import AgentPanel from './agent/AgentPanel'; // 引入统一的Agent面板
 // import WorkspacePanel from './workflow-editor/WorkspacePanel'; // 引入工作区面板 - 暂时注释掉
-import PersistentMemoryPanel from './insert/PersistentMemoryPanel'; // 引入持久记忆面板
 
 function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
-  const dispatch = useDispatch();
   const { splitView } = useSelector((state) => state.novel);
   // 保持 leftPanelSize 和 rightPanelSize 作为初始尺寸，也可以作为拖动后的尺寸
   const [leftPanelSize, setLeftPanelSize] = useState(20);
   const [rightPanelSize, setRightPanelSize] = useState(20);
-  
-  // 获取模态框状态
-  const showApiSettingsModal = useSelector(state => state.chat.ui.showApiSettingsModal);
-  const showRagSettingsModal = useSelector(state => state.chat.ui.showRagSettingsModal);
-  const showGeneralSettingsModal = useSelector(state => state.chat.ui.showGeneralSettingsModal);
-  // const showWorkspacePanel = useSelector(state => state.chat.ui.showWorkspacePanel); // 暂时注释掉
-  const showPersistentMemoryPanel = useSelector(state => state.chat.ui.showPersistentMemoryPanel);
+  const [showRagSettingsModal, setShowRagSettingsModalLocal] = useState(false);
+  const [showApiSettingsModal, setShowApiSettingsModal] = useState(false);
+  const [showGeneralSettingsModal, setShowGeneralSettingsModal] = useState(false);
   
   // 如果有任何模态框打开，就显示覆盖层
   const showOverlay = showApiSettingsModal || showRagSettingsModal ||
-                     showGeneralSettingsModal || /* showWorkspacePanel || */ showPersistentMemoryPanel;
+                     showGeneralSettingsModal;
 
   // 处理左侧面板尺寸变化
   const handleLeftPanelChange = (size) => {
@@ -48,7 +38,14 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
       <PanelGroup direction="horizontal" className="main-layout">
         {/* 左侧组件栏 - 固定宽度图标栏，不能拖动 */}
         <div className="sidebar-panel-fixed">
-          <SidebarComponent />
+          <SidebarComponent
+            showRagSettingsModal={showRagSettingsModal}
+            setShowRagSettingsModal={setShowRagSettingsModalLocal}
+            showApiSettingsModal={showApiSettingsModal}
+            setShowApiSettingsModal={setShowApiSettingsModal}
+            showGeneralSettingsModal={showGeneralSettingsModal}
+            setShowGeneralSettingsModal={setShowGeneralSettingsModal}
+          />
         </div>
         
         {/* 细长的普通灰色分隔线 */}
@@ -100,23 +97,20 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
         {showApiSettingsModal && (
           <ProviderSettingsPanel
             isOpen={showApiSettingsModal}
-            onClose={() => dispatch(setShowApiSettingsModal(false))}
+            onClose={() => setShowApiSettingsModal(false)}
           />
         )}
         {showRagSettingsModal && (
-          <RagManagementPanel isOpen={showRagSettingsModal} />
+          <RagManagementPanel isOpen={showRagSettingsModal} onClose={() => setShowRagSettingsModalLocal(false)} />
         )}
         {showGeneralSettingsModal && (
-          <AgentPanel isOpen={showGeneralSettingsModal} onClose={() => dispatch(setShowGeneralSettingsModal(false))} />
+          <AgentPanel isOpen={showGeneralSettingsModal} onClose={() => setShowGeneralSettingsModal(false)} />
         )}
         {/* 暂时注释掉工作流面板
         {showWorkspacePanel && (
           <WorkspacePanel isOpen={showWorkspacePanel} />
         )}
         */}
-        {showPersistentMemoryPanel && (
-          <PersistentMemoryPanel />
-        )}
       </OverlayPanel>
     </div>
   );

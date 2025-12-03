@@ -4,24 +4,11 @@
   background-color: rgba(0, 0, 0, 0.9); /* 半透明黑色背景 */
   z-index: 1000; /* 确保覆盖在其他内容之上 */
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch; /* 改为stretch使内容填满高度 */
+  justify-content: stretch; /* 改为stretch使内容填满宽度 */
   pointer-events: auto; /* 允许与覆盖层交互 */
 }
 
-.overlay-content {
-  background-color: #000000; /* 纯黑色背景 */
-  border: none;
-  border-radius: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  max-height: none;
-  overflow: hidden;
-  box-shadow: none;
-  color: #E0E0E0; /* 浅色文本 */
-}
 
 /* 确保覆盖层只覆盖除了右侧面板和侧边栏之外的所有内容 */
 .layout-container {
@@ -58,34 +45,13 @@
   border: 1px solid #333333; /* 深灰色边框 */
   border-radius: 8px;
   padding: 20px;
-  max-width: 90%;
-  max-height: 80%;
+  width: 100%;
+  height: 100%;
   overflow: auto;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
   color: #E0E0E0; /* 浅色文本 */
 }
 
-/* 覆盖层内的按钮样式 */
-.overlay-content button {
-  background-color: #00AD62; /* 主题绿色 */
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  margin: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.overlay-content button:hover {
-  background-color: #008C4F; /* 深绿色悬停效果 */
-}
-
-.overlay-content button:disabled {
-  background-color: #333333; /* 禁用状态 */
-  color: #808080;
-  cursor: not-allowed;
-}
 
 /* 覆盖层内的输入框样式 */
 .overlay-content input,

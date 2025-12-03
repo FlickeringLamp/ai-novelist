@@ -372,6 +372,71 @@ class SessionService {
     }
   }
 
+  /**
+   * 获取会话的存档点列表
+   */
+  async getCheckpoints(sessionId, mode = 'outline') {
+    try {
+      const response = await httpClient.post('/api/history/checkpoints', {
+        thread_id: sessionId,
+        mode: mode
+      });
+      
+      if (response.success && response.data) {
+        return {
+          success: true,
+          checkpoints: response.data,
+          message: response.message || '存档点列表获取成功'
+        };
+      } else {
+        return {
+          success: false,
+          error: response.message || '获取存档点列表失败',
+          checkpoints: []
+        };
+      }
+    } catch (error) {
+      console.error('获取存档点列表失败:', error);
+      return {
+        success: false,
+        error: 'HTTP 请求失败: ' + error.message,
+        checkpoints: []
+      };
+    }
+  }
+
+  /**
+   * 回档到指定存档点
+   */
+  async rollbackToCheckpoint(sessionId, checkpointIndex, newMessage, mode = 'outline') {
+    try {
+      const response = await httpClient.post('/api/history/checkpoint/rollback', {
+        thread_id: sessionId,
+        checkpoint_index: checkpointIndex,
+        new_message: newMessage,
+        mode: mode
+      });
+      
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data,
+          message: response.message || '回档成功'
+        };
+      } else {
+        return {
+          success: false,
+          error: response.message || '回档失败'
+        };
+      }
+    } catch (error) {
+      console.error('回档失败:', error);
+      return {
+        success: false,
+        error: 'HTTP 请求失败: ' + error.message
+      };
+    }
+  }
 }
 
 // 创建全局会话服务实例

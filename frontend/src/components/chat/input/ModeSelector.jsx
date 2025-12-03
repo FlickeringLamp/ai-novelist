@@ -2,18 +2,39 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngleLeft, faAngleRight } from '@fortawesome/free-solid-svg-icons';
 import './ModeSelector.css';
+import configStoreService from '../../../services/configStoreService.js';
 
 // 模式选择器组件
-const ModeSelector = ({ 
-  currentMode, 
-  customModes = [], 
-  onModeChange, 
-  setStoreValue 
-}) => {
+const ModeSelector = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [page, setPage] = useState(0);
+  const [currentMode, setCurrentMode] = useState('outline');
+  const [customModes, setCustomModes] = useState([]);
   const modesPerPage = 5;
+
+  // 加载模式设置
+  useEffect(() => {
+    const loadModeSettings = async () => {
+      try {
+        // 加载当前模式
+        const savedMode = await configStoreService.getStoreValue('currentMode');
+        if (savedMode) {
+          setCurrentMode(savedMode);
+        }
+        
+        // 加载自定义模式
+        const savedCustomModes = await configStoreService.getStoreValue('customModes');
+        if (savedCustomModes && Array.isArray(savedCustomModes)) {
+          setCustomModes(savedCustomModes);
+        }
+      } catch (error) {
+        console.error('加载模式设置失败:', error);
+      }
+    };
+    
+    loadModeSettings();
+  }, []);
 
   // 内置模式定义
   const builtInModes = [
@@ -50,16 +71,17 @@ const ModeSelector = ({
   };
 
   const handleModeSelect = async (modeId) => {
-    onModeChange(modeId);
+    setCurrentMode(modeId);
     
     // 保存到持久化存储
-    if (setStoreValue) {
-      try {
-        await setStoreValue('currentMode', modeId);
-        console.log(`[模式选择器] 已保存模式选择: ${modeId}`);
-      } catch (error) {
-        console.error('[模式选择器] 保存模式选择失败:', error);
-      }
+    try {
+      await configStoreService.setStoreValue('currentMode', modeId);
+      console.log(`[模式选择器] 已保存模式选择: ${modeId}`);
+      
+      // 触发自定义事件，通知其他组件模式已更改
+      window.dispatchEvent(new CustomEvent('modeChanged', { detail: { mode: modeId } }));
+    } catch (error) {
+      console.error('[模式选择器] 保存模式选择失败:', error);
     }
     
     setIsExpanded(false);
@@ -97,27 +119,26 @@ const ModeSelector = ({
   return (
     <div className="mode-selector-container">
       <div
-        className="mode-selector-bar"
+        className="mode-selector-button"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        {isExpanded ? (
+        <span className="selected-mode-name">{getDisplayModeName()}</span>
+        <span className="expand-icon">{isExpanded ? '▲' : '▶'}</span>
+      </div>
+
+      {isExpanded && (
+        <div className="mode-selector-panel">
+          {/* 搜索输入框 */}
           <input
             type="text"
             placeholder="搜索模式..."
             value={searchText}
             onChange={handleSearchChange}
             onClick={handleSearchClick}
-            className="mode-search-input-bar"
+            className="mode-search-input"
             autoFocus
           />
-        ) : (
-          <span className="selected-mode-name">{getDisplayModeName()}</span>
-        )}
-        <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-      </div>
-
-      {isExpanded && (
-        <div className="mode-selector-dropdown">
+          
           {/* 模式列表 */}
           <div className="mode-list">
             {paginatedModes.map((mode) => (

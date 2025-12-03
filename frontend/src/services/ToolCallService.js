@@ -5,8 +5,8 @@ import httpClient from '../utils/httpClient.js';
  * 适配新的中断机制
  */
 class ToolCallService {
-  constructor(dispatch) {
-    this.dispatch = dispatch;
+  constructor() {
+    // 不再需要dispatch参数
   }
 
   /**
@@ -19,8 +19,7 @@ class ToolCallService {
       const response = await httpClient.post('/api/chat/interrupt-response', {
         interrupt_id: interruptData.interruptId,
         choice: interruptData.choice, // '1'=恢复, '2'=取消
-        additional_data: interruptData.additionalData || '',
-        thread_id: interruptData.threadId || 'default'
+        additional_data: interruptData.additionalData || ''
       });
       
       console.log(`中断响应已发送: ${interruptData.interruptId}`, response);
@@ -44,8 +43,7 @@ class ToolCallService {
       const response = await this.sendInterruptResponse({
         interruptId: interruptInfo.id,
         choice: choice,
-        additionalData: userInput,
-        threadId: interruptInfo.sessionId || 'default'
+        additionalData: userInput
       });
       
       console.log(`中断响应处理完成: ${action}`, response);

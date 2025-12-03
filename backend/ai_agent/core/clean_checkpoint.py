@@ -1,10 +1,11 @@
 import sqlite3
 import os
+from backend.config import settings
 
 # 清理对话数据的函数
 def cleanup_conversations():
-    """清理对话数据的工具函数"""    
-    db_path = "checkpoints.db"
+    """清理对话数据的工具函数"""
+    db_path = settings.CHECKPOINTS_DB_PATH
     
     if not os.path.exists(db_path):
         print("数据库文件不存在")

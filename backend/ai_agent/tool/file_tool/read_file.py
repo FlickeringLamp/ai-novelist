@@ -10,7 +10,7 @@ from langgraph.types import Command, interrupt
 # 导入配置和路径验证器
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from config import settings
+from backend.config import settings
 from file.utils.path_validator import PathValidator
 
 class ReadFileInput(BaseModel):
@@ -29,7 +29,18 @@ def read_file(file_path: str, start_paragraph: Optional[int] = None,
         start_paragraph: 起始段落号
         end_paragraph: 结束段落号
     """
-    user_choice = interrupt("工具中断，扣1恢复，扣2取消")
+    # 构造包含工具具体信息的中断数据
+    interrupt_data = {
+        "tool_name": "read_file",
+        "tool_display_name": "读取文件",
+        "description": f"读取文件: {file_path}",
+        "parameters": {
+            "file_path": file_path,
+            "start_paragraph": start_paragraph,
+            "end_paragraph": end_paragraph
+        }
+    }
+    user_choice = interrupt(interrupt_data)
     choice_action = user_choice.get("choice_action", "2")
     choice_data = user_choice.get("choice_data", "无附加信息")
     
@@ -43,7 +54,7 @@ def read_file(file_path: str, start_paragraph: Optional[int] = None,
             
             # 验证路径安全性
             if not path_validator.is_safe_path(clean_path):
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：读取失败，不安全的文件路径: {file_path}"
+                return f"【工具结果】：读取失败，不安全的文件路径: {file_path} ;**【用户信息】：{choice_data}**"
                 
             # 获取完整路径
             full_path = path_validator.get_full_path(clean_path)
@@ -60,8 +71,8 @@ def read_file(file_path: str, start_paragraph: Optional[int] = None,
                 paragraphs = paragraphs[start-1:end]
             numbered_content = "\n".join([f"{i+1} | {p}" for i, p in enumerate(paragraphs)])
 
-            return f"【用户额外信息】：{choice_data}，【工具执行结果】：成功读取文件 '{file_path}'，共 {len(paragraphs)} 个段落：\n\n{numbered_content}"
+            return f"【工具结果】：成功读取文件 '{file_path}'，共 {len(paragraphs)} 个段落：\n\n{numbered_content} ;**【用户信息】：{choice_data}**"
         except Exception as e:
-            return f"【用户额外信息】：{choice_data}，【工具执行结果】：读取文件失败: {str(e)}"
+            return f"【工具结果】：读取文件失败: {str(e)} ;**【用户信息】：{choice_data}**"
     else:
-        return f"【用户额外信息】：{choice_data}，【工具执行结果】：读取失败，用户取消了工具调用"
+        return f"【工具结果】：读取失败，用户取消了工具调用 ;**【用户信息】：{choice_data}**"

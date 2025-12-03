@@ -18,6 +18,6 @@
 ### [`SidebarComponent.jsx`](frontend/src/components/SidebarComponent.jsx:1)
 **功能**: 侧边栏导航组件
 - 固定宽度的图标栏（50px）
-- 包含首页、工作区、API设置、RAG知识库、通用设置、插入信息等功能入口
+- 包含首页、API设置、RAG知识库、通用设置等功能入口
 - 管理各个模态框的打开/关闭状态
 - 提供悬停提示功能

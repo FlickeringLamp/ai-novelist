@@ -40,7 +40,6 @@ frontend/src/store/slices/
 - **状态**:
   - `ragRetrievalEnabled`: RAG检索启用状态
   - `ragState`: RAG统一状态管理
-  - `modeFeatureSettings`: 模式特定的RAG设置
 
 ### 4. apiSlice.js - API配置
 - **职责**: 管理API密钥、模型选择、服务配置

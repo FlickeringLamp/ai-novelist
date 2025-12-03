@@ -10,7 +10,7 @@ class ToolConfigManager:
     """
     
     def __init__(self):
-        self._config_file = Path(__file__).parent.parent.parent / "config" / "store.json"
+        self._config_file = Path(__file__).parent.parent.parent / "data" / "config" / "store.json"
         self._tool_categories = {
             "file_operations": [
                 "read_file",

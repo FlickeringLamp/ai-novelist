@@ -44,12 +44,16 @@
 .App {
   background-color: var(--bg-color);
   color: var(--text-color-primary);
-  /* 使用 flex 来实现自定义标题栏布局 */
+  height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.layout-container {
+  flex-grow: 1;
+  display: flex;
   height: 100%;
-  /* 禁止 html,body 滚动，避免滚动条出现在标题栏右边 */
-  overflow: hidden;
 }
 
 .main-layout {
@@ -269,23 +273,13 @@ button#sendMessage:hover {
   transition: background-color 0.2s ease;
 }
 
-.approve-button {
-  background-color: var(--primary-color);
-  color: white;
-}
 
-.approve-button:hover {
-  background-color: var(--primary-color-dark);
-}
 
 .reject-button {
   background-color: var(--panel-bg-color); /* 改为深灰色系 */
   color: var(--text-color-primary); /* 改为文本主色 */
 }
 
-.reject-button:hover {
-  background-color: var(--hover-bg-color); /* 改为悬停背景色 */
-}
 
 .tool-status-text {
   font-size: 0.9em;
@@ -416,34 +410,4 @@ a:hover {
 .left-panel.collapsed > *:not(.panel-collapse-button),
 .right-panel.collapsed > *:not(.panel-collapse-button) {
   display: none;
-}
-
-/* 自定义标题栏样式 */
-.custom-titlebar {
-  display: flex;
-  align-items: center;
-  /* 避免被收缩 */
-  flex-shrink: 0;
-  /* 高度与 main.js 中 titleBarOverlay.height 一致  */
-  height: 35px;
-  width: 100%;
-  /* 标题栏始终在最顶层（避免后续被 Modal 之类的覆盖） */
-  z-index: 9999;
-
-  background-color: #000000; /* 纯黑色 */
-  color: #E0E0E0; /* 浅灰色文字 */
-  padding-left: 12px;
-  font-size: 14px;
-  
-  /* 避免选中窗口标题 */
-  user-select: none;
-  /* 设置该属性表明这是可拖拽区域，用来移动窗口 */
-  -webkit-app-region: drag;
-}
-
-/* 内容区域样式 */
-.content-area {
-  /* 内容区需要设置可滚动 */
-  overflow: auto;
-  flex-grow: 1;
 }

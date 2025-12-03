@@ -3,10 +3,8 @@ import { useCallback } from 'react';
 import chatService from '../services/chatService.js';
 import chapterService from '../services/chapterService.js';
 import fileService from '../services/fileService.js';
-import checkpointService from '../services/checkpointService.js';
 import configStoreService from '../services/configStoreService.js';
 import ragService from '../services/ragService.js';
-import toolConfigService from '../services/toolConfigService.js';
 import modelSelectionService from '../services/modelSelectionService.js';
 import websocketClient from '../services/websocketClient.js';
 
@@ -47,26 +45,6 @@ const useHttpService = () => {
   const listAvailableModels = useCallback(() =>
     modelSelectionService.getAvailableModels(), []);
 
-  // 检查点相关操作
-  const getCheckpoints = useCallback((filePath, limit) =>
-    checkpointService.getCheckpoints(filePath, limit), []);
-  const createCheckpoint = useCallback((request) =>
-    checkpointService.createCheckpoint(request), []);
-  const restoreCheckpoint = useCallback((checkpointId) =>
-    checkpointService.restoreCheckpoint(checkpointId), []);
-  const deleteCheckpoint = useCallback((checkpointId) =>
-    checkpointService.deleteCheckpoint(checkpointId), []);
-
-  // 小说存档相关操作
-  const createNovelArchive = useCallback((taskId, workspaceDir, message) =>
-    checkpointService.createNovelArchive(taskId, workspaceDir, message), []);
-  const restoreNovelArchive = useCallback((taskId, archiveId, workspaceDir) =>
-    checkpointService.restoreNovelArchive(taskId, archiveId, workspaceDir), []);
-  const listNovelArchives = useCallback((taskId) =>
-    checkpointService.listNovelArchives(taskId), []);
-  const deleteNovelArchive = useCallback((taskId, archiveId) =>
-    checkpointService.deleteNovelArchive(taskId, archiveId), []);
-
   // 存储相关操作
   const getStoreValue = useCallback((key) =>
     configStoreService.getStoreValue(key), []);
@@ -80,18 +58,6 @@ const useHttpService = () => {
     chapterService.reinitializeModelProvider(), []);
   const getDefaultPrompts = useCallback(() =>
     configStoreService.getDefaultPrompts(), []);
-  
-  // 工具配置操作
-  const getModeToolConfig = useCallback((modeId) =>
-    toolConfigService.getModeToolConfig(modeId), []);
-  const updateModeToolConfig = useCallback((modeId, config) =>
-    toolConfigService.updateModeToolConfig(modeId, config), []);
-  const resetModeToolConfig = useCallback((modeId) =>
-    toolConfigService.resetModeToolConfig(modeId), []);
-  const getAllModeToolConfigs = useCallback(() =>
-    toolConfigService.getAllModeToolConfigs(), []);
-  const getAvailableTools = useCallback(() =>
-    toolConfigService.getAvailableTools(), []);
 
   // 为了向后兼容，提供与 useIpcRenderer 相同的接口
   return {
@@ -117,18 +83,6 @@ const useHttpService = () => {
     sendInterruptResponse,
     listAvailableModels,
     
-    // 检查点操作
-    getCheckpoints,
-    createCheckpoint,
-    restoreCheckpoint,
-    deleteCheckpoint,
-    
-    // 小说存档操作
-    createNovelArchive,
-    restoreNovelArchive,
-    listNovelArchives,
-    deleteNovelArchive,
-    
     // 存储操作
     getStoreValue,
     setStoreValue,
@@ -136,13 +90,6 @@ const useHttpService = () => {
     // 其他操作
     getApiKey,
     reinitializeModelProvider,
-    
-    // 工具配置操作
-    getModeToolConfig,
-    updateModeToolConfig,
-    resetModeToolConfig,
-    getAllModeToolConfigs,
-    getAvailableTools,
     
     // 向后兼容的别名（与 useIpcRenderer 保持一致）
     invoke: useCallback(async (channel, ...args) => {
@@ -193,21 +140,6 @@ const useHttpService = () => {
         case 'rename-kb-file':
           // 重命名知识库文件
           return await ragService.renameKnowledgeBaseFile(args[0], args[1]);
-        case 'get-mode-tool-config':
-          // 获取模式工具配置
-          return await getModeToolConfig(args[0]);
-        case 'update-mode-tool-config':
-          // 更新模式工具配置
-          return await updateModeToolConfig(args[0], args[1]);
-        case 'reset-mode-tool-config':
-          // 重置模式工具配置
-          return await resetModeToolConfig(args[0]);
-        case 'get-all-mode-tool-configs':
-          // 获取所有模式工具配置
-          return await getAllModeToolConfigs();
-        case 'get-available-tools':
-          // 获取可用工具列表
-          return await getAvailableTools();
         default:
           console.warn(`未知的调用通道: ${channel}`);
           return { success: false, error: `未知的调用通道: ${channel}` };
@@ -215,7 +147,7 @@ const useHttpService = () => {
     }, [
       getChapters, updateFileOrder, updateFolderOrder, getApiKey, setStoreValue, getStoreValue,
       reinitializeModelProvider, listAvailableModels, readFile, writeFile, getDefaultPrompts,
-      getModeToolConfig, updateModeToolConfig, resetModeToolConfig, getAllModeToolConfigs, getAvailableTools
+      ragService
     ]),
     
     send: useCallback((channel, ...args) => {

@@ -7,12 +7,12 @@
 ![项目截图](images/示例图片.jpg)
 ## 项目介绍
 
-青烛(正式名)是一个智能写作辅助工具，采用 Python 后端和 JavaScript 前端架构，提供全方位的写作支持。
+青烛(正式名)是一个智能写作辅助工具，采用 Python 后端和 JavaScript 前端，提供ai写作支持。
 
 **核心功能**:
 *   **AI 智能交互**: 与AI进行实时对话，辅助创作。
 *   **章节管理**: 创建、编辑、删除和组织章节。
-*   **内容编辑器**: 基于 Tiptap 的富文本编辑器。
+*   **内容编辑器**: 基于 Vditor 的markdown编辑器。
 *   **文风模仿**: 基于 RAG 技术，检索文本片段，增强ai能力。
 *   **工具调用**: 支持类似 vibecoding 的工具调用解决问题，目前部分功能仍在完善中。
 
@@ -20,13 +20,12 @@
 
 ### 前端技术
 *   **React**: 前端用户界面框架
-*   **Redux**: 前端状态管理库
-*   **Tiptap**: 富文本编辑器框架
+*   **Redux**: 前端状态管理库(正在移除)
+*   **Vditor**: markdown编辑器
 
 ### 后端技术
 *   **LangChain**: 用于构建AI应用的工具链
 *   **LangGraph**: 基于图的AI工作流编排框架
-*   **LiteLLM**: 统一的AI模型调用接口
 *   **LanceDB**: 向量数据库，提供语义搜索和知识库管理
 
 
@@ -53,22 +52,14 @@
 
 
 3.  **安装后端依赖**:
-    从根目录(`ai-novelist`)创建虚拟环境，激活，并安装后端依赖，启动：
+    从根目录(`ai-novelist`)创建虚拟环境，激活，并安装后端依赖,回到根目录，启动：
     ```bash
     python -m venv backend_env
     backend_env\Scripts\activate
     cd backend
     pip install -r requirements.txt
+    cd ..
     python main.py
-    ```
-
-4.  **安装litellm网关**
-    进入根目录(`ai-novelist`)，创建虚拟环境(名称随意)，并安装litellm，启动。(backend/api_provider/config.yaml自行配置)
-    ```bash
-    python -m venv litellm_env
-    litellm_env\Scripts\activate
-    pip install 'litellm[proxy]'
-    litellm --config backend/api_provider/config.yaml --port 4000 --host 0.0.0.0 --debug
     ```
 
 5. **浏览器访问**：

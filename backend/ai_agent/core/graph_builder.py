@@ -12,7 +12,7 @@ import os
 # 添加父目录到路径，确保可以导入ai_agent模块
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from ..config import ai_settings, State
-
+from ..models.multi_model_adapter import MultiModelAdapter
 def build_graph(tool, memory, system_prompt=None, mode=None):
     """构建并返回图实例
     
@@ -26,28 +26,19 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
     selected_model = ai_settings.DEFAULT_MODEL
     selected_provider = ai_settings._get_config("selectedProvider", "deepseek")
     
-    # # 如果模型ID包含提供商信息（如 "zhipuai/glm-4-plus"），则解析提供商和模型名称
-    # if "/" in selected_model:
-    #     # 从模型ID中解析提供商和模型名称
-    #     provider_from_model, model_name = selected_model.split("/", 1)
-    #     selected_provider = provider_from_model
-    #     selected_model = model_name
-    # else:
-    #     # 使用配置中的提供商
-    #     model_name = selected_model
-
-    # 不要解析，直接使用提供商/模型名形式
+    # 如果模型ID包含提供商信息（如 "zhipuai/glm-4-plus"），则解析提供商和模型名称
+    if "/" in selected_model:
+        # 从模型ID中解析提供商和模型名称
+        provider_from_model, model_name = selected_model.split("/", 1)
+        selected_provider = provider_from_model
+        selected_model = model_name
     
     print(f"构建图实例 - 模型: {selected_model}, 提供商: {selected_provider}, 模式: {mode}")
     
-    # 获取对应提供商的API密钥
-    api_key = ai_settings.get_api_key_for_provider(selected_provider)
-    
-    # 使用ChatOpenAI，连接liteLLM网关
-    llm = ChatOpenAI(
-        openai_api_base="http://127.0.0.1:4000",
-        api_key="sk-123",  # 添加API密钥
+    # 使用多模型适配器创建模型实例
+    llm = MultiModelAdapter.create_model(
         model=selected_model,
+        provider=selected_provider,
         temperature=ai_settings.temperature,
         max_tokens=ai_settings.max_tokens,
         timeout=ai_settings.timeout,
@@ -61,13 +52,22 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
         llm_with_tools = llm
         print(f"[WARNING] 没有可用的工具绑定到模型")
     
-    # 创建总结模型（限制token数）
-    summarization_model = llm.bind(max_tokens=128)
+    # 创建独立的总结模型实例（不绑定工具）
+    llm_summarization = MultiModelAdapter.create_model(
+        model=selected_model,
+        provider=selected_provider,
+        temperature=ai_settings.temperature,
+        max_tokens=4096,  # 限制token数
+        timeout=ai_settings.timeout,
+    )
+    # 不绑定工具，确保AI不会尝试调用工具
+    summarization_model = llm_summarization
     # 创建模型节点
     def call_llm(state: State):
         """调用LLM生成响应"""
         # 获取当前消息列表
         current_messages = state.get("messages", [])
+        print(f"当前消息列表{current_messages}")
         
         # 获取模式特定的最大token数
         mode_max_tokens = ai_settings.get_max_tokens_for_mode(mode)
@@ -81,6 +81,7 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
             start_on="human",  # 从human消息开始保留
             end_on=("human", "tool"),  # 在human或tool消息结束
         )
+        print(f"是你导致的吗？{current_messages}")
         
         # 如果有系统提示词，更新系统消息
         if system_prompt:
@@ -88,14 +89,12 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
             filtered_messages = [msg for msg in current_messages if not isinstance(msg, SystemMessage)]
             # 添加新的系统消息到开头
             current_messages = [SystemMessage(content=system_prompt)] + filtered_messages
-        
+        print(f"llm节点获得的最新消息：{current_messages}")
         # 调用模型生成响应
         response = llm_with_tools.invoke(current_messages)
         # 手动将新消息添加到现有消息列表中
         updated_messages = current_messages + [response]
-        print(f"总消息{updated_messages}")
         return {"messages": updated_messages}
-    # 创建工具字典
     tools_by_name = {tool.name: tool for tool in tool.values()}
 
     # 自定义工具节点
@@ -172,35 +171,38 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
     # 创建总结节点
     def summarize_conversation(state: State):
         """总结对话历史"""
-        # 获取现有总结
-        summary = state.get("summary", "")
+        # 设置总结节点的系统提示词
+        summary_system_prompt = "你是一个对话总结助手，请阅读上述对话，总结重点信息"
         
-        # 创建总结提示
-        if summary:
-            # 如果已有总结，扩展它
-            summary_message = (
-                f"这是到目前为止的对话总结: {summary}\n\n"
-                "请根据上面的新消息扩展这个总结:"
-            )
-        else:
-            # 如果是第一次总结，创建新总结
-            summary_message = "请为上面的对话创建一个总结:"
+        # 创建消息列表，包含系统提示词
+        messages = []
         
-        # 添加总结提示到消息历史
-        messages = state["messages"] + [HumanMessage(content=summary_message)]
+        # 添加系统提示词
+        messages.append(SystemMessage(content=summary_system_prompt))
         
+        # 添加原始消息
+        messages.extend(state["messages"])
+        
+        # 添加总结提示
+        messages.append(HumanMessage(content="请为上面的对话创建一个总结:"))
+        
+        print(f"[DEBUG] summarize节点 - 准备调用总结模型，消息数量: {len(messages)}")
         # 调用总结模型
         response = summarization_model.invoke(messages)
         
-        # 删除除最近2条消息外的所有消息
-        delete_messages = state["messages"][:-2]
+        print(f"[DEBUG] summarize节点 - 总结模型返回: '{response.content}'")
+        # 创建包含总结内容的AI消息
+        summary_ai_message = AIMessage(content=response.content)
         
-        return {
-            "summary": response.content,
-            "messages": state["messages"][-2:]  # 保留最近2条消息
+        # 创建用户消息，用于触发总结
+        summary_user_message = HumanMessage(content="请总结上述对话，保留重点信息")
+        
+        # 返回用户消息+AI总结消息，符合裁剪规则
+        result = {
+            "messages": [summary_user_message, summary_ai_message]
         }
-
-    # 构建工作流图
+        print(f"[DEBUG] summarize节点 - 返回结果: {result}")
+        return result
     builder = StateGraph(State)
 
     # 添加节点
@@ -218,23 +220,33 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
         has_delete_instructions = False
         has_summarize_instructions = False
         
+        # 打印所有消息内容用于调试
+        print(f"[DEBUG] 路由函数检查消息，共 {len(messages)} 条消息:")
+        for i, msg in enumerate(messages):
+            print(f"[DEBUG] 消息 {i}: 类型={type(msg).__name__}, 内容前50字符={str(msg.content)[:50] if hasattr(msg, 'content') else '无内容'}")
+        
         for msg in messages:
             if isinstance(msg, HumanMessage):
                 if msg.content.startswith("/delete"):
                     has_delete_instructions = True
+                    print(f"[DEBUG] 检测到删除指令: {msg.content}")
                     break
                 elif msg.content.startswith("/summarize"):
                     has_summarize_instructions = True
+                    print(f"[DEBUG] 检测到总结指令: {msg.content}")
                     break
         
         if has_delete_instructions:
             # 如果有删除指令，执行删除
+            print(f"[DEBUG] 路由决策: 执行删除操作")
             return "custom_delete"
         elif has_summarize_instructions:
             # 如果有总结指令，执行总结
+            print(f"[DEBUG] 路由决策: 执行总结操作")
             return "summarize"
         else:
             # 否则调用LLM
+            print(f"[DEBUG] 路由决策: 调用LLM")
             return "call_llm"
 
     # 添加边
@@ -253,8 +265,8 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
             "call_llm": "call_llm"
         }
     )
-    # 总结节点执行后继续到LLM
-    builder.add_edge("summarize", "call_llm")
+    # 总结节点执行后结束，避免触发后续节点
+    builder.add_edge("summarize", END)
     
     # 删除节点执行后结束
     builder.add_edge("custom_delete", END)

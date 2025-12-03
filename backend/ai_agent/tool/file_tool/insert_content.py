@@ -9,7 +9,7 @@ from langgraph.types import Command, interrupt
 # 导入配置和路径验证器
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from config import settings
+from backend.config import settings
 from file.utils.path_validator import PathValidator
 
 class InsertContentInput(BaseModel):
@@ -27,7 +27,18 @@ def insert_content(path: str, paragraph: int, content: str) -> str:
         paragraph: 段落号
         content: 要插入的内容
     """
-    user_choice = interrupt("工具中断，扣1恢复，扣2取消")
+    # 构造包含工具具体信息的中断数据
+    interrupt_data = {
+        "tool_name": "insert_content",
+        "tool_display_name": "插入内容",
+        "description": f"插入内容到文件: {path} (位置: {paragraph})",
+        "parameters": {
+            "path": path,
+            "paragraph": paragraph,
+            "content": content
+        }
+    }
+    user_choice = interrupt(interrupt_data)
     choice_action = user_choice.get("choice_action", "2")
     choice_data = user_choice.get("choice_data", "无附加信息")
     
@@ -41,7 +52,7 @@ def insert_content(path: str, paragraph: int, content: str) -> str:
             
             # 验证路径安全性
             if not path_validator.is_safe_path(clean_path):
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：插入失败，不安全的文件路径: {path}"
+                return f"【工具结果】：插入失败，不安全的文件路径: {path} ;**【用户信息】：{choice_data}**"
                 
             # 获取完整路径
             file_path = path_validator.get_full_path(clean_path)
@@ -63,8 +74,8 @@ def insert_content(path: str, paragraph: int, content: str) -> str:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
             
-            return f"【用户额外信息】：{choice_data}，【工具执行结果】：内容已成功插入到文件 '{path}' 的第 {paragraph} 段"
+            return f"【工具结果】：内容已成功插入到文件 '{path}' 的第 {paragraph} 段 ;**【用户信息】：{choice_data}**"
         except Exception as e:
-            return f"【用户额外信息】：{choice_data}，【工具执行结果】：插入内容失败: {str(e)}"
+            return f"【工具结果】：插入内容失败: {str(e)} ;**【用户信息】：{choice_data}**"
     else:
-        return f"【用户额外信息】：{choice_data}，【工具执行结果】：用户取消了工具请求"
+        return f"【工具结果】：用户取消了工具请求 ;**【用户信息】：{choice_data}**"

@@ -10,7 +10,7 @@ from langgraph.types import interrupt,Command
 # 导入配置和路径验证器
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from config import settings
+from backend.config import settings
 from file.utils.path_validator import PathValidator
 
 
@@ -36,7 +36,20 @@ def search_and_replace(path: str, search: str, replace: str,
         ignore_case: 是否忽略大小写
         runtime: LangChain运行时上下文
     """
-    user_choice = interrupt("工具中断，扣1恢复，扣2取消")
+    # 构造包含工具具体信息的中断数据
+    interrupt_data = {
+        "tool_name": "search_and_replace",
+        "tool_display_name": "搜索替换",
+        "description": f"搜索替换: {path} (\"{search}\" -> \"{replace}\")",
+        "parameters": {
+            "path": path,
+            "search": search,
+            "replace": replace,
+            "use_regex": use_regex,
+            "ignore_case": ignore_case
+        }
+    }
+    user_choice = interrupt(interrupt_data)
     choice_action = user_choice.get("choice_action", "2")
     choice_data = user_choice.get("choice_data", "无附加信息")
     
@@ -50,18 +63,18 @@ def search_and_replace(path: str, search: str, replace: str,
             
             # 验证路径安全性
             if not path_validator.is_safe_path(clean_path):
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：搜索替换失败，不安全的文件路径: {path}"
+                return f"【工具结果】：搜索替换失败，不安全的文件路径: {path} ;**【用户信息】：{choice_data}**"
                 
             # 获取完整路径
             full_path = path_validator.get_full_path(clean_path)
             
             # 检查文件是否存在
             if not full_path.exists():
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：错误：文件 '{path}' 不存在"
+                return f"【工具结果】：错误：文件 '{path}' 不存在 ;**【用户信息】：{choice_data}**"
             
             # 检查是否为文件而非目录
             if not full_path.is_file():
-                return f"【用户额外信息】：{choice_data}，【工具执行结果】：错误：'{path}' 不是一个文件"
+                return f"【工具结果】：错误：'{path}' 不是一个文件 ;**【用户信息】：{choice_data}**"
             
             with open(full_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -81,9 +94,9 @@ def search_and_replace(path: str, search: str, replace: str,
             with open(full_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
             
-            return f"【用户额外信息】：{choice_data}，【工具执行结果】：在文件 '{path}' 中成功完成搜索替换操作"
+            return f"【工具结果】：在文件 '{path}' 中成功完成搜索替换操作 ;**【用户信息】：{choice_data}**"
         
         except Exception as e:
-            return f"【用户额外信息】：{choice_data}，【工具执行结果】：搜索替换失败: {str(e)}"
+            return f"【工具结果】：搜索替换失败: {str(e)} ;**【用户信息】：{choice_data}**"
     else:
-        return f"【用户额外信息】：{choice_data}，【工具执行结果】：用户拒绝了工具请求"
+        return f"【工具结果】：用户拒绝了工具请求 ;**【用户信息】：{choice_data}**"

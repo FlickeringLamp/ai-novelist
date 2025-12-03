@@ -57,12 +57,15 @@ class HttpClient {
           if (contentType && contentType.includes('application/json')) {
             const errorData = await response.json();
             errorDetails = errorData.detail || errorData.message || JSON.stringify(errorData);
+            console.error('后端返回的JSON错误详情:', errorData);
           } else {
             errorDetails = await response.text();
+            console.error('后端返回的文本错误详情:', errorDetails);
           }
         } catch (parseError) {
           // 如果解析错误响应体失败，使用默认错误信息
           errorDetails = response.statusText || 'Unknown error';
+          console.error('解析错误响应体失败:', parseError);
         }
         
         // 创建一个包含状态码和详细信息的错误对象
@@ -71,7 +74,6 @@ class HttpClient {
         error.details = errorDetails;
         throw error;
       }
-
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         return await response.json();

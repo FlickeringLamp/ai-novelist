@@ -56,6 +56,11 @@ const InputComponent = ({
       if (onChange) {
         onChange(numValue);
       }
+    } else if (type === 'number' && inputValue === '') {
+      // 允许空值，直接传递空值给onChange
+      if (onChange) {
+        onChange('');
+      }
     }
   };
 
