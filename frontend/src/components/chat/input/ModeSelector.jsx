@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngleLeft, faAngleRight } from '@fortawesome/free-solid-svg-icons';
 import './ModeSelector.css';
-import configStoreService from '../../../services/configStoreService.js';
+import httpClient from '../../../utils/httpClient.js';
 
 // 模式选择器组件
 const ModeSelector = () => {
@@ -18,15 +18,15 @@ const ModeSelector = () => {
     const loadModeSettings = async () => {
       try {
         // 加载当前模式
-        const savedMode = await configStoreService.getStoreValue('currentMode');
-        if (savedMode) {
-          setCurrentMode(savedMode);
+        const modeResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('currentMode')}`);
+        if (modeResponse.data) {
+          setCurrentMode(modeResponse.data);
         }
         
         // 加载自定义模式
-        const savedCustomModes = await configStoreService.getStoreValue('customModes');
-        if (savedCustomModes && Array.isArray(savedCustomModes)) {
-          setCustomModes(savedCustomModes);
+        const modesResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customModes')}`);
+        if (modesResponse.data && Array.isArray(modesResponse.data)) {
+          setCustomModes(modesResponse.data);
         }
       } catch (error) {
         console.error('加载模式设置失败:', error);
@@ -75,7 +75,10 @@ const ModeSelector = () => {
     
     // 保存到持久化存储
     try {
-      await configStoreService.setStoreValue('currentMode', modeId);
+      await httpClient.post('/api/config/store', {
+        key: 'currentMode',
+        value: modeId
+      });
       console.log(`[模式选择器] 已保存模式选择: ${modeId}`);
       
       // 触发自定义事件，通知其他组件模式已更改

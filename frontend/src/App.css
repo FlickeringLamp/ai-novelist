@@ -1,413 +1,142 @@
+/* 通用变量 - 仅保留最基础的、跨组件复用的变量 */
 :root {
-  /* 主题色 - 黑色主题 */
-  --primary-color: #00AD62; /* 按钮点缀绿色 */
-  --primary-color-dark: #008C4F; /* 绿色深色版本 */
-  --accent-color: var(--primary-color); /* 改为绿色点缀 */
+  /* 圆角 */
+  --border-radius-small: 4px;
+  --border-radius-medium: 8px;
 
-  /* 背景色 - 纯黑色主题 */
-  --bg-color: #000000; /* 纯黑色背景 */
-  --panel-bg-color: #000000; /* 面板背景色 - 纯黑色 */
-  --panel-bg-color-alt: #000000; /* 替代面板背景色 - 纯黑色 */
-  --hover-bg-color: #1A1A1A; /* 悬停背景色 - 深灰色 */
-
-  /* 字体颜色 */
-  --text-color-primary: #E0E0E0; /* 浅色文本 */
-  --text-color-secondary: #B0B0B0; /* 略深的浅色文本 */
-  --text-color-light: #808080; /* 更暗的浅色文本 */
-
-  /* 边框和线条 */
-  --border-color: #333333; /* 深灰色边框 */
-  --divider-color: #333333; /* 深灰色分隔线 */
-
-  /* 阴影 - 调整为适合深色背景的阴影 */
+  /* 阴影 */
   --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-deep: 0 8px 12px rgba(0, 0, 0, 0.5);
 
-  /* 圆角 */
-  --border-radius-small: 4px;
-  --border-radius-medium: 8px;
+  /* 面板背景色 */
+  --panel-bg-color: #000000;
 }
 
-/* 文本选中变色：改为绿色高亮 */
-::selection {
-  background: rgba(0, 173, 98, 0.6); /* 使用主题绿色，60%透明度 */
-  color: white;
-}
-/* 兼容Firefox */
-::-moz-selection {
-  background: rgba(0, 173, 98, 0.6); /* 使用主题绿色，60%透明度 */
-  color: white;
-}
-
-/* App.css */
+/* App 主容器 */
 .App {
-  background-color: var(--bg-color);
-  color: var(--text-color-primary);
+  background-color: #000000;
+  color: #E0E0E0;
   height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
+/* 布局容器 */
 .layout-container {
   flex-grow: 1;
   display: flex;
   height: 100%;
 }
 
+/* 主布局区域 */
 .main-layout {
-  flex-grow: 1; /* 占据剩余空间 */
-  display: flex; /* 使 PanelGroup 内部的 Panel 也能使用 flex */
-  height: 100%; /* 占据整个父容器的高度 */
-  overflow: hidden; /* 防止内容溢出 PanelGroup */
-  min-height: 0; /* 修复 flex 子元素溢出问题 */
+  flex-grow: 1;
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.sidebar-panel-fixed, .left-panel, .middle-panel, .right-panel {
+/* 通用面板样式 */
+.sidebar-panel-fixed,
+.left-panel,
+.middle-panel,
+.right-panel {
   display: flex;
   flex-direction: column;
-  /* 移除 padding，让内部内容负责自己的 padding */
   box-sizing: border-box;
   border-radius: var(--border-radius-medium);
   box-shadow: var(--shadow-light);
-  position: relative; /* 使内部的绝对定位按钮生效 */
+  position: relative;
 }
 
-/* 固定侧边栏样式 */
+/* 固定侧边栏 */
 .sidebar-panel-fixed {
-  background-color: #000000; /* 纯黑色 */
+  background-color: #000000;
   padding: 0;
-  width: 50px; /* 固定宽度 */
-  flex-shrink: 0; /* 防止被压缩 */
-  overflow: hidden; /* 防止内容溢出 */
+  width: 50px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
-/* 细长的普通灰色分隔线 */
+/* 分隔线 */
 .divider-line {
   width: 1px;
-  background-color: #333333; /* 深灰色分隔线 */
-  flex-shrink: 0; /* 防止被压缩 */
+  background-color: #333333;
+  flex-shrink: 0;
 }
 
+/* 左侧面板 */
 .left-panel {
-  background-color: #000000; /* 纯黑色 */
-  padding: 0; /* 特别为 left-panel 移除 padding */
+  background-color: #000000;
+  padding: 0;
 }
 
+/* 中间面板 */
 .middle-panel {
-  background-color: #000000; /* 纯黑色 */
-  padding: 0; /* 移除 padding 让内容完全填充 */
+  background-color: #000000;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100%; /* 确保完全填充父容器高度 */
+  height: 100%;
 }
 
-/* 编辑器内容包装器，确保标签页始终可见 */
+/* 编辑器内容包装器 */
 .editor-content-wrapper {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 防止内容溢出 */
-  min-height: 0; /* 修复 flex 子元素溢出问题 */
-  height: 100%; /* 确保完全填充父容器 */
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
 }
 
+/* 右侧面板 */
 .right-panel {
-  background-color: #000000; /* 纯黑色 */
-  padding: 0; /* 移除 padding 让子组件完全填充 */
-  display: flex; /* 使用 flex 布局 */
-  flex-direction: column; /* 垂直排列子元素 */
-  height: 100%; /* 确保完全填充父容器高度 */
+  background-color: #000000;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-.middle-panel {
-  background-color: #000000; /* 纯黑色 */
-}
-
+/* 调整手柄 */
 .resize-handle {
-  width: 5px; /* 拖动条宽度 */
-  background-color: var(--divider-color);
-  cursor: ew-resize; /* 水平拖动光标 */
-  flex-shrink: 0; /* 防止拖动条被压缩 */
-  position: relative; /* 为内部可能的绝对定位元素提供定位上下文 */
+  width: 5px;
+  background-color: #333333;
+  cursor: ew-resize;
+  flex-shrink: 0;
+  position: relative;
 }
 
 .resize-handle:hover {
-  background-color: var(--primary-color); /* 悬停时变色 */
+  background-color: #00AD62;
 }
 
-/* 调整 textarea 和 chatDisplay 的样式 */
-textarea#novelContent,
-div#chatDisplay {
-  flex-grow: 1; /* 占据父容器剩余空间 */
-  width: 100%;
-  box-sizing: border-box;
-  resize: none; /* 禁用用户调整大小 */
-  border: 1px solid var(--border-color); /* 添加边框 */
-  border-radius: var(--border-radius-small); /* 添加圆角 */
-  padding: 10px;
+/* 折叠面板状态 */
+.left-panel.collapsed,
+.right-panel.collapsed {
+  overflow: visible;
 }
 
-/* 调整 chatInput 和 sendMessage 按钮的样式 */
-input#chatInput {
-  margin-top: 10px;
-  padding: 8px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-small);
-  width: calc(100% - 60px); /* 留出按钮空间 */
-}
-
-button#sendMessage {
-  margin-left: 5px;
-  padding: 8px 15px;
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: var(--border-radius-small);
-  cursor: pointer;
-  transition: background-color 0.2s ease; /* 添加过渡效果 */
-}
-
-button#sendMessage:hover {
-  background-color: var(--primary-color-dark);
-}
-
-/* 消息样式 */
-.message {
-  margin-bottom: 8px; /* 增加消息间距 */
-  padding: 10px;
-  border-radius: var(--border-radius-medium); /* 增大圆角 */
-  text-align: left;
-  line-height: 1.5; /* 增加行高 */
-}
-
-.user {
-  background-color: #DCF8C6; /* 淡绿色 */
-  align-self: flex-end; /* 用户消息靠右 */
-}
-
-.ai {
-  background-color: var(--panel-bg-color-alt); /* 浅灰色背景 */
-  align-self: flex-start; /* AI消息靠左 */
-}
-
-.system-message {
-  background-color: var(--panel-bg-color); /* 改为深灰色系 */
-  color: var(--text-color-secondary);
-  font-style: italic;
-  font-size: 0.9em;
-  padding: 10px;
-  border-radius: var(--border-radius-small);
-  margin: 5px 0;
-  border: 1px solid var(--border-color); /* 改为深灰色边框 */
-}
-
-.system-message .message-header {
-  font-weight: bold;
-  margin-bottom: 5px;
-  color: var(--text-color-primary); /* 改为文本主色 */
-}
-
-.tool-success {
-  background-color: rgba(0, 173, 98, 0.1); /* 绿色点缀，浅色透明 */
-  color: var(--primary-color); /* 绿色文本 */
-  border: 1px solid var(--primary-color-dark); /* 深绿色边框 */
-}
-
-.tool-failure {
-  background-color: var(--panel-bg-color-alt); /* 改为深灰色系 */
-  color: var(--text-color-primary); /* 改为文本主色 */
-  border: 1px solid var(--border-color); /* 改为深灰色边框 */
-}
-
-/* 工具卡片样式 */
-
-.tool-suggestion {
-  border: 1px solid var(--border-color);
-  padding: 15px;
-  margin-bottom: 10px;
-  border-radius: var(--border-radius-medium);
-  background-color: var(--panel-bg-color);
-  box-shadow: var(--shadow-light);
-  transition: box-shadow 0.2s ease;
-}
-
-.tool-suggestion:hover {
-  box-shadow: var(--shadow-medium);
-}
-
-.tool-suggestion.executed {
-  background-color: rgba(0, 173, 98, 0.1); /* 绿色点缀，浅色透明 */
-  border-color: var(--primary-color); /* 绿色边框 */
-}
-
-.tool-suggestion.failed {
-  background-color: var(--panel-bg-color-alt); /* 改为深灰色系 */
-  border-color: var(--border-color); /* 改为深灰色边框 */
-}
-
-.tool-suggestion.rejected {
-  background-color: var(--panel-bg-color-alt); /* 改为深灰色系 */
-  border-color: var(--border-color); /* 改为深灰色边框 */
-}
-
-.tool-params-details {
-  margin-top: 10px;
-  cursor: pointer;
-  color: var(--primary-color);
-}
-
-.tool-params-summary {
-  font-weight: bold;
-  color: var(--text-color-primary);
-}
-
-.tool-actions button {
-  margin-right: 10px;
-  padding: 8px 16px;
-  border-radius: var(--border-radius-small);
-  cursor: pointer;
-  border: none;
-  font-weight: bold;
-  transition: background-color 0.2s ease;
-}
-
-
-
-.reject-button {
-  background-color: var(--panel-bg-color); /* 改为深灰色系 */
-  color: var(--text-color-primary); /* 改为文本主色 */
-}
-
-
-.tool-status-text {
-  font-size: 0.9em;
-  color: var(--text-color-secondary);
-  margin-top: 8px;
-}
-
-/* 提问卡片样式 */
-.ai.ask-question {
-  background-color: var(--panel-bg-color-alt); /* 改为深灰色系 */
-  border: 1px solid var(--border-color); /* 改为深灰色边框 */
-  padding: 15px;
-  margin-top: 10px;
-  border-radius: var(--border-radius-medium);
-  box-shadow: var(--shadow-light);
-}
-
-.ai.ask-question .question-actions button {
-  margin-right: 10px;
-  padding: 8px 16px;
-  border-radius: var(--border-radius-small);
-  cursor: pointer;
-  border: 1px solid var(--primary-color);
-  background-color: var(--primary-color);
-  color: white;
-  transition: background-color 0.2s ease;
-}
-
-.ai.ask-question .question-actions button:hover {
-  background-color: var(--primary-color-dark);
-}
-
-.ai.ask-question input[type="text"] {
-  padding: 8px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-small);
-  width: calc(100% - 120px); /* 留出按钮空间，适应新的padding */
-  margin-right: 5px;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  color: var(--text-color-primary);
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
-}
-
-p {
-  color: #ffffff;
-  line-height: 1.6;
-}
-
-a {
-  color: var(--primary-color);
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-/* 滚动条美化 */
+/* 滚动条样式 */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-color);
+  background: #000000;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--divider-color);
+  background: #333333;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-color);
-}
-
-/* Collapse Button Styling */
-/* These styles are no longer needed as the collapse buttons are removed */
-/*
-.panel-collapse-button {
-  background-color: var(--panel-bg-color);
-  color: var(--text-color-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-small);
-  padding: 5px 8px;
-  cursor: pointer;
-  font-size: 1.2em;
-  line-height: 1;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-  box-shadow: var(--shadow-light);
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-}
-
-.panel-collapse-button:hover {
-  background-color: var(--hover-bg-color);
-  color: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-.left-panel-collapse-button {
-  left: 0px;
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.right-panel-collapse-button {
-  right: 0px;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-*/
-
-/* Ensure content inside collapsed panels doesn't overflow */
-/* Reverting to original styles, removing forced 0 width */
-.left-panel.collapsed,
-.right-panel.collapsed {
-  overflow: visible; /* 允许按钮超出面板边界以便显示 */
-}
-
-/* Hide content when panel is collapsed, except the button */
-.left-panel.collapsed > *:not(.panel-collapse-button),
-.right-panel.collapsed > *:not(.panel-collapse-button) {
-  display: none;
+  background: #00AD62;
 }

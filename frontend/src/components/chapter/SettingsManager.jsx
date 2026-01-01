@@ -1,6 +1,5 @@
 import React from 'react';
-import chapterService from '../../services/chapterService';
-import configStoreService from '../../services/configStoreService';
+import httpClient from '../../utils/httpClient.js';
 
 /**
  * 设置管理模块
@@ -19,11 +18,17 @@ const SettingsManager = ({
    */
   const handleSaveApiKey = async () => {
     // 保存 API Key
-    const saveResult = await configStoreService.setStoreValue('deepseekApiKey', apiKey);
+    await httpClient.post('/api/config/store', {
+      key: 'deepseekApiKey',
+      value: apiKey
+    });
     
-    if (saveResult.success) {
+    // 重新初始化模型提供者
+    const initResult = await httpClient.post('/api/models/reinitialize');
+    
+    if (initResult.success) {
       // 重新初始化模型提供者
-      const initResult = await chapterService.reinitializeModelProvider();
+      const initResult = await httpClient.post('/api/models/reinitialize');
       
       if (initResult.success) {
         setNotificationMessage('API Key 已保存！模型提供者已重新初始化。');
@@ -44,12 +49,8 @@ const SettingsManager = ({
   const handleCancelSettings = async () => {
     setShowSettings(false);
     // 重新从 store 加载，以防用户取消后恢复旧值
-    const result = await configStoreService.getStoreValue('deepseekApiKey');
-    if (result.success && result.value) {
-      setApiKey(result.value);
-    } else {
-      setApiKey(''); // 如果没有，则清空
-    }
+    const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent('deepseekApiKey')}`);
+    setApiKey(response.data || '');
   };
 
   /**

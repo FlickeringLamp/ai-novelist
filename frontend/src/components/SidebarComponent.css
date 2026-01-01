@@ -1,15 +1,11 @@
 .sidebar {
-  position: relative;
-  width: 50px; /* 固定宽度，只显示图标 */
+  width: 50px;
   height: 100%;
-  background-color: #000000; /* 纯黑色 */
+  background-color: #000000;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  z-index: 100;
 }
 
-/* 侧边栏项目容器 */
 .sidebar-items {
   flex: 1;
   padding: 10px 0;
@@ -18,100 +14,26 @@
   gap: 8px;
 }
 
-/* 侧边栏项目 */
 .sidebar-item {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 12px;
-  color: var(--text-color-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
   border-left: 3px solid transparent;
   position: relative;
-}
-
-.sidebar-item:hover {
-  background-color: var(--hover-bg-color);
-  color: var(--text-color-primary);
-}
-
-.sidebar-item.active {
-  background-color: var(--hover-bg-color);
-  color: var(--primary-color);
-  border-left-color: var(--primary-color);
-}
-
-/* 悬停提示框 */
-.sidebar-item::after {
-  content: attr(title);
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: var(--panel-bg-color);
-  color: var(--text-color-primary);
-  padding: 8px 12px;
-  border-radius: 4px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  z-index: 1000;
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-medium);
-  font-size: 12px;
 }
 
 .sidebar-item:hover::after {
   opacity: 1;
 }
 
-/* 图标样式 */
 .item-icon {
   font-size: 18px;
-  transition: color 0.2s ease;
+  color: #ffffff;
 }
 
 .sidebar-item:hover .item-icon,
 .sidebar-item.active .item-icon {
-  color: var(--primary-color);
-}
-
-/* 确保侧边栏在布局中正确显示 */
-.main-layout .sidebar {
-  flex-shrink: 0;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .sidebar {
-    width: 40px; /* 移动端更小 */
-  }
-  
-  .sidebar-item {
-    padding: 10px;
-  }
-  
-  .item-icon {
-    font-size: 16px;
-  }
-}
-
-/* 滚动条样式 */
-.sidebar-items::-webkit-scrollbar {
-  width: 4px;
-}
-
-.sidebar-items::-webkit-scrollbar-track {
-  background: var(--bg-color);
-}
-
-.sidebar-items::-webkit-scrollbar-thumb {
-  background: var(--divider-color);
-  border-radius: 2px;
-}
-
-.sidebar-items::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-color);
+  color: rgb(28, 255, 28);
 }

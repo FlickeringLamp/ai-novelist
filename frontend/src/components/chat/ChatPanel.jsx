@@ -6,8 +6,77 @@ import ModeSelector from './input/ModeSelector'
 import MessageInput from './input/MessageInput'
 import MessageDisplay from './messagedisplay/MessageDisplay'
 import AutoApproveConfig from './input/AutoApproveConfig'
-import chatService from '../../services/chatService.js'
-import sessionService from '../../services/sessionService.js'
+import httpClient from '../../utils/httpClient.js'
+
+// 处理流式响应的辅助函数
+const handleStreamResponse = (response) => {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  
+  const decodeBase64Data = (base64String) => {
+    try {
+      const binaryString = atob(base64String);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const decodedString = new TextDecoder('utf-8').decode(bytes);
+      return JSON.parse(decodedString);
+    } catch (e) {
+      console.error('Base64解码或JSON解析失败:', e);
+      return null;
+    }
+  };
+  
+  return {
+    async *[Symbol.asyncIterator]() {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '') continue;
+              
+              try {
+                const decodedData = decodeBase64Data(data);
+                if (decodedData) {
+                  yield decodedData;
+                }
+              } catch (e) {
+                console.error('解码Base64数据失败:', e, '原始数据:', data);
+              }
+            }
+          }
+        }
+        
+        if (buffer.trim() && buffer.startsWith('data: ')) {
+          const data = buffer.slice(6).trim();
+          if (data !== '') {
+            try {
+              const decodedData = decodeBase64Data(data);
+              if (decodedData) {
+                yield decodedData;
+              }
+            } catch (e) {
+              console.error('解码剩余Base64数据失败:', e, '原始数据:', data);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    }
+  };
+};
 
 const ChatPanel = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -42,16 +111,20 @@ const ChatPanel = () => {
   useEffect(() => {
     const loadCurrentThreadMessages = async () => {
       try {
-        // 获取当前的thread_id
-        const threadResponse = await chatService.getCurrentThreadId();
+        const threadResponse = await httpClient.get('/api/chat/current-thread');
         if (threadResponse.success && threadResponse.thread_id) {
           const threadId = threadResponse.thread_id;
           console.log('加载当前thread_id的历史消息:', threadId);
           // 获取该thread_id的历史消息
-          const messagesResult = await sessionService.getSessionMessages(threadId);
-          if (messagesResult.success && messagesResult.messages && messagesResult.messages.length > 0) {
+          const messagesResult = await httpClient.post('/api/history/messages', {
+            thread_id: threadId,
+            mode: 'outline'
+          });
+          
+          if (messagesResult.success && messagesResult.data && messagesResult.data.length > 0) {
+            const messages = messagesResult.data;
             // 将消息转换为前端期望的格式
-            const formattedMessages = messagesResult.messages.map(msg => {
+            const formattedMessages = messages.map(msg => {
               // 将后端消息类型转换为前端角色
               let role;
               if (msg.message_type === 'human') {
@@ -145,14 +218,18 @@ const ChatPanel = () => {
         message: message
       };
       
-      // 调用chatService发送消息
-      const responseStream = await chatService.sendChatMessage(messageData);
+      const responseStream = await httpClient.streamRequest('/api/chat/message', {
+        method: 'POST',
+        body: { message: message }
+      });
+      
+      const streamIterator = handleStreamResponse(responseStream);
       
       // 处理流式响应
       let aiResponse = '';
       let currentToolCalls = []; // 用于收集工具调用信息
       
-      for await (const chunk of responseStream) {
+      for await (const chunk of streamIterator) {
         
         // 检查是否是完成标记
         if (chunk && chunk.type === 'done') {
@@ -333,14 +410,22 @@ const ChatPanel = () => {
               additionalData: response.additionalData || ''
             };
             
-            // 调用chatService发送中断响应
-            const responseStream = await chatService.sendInterruptResponse(newInterruptResponse);
+            const responseStream = await httpClient.streamRequest('/api/chat/interrupt-response', {
+              method: 'POST',
+              body: {
+                interrupt_id: newInterruptResponse.interruptId,
+                choice: newInterruptResponse.choice,
+                additional_data: newInterruptResponse.additionalData
+              }
+            });
+            
+            const streamIterator = handleStreamResponse(responseStream);
             
             // 清除中断信息
             setInterruptInfo(null);
             
             // 处理响应流
-            await processStreamResponse(responseStream);
+            await processStreamResponse(streamIterator);
           } catch (error) {
             console.error('执行历史工具调用失败:', error);
             // 添加错误消息
@@ -374,14 +459,22 @@ const ChatPanel = () => {
         additionalData: response.additionalData || ''
       };
       
-      // 调用chatService发送中断响应
-      const responseStream = await chatService.sendInterruptResponse(interruptResponse);
+      const responseStream = await httpClient.streamRequest('/api/chat/interrupt-response', {
+        method: 'POST',
+        body: {
+          interrupt_id: interruptResponse.interruptId,
+          choice: interruptResponse.choice,
+          additional_data: interruptResponse.additionalData
+        }
+      });
+      
+      const streamIterator = handleStreamResponse(responseStream);
       
       // 清除中断信息
       setInterruptInfo(null);
       
       // 处理响应流
-      await processStreamResponse(responseStream);
+      await processStreamResponse(streamIterator);
     } catch (error) {
       console.error('处理中断响应失败:', error);
       // 清除中断信息
@@ -593,8 +686,7 @@ const ChatPanel = () => {
   // 处理创建新会话
   const handleCreateNewThread = async () => {
     try {
-      // 调用API创建新thread_id
-      const response = await chatService.createNewThread();
+      const response = await httpClient.post('/api/chat/new-thread');
       
       if (response.success) {
         // 清空消息面板
@@ -613,8 +705,7 @@ const ChatPanel = () => {
     try {
       setIsLoading(true);
       
-      // 调用总结API
-      const response = await chatService.summarizeConversation();
+      const response = await httpClient.post('/api/chat/summarize');
       
       if (response.success && response.summary) {
         // 创建总结消息

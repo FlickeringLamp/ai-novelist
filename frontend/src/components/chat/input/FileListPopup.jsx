@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './FileListPopup.css';
-import fileService from '../../../services/fileService.js';
 
 const FileListPopup = ({ onSelectFile, onClose, searchQuery }) => {
   const [files, setFiles] = useState([]);
@@ -15,7 +14,6 @@ const FileListPopup = ({ onSelectFile, onClose, searchQuery }) => {
     const fetchFiles = async () => {
       setLoading(true);
       try {
-        // 使用fileService获取文件列表
         const response = await fetch('http://localhost:8000/api/file/list');
         const data = await response.json();
         

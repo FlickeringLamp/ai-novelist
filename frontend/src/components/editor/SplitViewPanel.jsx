@@ -1,37 +1,46 @@
-import React, { useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import React, { useCallback, useState, useEffect } from 'react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { disableSplitView, setSplitViewTabs } from '../../store/slices/novelSlice';
 import EditorPanel from './EditorPanel';
 import './SplitViewPanel.css';
+import tabStateService from '../../services/tabStateService';
 
 function SplitViewPanel() {
-  const dispatch = useDispatch();
-  const { openTabs, splitView } = useSelector((state) => state.novel);
-  
+  const [openTabs, setOpenTabs] = useState(tabStateService.getOpenTabs());
+  const [splitView, setSplitView] = useState(tabStateService.getSplitView());
+
+  useEffect(() => {
+    const handleStateChange = (event) => {
+      setOpenTabs(event.detail.openTabs);
+      setSplitView(event.detail.splitView);
+    };
+
+    tabStateService.addEventListener('stateChanged', handleStateChange);
+
+    return () => {
+      tabStateService.removeEventListener('stateChanged', handleStateChange);
+    };
+  }, []);
+
   const leftTab = openTabs.find(tab => tab.id === splitView.leftTabId);
   const rightTab = openTabs.find(tab => tab.id === splitView.rightTabId);
 
   const handleCloseSplitView = useCallback(() => {
-    dispatch(disableSplitView());
-  }, [dispatch]);
+    tabStateService.disableSplitView();
+  }, []);
 
   const handleTabSwap = useCallback(() => {
     if (splitView.leftTabId && splitView.rightTabId) {
-      dispatch(setSplitViewTabs({
-        leftTabId: splitView.rightTabId,
-        rightTabId: splitView.leftTabId
-      }));
+      tabStateService.setSplitViewTabs(splitView.rightTabId, splitView.leftTabId);
     }
-  }, [dispatch, splitView.leftTabId, splitView.rightTabId]);
+  }, [splitView.leftTabId, splitView.rightTabId]);
 
   const handleTabSelect = useCallback((side, tabId) => {
     if (side === 'left') {
-      dispatch(setSplitViewTabs({ leftTabId: tabId, rightTabId: splitView.rightTabId }));
+      tabStateService.setSplitViewTabs(tabId, splitView.rightTabId);
     } else {
-      dispatch(setSplitViewTabs({ leftTabId: splitView.leftTabId, rightTabId: tabId }));
+      tabStateService.setSplitViewTabs(splitView.leftTabId, tabId);
     }
-  }, [dispatch, splitView.leftTabId, splitView.rightTabId]);
+  }, [splitView.leftTabId, splitView.rightTabId]);
 
   if (!splitView.enabled) {
     return null;

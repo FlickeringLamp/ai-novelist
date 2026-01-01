@@ -47,7 +47,7 @@ def get_db_connection():
         _db_connection.execute("PRAGMA journal_mode=WAL")
         # 设置同步模式为NORMAL，在性能和安全性之间取得平衡
         _db_connection.execute("PRAGMA synchronous = NORMAL")
-        logger.info(f"数据库连接已建立: {db_path}")
+        logger.info(f"数据库连接已建立: {settings.CHECKPOINTS_DB_PATH}")
     
     # 检查连接是否已关闭
     try:
@@ -218,7 +218,6 @@ class SessionInfo(BaseModel):
     created_at: Optional[str] = None
     last_accessed: Optional[str] = None
     preview: Optional[str] = None
-    is_current: bool = False
 
 class SessionListResponse(BaseModel):
     """会话列表响应模型"""
@@ -657,8 +656,7 @@ async def get_all_sessions():
                 message_count=message_count,
                 created_at=created_at,
                 last_accessed=last_accessed,
-                preview=preview,
-                is_current=False  # 暂时不实现当前会话检测
+                preview=preview
             )
             sessions.append(session_info)
         
@@ -840,8 +838,7 @@ async def get_session(session_id: str):
                     "message_count": message_count,
                     "created_at": created_at,
                     "last_accessed": last_accessed,
-                    "preview": preview,
-                    "is_current": False  # 暂时不实现当前会话检测
+                    "preview": preview
                 }
             }
         )

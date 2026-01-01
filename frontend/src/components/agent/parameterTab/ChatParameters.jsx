@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import configStoreService from '../../../services/configStoreService.js';
+import httpClient from '../../../utils/httpClient.js';
 import SliderComponent from '../common/SliderComponent';
 import InputComponent from '../common/InputComponent';
 import SettingGroup from '../common/SettingGroup';
@@ -22,8 +22,8 @@ const AdvancedSettings = ({
   // 加载上下文限制设置
   const loadContextLimitSettings = async () => {
     try {
-      const settings = await configStoreService.getStoreValue('contextLimitSettings');
-      setContextLimitSettings(settings || {});
+      const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent('contextLimitSettings')}`);
+      setContextLimitSettings(response.data || {});
     } catch (error) {
       console.error('加载上下文限制设置失败:', error);
     }
@@ -116,7 +116,10 @@ const AdvancedSettings = ({
         }
       };
       
-      await configStoreService.setStoreValue('contextLimitSettings', updatedContextLimitSettings);
+      await httpClient.post('/api/config/store', {
+        key: 'contextLimitSettings',
+        value: updatedContextLimitSettings
+      });
       setContextLimitSettings(updatedContextLimitSettings);
     } catch (error) {
       console.error('保存上下文限制设置失败:', error);
@@ -157,7 +160,10 @@ const AdvancedSettings = ({
         }
       };
       
-      await configStoreService.setStoreValue('contextLimitSettings', updatedContextLimitSettings);
+      await httpClient.post('/api/config/store', {
+        key: 'contextLimitSettings',
+        value: updatedContextLimitSettings
+      });
       setContextLimitSettings(updatedContextLimitSettings);
     } catch (error) {
       console.error('重置上下文限制设置失败:', error);

@@ -51,7 +51,7 @@ const ChapterTreeRenderer = ({
           )}
           
           {/* 文件/文件夹图标 */}
-          <FontAwesomeIcon icon={isFolder ? faFolder : faFile} className="item-icon" />
+          <FontAwesomeIcon icon={isFolder ? faFolder : faFile} className="folder-file-icon" />
 
           {/* 前缀显示/编辑区域 */}
           <div className="prefix-section">

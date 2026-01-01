@@ -1,31 +1,26 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { setChapters, triggerChapterRefresh, openTab } from '../../store/slices/novelSlice';
 import './ChapterTreePanel.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGear, faCaretRight, faCaretDown, faFolderPlus, faFileCirclePlus, faFolder, faFile, faRotate, faEdit, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faGear, faCaretRight, faCaretDown, faFolderPlus, faFileCirclePlus, faFolder, faFile, faRotate, faEdit, faCheck, faTimes, faPlus } from '@fortawesome/free-solid-svg-icons';
 import CombinedIcon from '../others/CombinedIcon';
 import ContextMenuManager from './ContextMenuManager';
-import NotificationModal from '../others/NotificationModal';
-import ConfirmationModal from '../others/ConfirmationModal';
 import ModalManager from '../others/ModalManager';
 import FileOperations from './FileOperations';
-import chapterService from '../../services/chapterService.js';
-import configStoreService from '../../services/configStoreService.js';
+import httpClient from '../../utils/httpClient.js';
 import PrefixEditManager from './PrefixEditManager';
 import ChapterTreeRenderer from './ChapterTreeRenderer';
 import SettingsManager from './SettingsManager';
+import tabStateService from '../../services/tabStateService';
 
 function ChapterTreePanel() {
-  const chapters = useSelector((state) => state.novel.chapters);
-  const refreshCounter = useSelector((state) => state.novel.refreshCounter);
+  const [chapters, setChapters] = useState([]);
+  const [refreshCounter, setRefreshCounter] = useState(tabStateService.getRefreshCounter());
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [currentRenameItemId, setCurrentRenameItemId] = useState(null);
   const [currentRenameItemTitle, setCurrentRenameItemTitle] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [collapsedChapters, setCollapsedChapters] = useState({});
-  const dispatch = useDispatch();
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -58,11 +53,12 @@ function ChapterTreePanel() {
   // 获取 API Key
   useEffect(() => {
     const getApiKey = async () => {
-      const result = await configStoreService.getApiKey();
-      if (result.success) {
-        setApiKey(result.apiKey);
-      } else {
-        console.warn('获取 API Key 失败:', result.error);
+      try {
+        const apiKey = localStorage.getItem('store_deepseekApiKey') || '';
+        setApiKey(apiKey ? JSON.parse(apiKey) : '');
+      } catch (error) {
+        console.warn('获取 API Key 失败:', error);
+        setApiKey('');
       }
     };
     getApiKey();
@@ -70,13 +66,14 @@ function ChapterTreePanel() {
 
   // 获取章节列表
   const fetchChapters = useCallback(async () => {
-    const result = await chapterService.getChapters();
+    const result = await httpClient.get('/api/file/tree');
     if (result.success) {
-      dispatch(setChapters(result.chapters));
+      setChapters(result.data || []);
+      tabStateService.setChapters(result.data || []);
     } else {
       console.error('获取章节列表失败:', result.error);
     }
-  }, [dispatch]);
+  }, []);
 
   // 辅助函数：根据文件名获取显示名称
   const getDisplayName = useCallback((name, isFolder) => {
@@ -133,36 +130,42 @@ function ChapterTreePanel() {
   }, []);
 
   // 初始化文件操作模块
+  // 初始化文件操作模块
   useEffect(() => {
     const operations = new FileOperations(
       null,
       fetchChapters,
-      dispatch,
+      null,
       setNotificationMessage,
       setShowNotificationModal
     );
     setFileOperations(operations);
-  }, [fetchChapters, dispatch, setNotificationMessage, setShowNotificationModal]);
+  }, [fetchChapters, setNotificationMessage, setShowNotificationModal]);
 
   // 注册章节更新监听器和初始加载
   useEffect(() => {
     fetchChapters();
-    
-    const cleanup = chapterService.onChaptersUpdated((chapters) => {
-      dispatch(setChapters(chapters));
-    });
-    
-    return cleanup;
-  }, [fetchChapters, dispatch]);
+  }, [fetchChapters]);
 
   // 监听 refreshCounter 变化
+  useEffect(() => {
+    const handleStateChange = (event) => {
+      setRefreshCounter(event.detail.refreshCounter);
+    };
+
+    tabStateService.addEventListener('stateChanged', handleStateChange);
+
+    return () => {
+      tabStateService.removeEventListener('stateChanged', handleStateChange);
+    };
+  }, []);
+
   useEffect(() => {
     console.log('[ChapterTreePanel] refreshCounter 变化，触发 fetchChapters()');
     fetchChapters();
   }, [refreshCounter, fetchChapters]);
-
   // 章节点击处理
-  const handleChapterClick = (item) => {
+  const handleChapterClick = async (item) => {
     if (item.isFolder) {
       setCollapsedChapters(prev => ({
         ...prev,
@@ -170,7 +173,17 @@ function ChapterTreePanel() {
       }));
     } else {
       console.log(`请求打开文件: ${item.id}`);
-      dispatch(openTab(item.id));
+      const existingTab = tabStateService.getOpenTabs().find(tab => tab.id === item.id);
+      if (existingTab) {
+        tabStateService.setActiveTab(item.id);
+      } else {
+        try {
+          const response = await httpClient.get(`/api/file/read/${encodeURIComponent(item.id)}`);
+          tabStateService.createTab(item.id, response.data);
+        } catch (error) {
+          console.error('读取文件失败:', error);
+        }
+      }
     }
   };
 
@@ -284,10 +297,10 @@ function ChapterTreePanel() {
     <div className="chapter-tree-panel-container">
       <div className="chapter-tree-panel-header">
         <button className="new-file-button" onClick={() => handleNewFile()} title="新建文件">
-          <CombinedIcon baseIcon="file" overlayIcon="plus" size="sm" />
+          <CombinedIcon baseIcon={faFile} overlayIcon={faPlus} size="sm" />
         </button>
         <button className="new-folder-button" onClick={() => handleNewFolder()} title="新建文件夹">
-          <CombinedIcon baseIcon="folder" overlayIcon="plus" size="sm" />
+          <CombinedIcon baseIcon={faFolder} overlayIcon={faPlus} size="sm" />
         </button>
         <button className="refresh-button" onClick={fetchChapters} title="刷新章节列表">
           <FontAwesomeIcon icon={faRotate} />

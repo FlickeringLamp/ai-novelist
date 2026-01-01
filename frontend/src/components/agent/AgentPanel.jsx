@@ -2,14 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faTimes, faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
-import configStoreService from '../../services/configStoreService.js';
+import httpClient from '../../utils/httpClient.js';
 import useModeManager from './ModeManager';
 import NotificationModal from '../others/NotificationModal';
 import ConfirmationModal from '../others/ConfirmationModal';
 import ChatParameters from '././parameterTab/ChatParameters';
 import FileSelector from './FileSelector';
 import ToolConfigTab from './toolTab/ToolConfigTab';
-import toolConfigService from '../../services/toolConfigService.js';
 import './AgentPanel.css';
 
 /**
@@ -46,9 +45,9 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
   const fetchDefaultPrompts = async () => {
     setIsLoadingPrompts(true);
     try {
-      const result = await configStoreService.getDefaultPrompts();
-      if (result.success) {
-        setDefaultPrompts(result.prompts);
+      const response = await httpClient.get('/api/ai-config/default-prompts');
+      if (response.data) {
+        setDefaultPrompts(response.data);
       } else {
         // 如果后端获取失败，使用内置默认值作为fallback
         const defaultPrompts = await modeManager.getAllDefaultPrompts();
@@ -65,12 +64,13 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
   };
 
   // 加载模式配置
+  // 加载模式配置
   const loadModeConfig = async () => {
     try {
       const [customPromptsData, additionalInfoData, aiParametersData] = await Promise.all([
-        configStoreService.getStoreValue('customPrompts'),
-        configStoreService.getStoreValue('additionalInfo'),
-        configStoreService.getStoreValue('aiParameters')
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('customPrompts')}`).then(r => r.data),
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('additionalInfo')}`).then(r => r.data),
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('aiParameters')}`).then(r => r.data)
       ]);
       
       setCustomPrompts(customPromptsData || {});
@@ -80,7 +80,6 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
       console.error('加载模式配置失败:', error);
     }
   };
-
   // 加载所有模式列表
   const loadAllModes = () => {
     const modes = modeManager.getAllModes();
@@ -122,7 +121,10 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
     
     // 保存到后端
     try {
-      await configStoreService.setStoreValue('customPrompts', updatedPrompts);
+      await httpClient.post('/api/config/store', {
+        key: 'customPrompts',
+        value: updatedPrompts
+      });
     } catch (error) {
       console.error('保存自定义提示词失败:', error);
     }
@@ -139,7 +141,10 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
     
     // 保存到后端
     try {
-      await configStoreService.setStoreValue('additionalInfo', updatedAdditionalInfo);
+      await httpClient.post('/api/config/store', {
+        key: 'additionalInfo',
+        value: updatedAdditionalInfo
+      });
     } catch (error) {
       console.error('保存附加信息失败:', error);
     }
@@ -154,7 +159,10 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
     
     // 保存到后端
     try {
-      await configStoreService.setStoreValue('aiParameters', updatedAiParameters);
+      await httpClient.post('/api/config/store', {
+        key: 'aiParameters',
+        value: updatedAiParameters
+      });
     } catch (error) {
       console.error('保存AI参数失败:', error);
     }
@@ -170,7 +178,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
     
     // 保存到后端
     try {
-      await toolConfigService.updateModeToolConfig(mode, {
+      await httpClient.put(`/api/tool-config/modes/${mode}`, {
         enabled_tools: newConfig.enabled_tools
       });
     } catch (error) {
@@ -185,9 +193,9 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
       
       // 保存到后端 - 直接使用本地状态
       await Promise.all([
-        configStoreService.setStoreValue('customPrompts', customPrompts),
-        configStoreService.setStoreValue('additionalInfo', additionalInfo),
-        configStoreService.setStoreValue('aiParameters', aiParameters)
+        httpClient.post('/api/config/store', { key: 'customPrompts', value: customPrompts }),
+        httpClient.post('/api/config/store', { key: 'additionalInfo', value: additionalInfo }),
+        httpClient.post('/api/config/store', { key: 'aiParameters', value: aiParameters })
       ]);
       
       // 通知保存成功

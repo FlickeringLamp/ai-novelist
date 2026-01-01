@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AutoApproveConfig.css';
-import configStoreService from '../../../services/configStoreService';
+import httpClient from '../../../utils/httpClient.js';
 
 /**
  * 自动批准配置组件
@@ -20,10 +20,10 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
     const loadSettings = async () => {
       setIsLoading(true);
       try {
-        const settings = await configStoreService.getStoreValue('autoApproveSettings');
-        if (settings) {
+        const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent('autoApproveSettings')}`);
+        if (response.data) {
           setAutoApproveSettings({
-            ...settings,
+            ...response.data,
             delay: 1000
           });
         }
@@ -54,7 +54,10 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
   // 保存自动批准设置
   const saveSettings = async (newSettings) => {
     try {
-      await configStoreService.setStoreValue('autoApproveSettings', newSettings);
+      await httpClient.post('/api/config/store', {
+        key: 'autoApproveSettings',
+        value: newSettings
+      });
       setAutoApproveSettings(newSettings);
       
       // 通知父组件设置已更改

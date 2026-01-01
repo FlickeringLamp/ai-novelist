@@ -1,6 +1,5 @@
 import React, { memo, useCallback, useState, useEffect } from 'react';
-import sessionService from '../../../services/sessionService';
-import configStoreService from '../../../services/configStoreService';
+import httpClient from '../../../utils/httpClient.js';
 import ConfirmationModal from '../../others/ConfirmationModal';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock, faUndo } from '@fortawesome/free-solid-svg-icons';
@@ -27,14 +26,26 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
         try {
             setLoading(true);
             console.log('正在加载会话历史...');
-            const result = await sessionService.listSessions();
-            if (result.success) {
-                console.log('成功加载会话历史:', result.sessions);
-                setHistory(result.sessions);
-            } else {
-                console.error('加载会话历史失败:', result.error);
+            const response = await httpClient.get('/api/history/sessions');
+            
+            if (!response.success || !response.sessions) {
+                console.error('加载会话历史失败:', response.error);
                 setHistory([]);
+                return;
             }
+            
+            // 转换会话数据格式
+            const sessions = response.sessions.map(session => ({
+                session_id: session.session_id,
+                title: session.preview || `会话: ${session.session_id}`,
+                created_at: session.created_at || new Date().toISOString(),
+                updated_at: session.last_accessed || new Date().toISOString(),
+                message_count: session.message_count,
+                preview: session.preview
+            }));
+            
+            console.log('成功加载会话历史:', sessions);
+            setHistory(sessions);
         } catch (error) {
             console.error('加载会话历史异常:', error);
             setHistory([]);
@@ -71,18 +82,26 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
     const handleSelectConversation = useCallback(async (sessionId) => {
         try {
             // 获取会话消息
-            const messagesResult = await sessionService.getSessionMessages(sessionId);
+            const messagesResult = await httpClient.post('/api/history/messages', {
+                thread_id: sessionId,
+                mode: 'outline'
+            });
+            
             if (messagesResult.success) {
+                const messages = messagesResult.data || [];
                 // 更新store.json中的thread_id
                 try {
-                    await configStoreService.setStoreValue('thread_id', sessionId);
+                    await httpClient.post('/api/config/store', {
+                        key: 'thread_id',
+                        value: sessionId
+                    });
                     console.log(`已更新thread_id为: ${sessionId}`);
                 } catch (error) {
                     console.error('更新thread_id失败:', error);
                 }
                 
                 // 将消息转换为前端期望的格式
-                const messages = messagesResult.messages.map(msg => {
+                const formattedMessages = messages.map(msg => {
                     // 将后端消息类型转换为前端角色
                     let role;
                     if (msg.message_type === 'human') {
@@ -125,10 +144,10 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                     finalMessages = [...messages.slice(0, -1), aiMessage, toolRequestMessage];
                 }
                 
-                if (handleRestoreMessages) handleRestoreMessages(messages);
+                if (handleRestoreMessages) handleRestoreMessages(formattedMessages);
                 if (handleClosePanel) handleClosePanel();
                 
-                console.log(`已加载会话 ${sessionId}，包含 ${messages.length} 条消息`);
+                console.log(`已加载会话 ${sessionId}，包含 ${formattedMessages.length} 条消息`);
             } else {
                 console.error('加载会话消息失败:', messagesResult.error);
             }
@@ -143,8 +162,7 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
         setOnConfirmCallback(() => async () => {
             setShowConfirmationModal(false);
             try {
-                // 使用会话服务删除会话
-                const result = await sessionService.deleteSession(sessionId);
+                const result = await httpClient.delete(`/api/history/sessions/${sessionId}`);
                 if (result.success) {
                     // 重新加载历史记录
                     await loadSessionHistory();
@@ -171,9 +189,13 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
             setRollbackMessage('');
             
             // 获取该会话的存档点
-            const result = await sessionService.getCheckpoints(sessionId);
-            if (result.success) {
-                setCheckpoints(result.checkpoints);
+            const result = await httpClient.post('/api/history/checkpoints', {
+                thread_id: sessionId,
+                mode: 'outline'
+            });
+            
+            if (result.success && result.data) {
+                setCheckpoints(result.data);
                 setShowRollbackModal(true);
             } else {
                 console.error('获取存档点失败:', result.error);
@@ -202,11 +224,12 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
         try {
             setCheckpointsLoading(true);
             
-            const result = await sessionService.rollbackToCheckpoint(
-                rollbackSessionId,
-                selectedCheckpoint.index,
-                rollbackMessage.trim()
-            );
+            const result = await httpClient.post('/api/history/checkpoint/rollback', {
+                thread_id: rollbackSessionId,
+                checkpoint_index: selectedCheckpoint.index,
+                new_message: rollbackMessage.trim(),
+                mode: 'outline'
+            });
             
             if (result.success) {
                 console.log('回档成功:', result);
@@ -214,13 +237,19 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                 setShowRollbackModal(false);
                 
                 // 如果回档的是当前会话，刷新消息
-                const currentThreadId = await configStoreService.getStoreValue('thread_id');
+                const threadResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('thread_id')}`);
+                const currentThreadId = threadResponse.data;
                 if (currentThreadId === rollbackSessionId) {
                     // 重新加载当前会话的消息
-                    const messagesResult = await sessionService.getSessionMessages(currentThreadId);
-                    if (messagesResult.success && messagesResult.messages) {
+                    const messagesResult = await httpClient.post('/api/history/messages', {
+                        thread_id: currentThreadId,
+                        mode: 'outline'
+                    });
+                    
+                    if (messagesResult.success && messagesResult.data) {
+                        const messages = messagesResult.data;
                         // 将消息转换为前端期望的格式
-                        const messages = messagesResult.messages.map(msg => {
+                        const formattedMessages = messages.map(msg => {
                             let role;
                             if (msg.message_type === 'human') {
                                 role = 'user';
@@ -312,18 +341,17 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                     {console.log('ChatHistoryPanel received history (before map):', history)}
                     {history.map((session, index) => {
                         console.log(`Processing session[${index}]:`, session);
-                        // 后端会话格式：session_id, created_at, last_accessed, message_count, is_current, preview
+                        // 后端会话格式：session_id, created_at, last_accessed, message_count, preview
                         const sessionId = session.session_id || session.sessionId;
                         const messageCount = session.message_count || 0;
                         const createdAt = session.created_at || '';
-                        const isCurrent = session.is_current || false;
                         const preview = session.preview || '';
                         
                         // 格式化创建时间
                         const formattedDate = createdAt ? new Date(createdAt).toLocaleString('zh-CN') : '未知时间';
                         
                         return (
-                            <li key={sessionId} className={`history-item ${isCurrent ? 'current-session' : ''}`}>
+                            <li key={sessionId} className="history-item">
                                 <div
                                     className="history-text"
                                     onClick={() => handleSelectConversation(sessionId)}
@@ -333,27 +361,22 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                                         <span className="message-count">{messageCount} 条消息</span>
                                         <span className="created-time">{formattedDate}</span>
                                     </div>
-                                    {isCurrent && <span className="current-badge">当前</span>}
                                 </div>
                                 <div className="history-item-buttons">
-                                    {!isCurrent && (
-                                        <button
-                                            className="rollback-button"
-                                            onClick={() => handleRollbackClick(sessionId)}
-                                            title="回档此会话"
-                                        >
-                                            <FontAwesomeIcon icon={faUndo} />
-                                        </button>
-                                    )}
-                                    {!isCurrent && (
-                                        <button
-                                            className="delete-button"
-                                            onClick={() => handleDeleteConversation(sessionId)}
-                                            title="删除此会话"
-                                        >
-                                            &times;
-                                        </button>
-                                    )}
+                                    <button
+                                        className="rollback-button"
+                                        onClick={() => handleRollbackClick(sessionId)}
+                                        title="回档此会话"
+                                    >
+                                        <FontAwesomeIcon icon={faUndo} />
+                                    </button>
+                                    <button
+                                        className="delete-button"
+                                        onClick={() => handleDeleteConversation(sessionId)}
+                                        title="删除此会话"
+                                    >
+                                        &times;
+                                    </button>
                                 </div>
                             </li>
                         );

@@ -1,27 +1,15 @@
 import React, { useState } from 'react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { useSelector } from 'react-redux';
-import TabBar from './editor/TabBar'; // 引入 TabBar
-import SidebarComponent from './SidebarComponent'; // 引入侧边栏组件
-import SplitViewPanel from './editor/SplitViewPanel'; // 引入分屏对比组件
-import OverlayPanel from './OverlayPanel'; // 引入覆盖层组件
-import ProviderSettingsPanel from './aiprovider/ProviderSettingsPanel'; // 引入合并后的提供商设置面板
-import RagManagementPanel from './rag/RagManagementPanel'; // 引入RAG管理面板（已合并模态框功能）
-import AgentPanel from './agent/AgentPanel'; // 引入统一的Agent面板
-// import WorkspacePanel from './workflow-editor/WorkspacePanel'; // 引入工作区面板 - 暂时注释掉
+import SidebarComponent from './SidebarComponent';
+import ProviderSettingsPanel from './aiprovider/ProviderSettingsPanel';
+import RagManagementPanel from './rag/RagManagementPanel';
+import AgentPanel from './agent/AgentPanel';
+import './LayoutComponent.css';
 
 function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
-  const { splitView } = useSelector((state) => state.novel);
-  // 保持 leftPanelSize 和 rightPanelSize 作为初始尺寸，也可以作为拖动后的尺寸
+  const [activePanel, setActivePanel] = useState(null); // 'api' | 'rag' | 'agent' | null
   const [leftPanelSize, setLeftPanelSize] = useState(20);
   const [rightPanelSize, setRightPanelSize] = useState(20);
-  const [showRagSettingsModal, setShowRagSettingsModalLocal] = useState(false);
-  const [showApiSettingsModal, setShowApiSettingsModal] = useState(false);
-  const [showGeneralSettingsModal, setShowGeneralSettingsModal] = useState(false);
-  
-  // 如果有任何模态框打开，就显示覆盖层
-  const showOverlay = showApiSettingsModal || showRagSettingsModal ||
-                     showGeneralSettingsModal;
 
   // 处理左侧面板尺寸变化
   const handleLeftPanelChange = (size) => {
@@ -38,14 +26,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
       <PanelGroup direction="horizontal" className="main-layout">
         {/* 左侧组件栏 - 固定宽度图标栏，不能拖动 */}
         <div className="sidebar-panel-fixed">
-          <SidebarComponent
-            showRagSettingsModal={showRagSettingsModal}
-            setShowRagSettingsModal={setShowRagSettingsModalLocal}
-            showApiSettingsModal={showApiSettingsModal}
-            setShowApiSettingsModal={setShowApiSettingsModal}
-            showGeneralSettingsModal={showGeneralSettingsModal}
-            setShowGeneralSettingsModal={setShowGeneralSettingsModal}
-          />
+          <SidebarComponent activePanel={activePanel} setActivePanel={setActivePanel} />
         </div>
         
         {/* 细长的普通灰色分隔线 */}
@@ -71,10 +52,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
           className="middle-panel"
           style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         >
-          {!splitView.enabled && <TabBar />}
-          <div className="editor-content-wrapper">
-            {splitView.enabled ? <SplitViewPanel /> : editorPanel}
-          </div>
+          {editorPanel}
         </Panel>
         <PanelResizeHandle className="resize-handle" />
         
@@ -91,27 +69,29 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
         </Panel>
       </PanelGroup>
 
-      {/* 覆盖层 - 覆盖章节列表栏和编辑栏 */}
-      <OverlayPanel isVisible={showOverlay}>
-        {/* 根据当前打开的模态框显示相应的内容 */}
-        {showApiSettingsModal && (
-          <ProviderSettingsPanel
-            isOpen={showApiSettingsModal}
-            onClose={() => setShowApiSettingsModal(false)}
-          />
-        )}
-        {showRagSettingsModal && (
-          <RagManagementPanel isOpen={showRagSettingsModal} onClose={() => setShowRagSettingsModalLocal(false)} />
-        )}
-        {showGeneralSettingsModal && (
-          <AgentPanel isOpen={showGeneralSettingsModal} onClose={() => setShowGeneralSettingsModal(false)} />
-        )}
-        {/* 暂时注释掉工作流面板
-        {showWorkspacePanel && (
-          <WorkspacePanel isOpen={showWorkspacePanel} />
-        )}
-        */}
-      </OverlayPanel>
+      {/* 设置面板 - 全屏覆盖 */}
+      {activePanel && (
+        <div className="settings-panel-overlay">
+          {activePanel === 'api' && (
+            <ProviderSettingsPanel
+              isOpen={true}
+              onClose={() => setActivePanel(null)}
+            />
+          )}
+          {activePanel === 'rag' && (
+            <RagManagementPanel
+              isOpen={true}
+              onClose={() => setActivePanel(null)}
+            />
+          )}
+          {activePanel === 'agent' && (
+            <AgentPanel
+              isOpen={true}
+              onClose={() => setActivePanel(null)}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

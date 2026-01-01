@@ -1,10 +1,9 @@
-import React, { useRef, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { setActiveTab, closeTab, reorderTabs, enableSplitView, updateTabContent } from '../../store/slices/novelSlice';
+import React, { useRef, useState, useEffect } from 'react';
 import { vditorLifecycleManager } from './services/VditorLifecycleManager';
 import SaveConfirmationModal from './SaveConfirmationModal';
-import useHttpService from '../../hooks/useHttpService';
+import httpClient from '../../utils/httpClient';
 import './TabBar.css';
+import tabStateService from '../../services/tabStateService';
 
 // 辅助函数：获取不带扩展名的显示名称
 const getDisplayName = (fileName) => {
@@ -14,17 +13,29 @@ const getDisplayName = (fileName) => {
 };
 
 function TabBar() {
-  const dispatch = useDispatch();
-  const { openTabs, activeTabId } = useSelector((state) => state.novel);
-  const { writeFile } = useHttpService();
+  const [openTabs, setOpenTabs] = useState(tabStateService.getOpenTabs());
+  const [activeTabId, setActiveTabId] = useState(tabStateService.getActiveTabId());
   const tabBarRef = useRef(null);
   const [draggedTab, setDraggedTab] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [pendingTabId, setPendingTabId] = useState(null);
 
+  useEffect(() => {
+    const handleStateChange = (event) => {
+      setOpenTabs(event.detail.openTabs);
+      setActiveTabId(event.detail.activeTabId);
+    };
+
+    tabStateService.addEventListener('stateChanged', handleStateChange);
+
+    return () => {
+      tabStateService.removeEventListener('stateChanged', handleStateChange);
+    };
+  }, []);
+
   const handleTabClick = (tabId) => {
-    dispatch(setActiveTab(tabId));
+    tabStateService.setActiveTab(tabId);
   };
 
   const handleCloseTab = (e, tabId) => {
@@ -44,9 +55,8 @@ function TabBar() {
   };
 
   const closeTabInternal = (tabId) => {
-    // 在关闭标签页前注销编辑器实例
     vditorLifecycleManager.unregisterEditor(tabId);
-    dispatch(closeTab(tabId));
+    tabStateService.closeTab(tabId);
   };
 
   const handleSaveConfirm = async () => {
@@ -54,25 +64,14 @@ function TabBar() {
       const tab = openTabs.find(t => t.id === pendingTabId);
       if (tab) {
         try {
-          // 调用保存文件API
-          const result = await writeFile(tab.id, tab.content);
-          if (result.success) {
-            // 保存成功后标记为已保存
-            dispatch(updateTabContent({
-              tabId: pendingTabId,
-              content: tab.content,
-              isDirty: false
-            }));
-          } else {
-            console.error('保存文件失败:', result.error);
-            // 可以在这里添加错误处理，比如显示错误提示
-          }
+          await httpClient.put(`/api/file/write/${encodeURIComponent(tab.id)}`, {
+            content: tab.content
+          });
+          tabStateService.updateTabContent(pendingTabId, tab.content, false);
         } catch (error) {
-          console.error('保存文件时发生错误:', error);
-          // 可以在这里添加错误处理
+          console.error('保存文件失败:', error);
         }
       }
-      // 关闭标签页
       closeTabInternal(pendingTabId);
     }
     setShowSaveConfirm(false);
@@ -99,15 +98,14 @@ function TabBar() {
       return;
     }
     
-    // 获取当前激活的标签页和另一个标签页
     const activeTabIndex = openTabs.findIndex(tab => tab.id === activeTabId);
     const otherTabIndex = activeTabIndex === 0 ? 1 : 0;
     
-    dispatch(enableSplitView({
-      leftTabId: openTabs[otherTabIndex].id,
-      rightTabId: openTabs[activeTabIndex].id,
-      layout: 'horizontal'
-    }));
+    tabStateService.enableSplitView(
+      openTabs[otherTabIndex].id,
+      openTabs[activeTabIndex].id,
+      'horizontal'
+    );
   };
 
   // 拖动开始
@@ -179,10 +177,7 @@ function TabBar() {
         finalToIndex = toIndex;
       }
       
-      dispatch(reorderTabs({
-        fromIndex: draggedTab.index,
-        toIndex: finalToIndex
-      }));
+      tabStateService.reorderTabs(draggedTab.index, finalToIndex);
     }
     
     setDraggedTab(null);

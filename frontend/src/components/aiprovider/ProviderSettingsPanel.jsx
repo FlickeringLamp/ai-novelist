@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import globalProviderService from '../../services/providerService';
-import configStoreService from '../../services/configStoreService';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import NotificationModal from '../others/NotificationModal';
 import ConfirmationModal from '../others/ConfirmationModal';
@@ -30,7 +28,7 @@ const ProviderSettingsPanel = () => {
 
   useEffect(() => {
     const fetchProviders = async () => {
-      const result = await globalProviderService.getProviders();
+      const result = await httpClient.get('/api/provider/providers');
       if (result.success) {
         setProviders(result.data || []);
       }
@@ -41,9 +39,9 @@ const ProviderSettingsPanel = () => {
   // 加载常用模型列表
   useEffect(() => {
     const loadFavoriteModels = async () => {
-      const result = await globalProviderService.getFavoriteModels();
+      const result = await httpClient.get('/api/provider/favorite-models');
       if (result.success) {
-        setFavoriteModels(result.models);
+        setFavoriteModels(result.data || {});
       }
     };
     loadFavoriteModels();
@@ -60,13 +58,18 @@ const ProviderSettingsPanel = () => {
   const fetchProviderModels = async () => {
     if (!selectedProviderId) return;
     setModelError(''); // 清除之前的错误
-    const result = await globalProviderService.getProviderModels(selectedProviderId);
-    if (result.success) {
-      setProviderModels(result.data || []);
-      setModelError('');
-    } else {
+    try {
+      const result = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
+      if (result.success) {
+        setProviderModels(result.data.models || []);
+        setModelError('');
+      } else {
+        setProviderModels([]);
+        setModelError(result.error || '获取模型列表失败');
+      }
+    } catch (error) {
       setProviderModels([]);
-      setModelError(result.error || '获取模型列表失败');
+      setModelError('获取模型列表失败: ' + error.message);
     }
   };
   // 处理删除提供商
@@ -79,16 +82,17 @@ const ProviderSettingsPanel = () => {
   const confirmDeleteProvider = async () => {
     try {
       // 检查是否是自定义提供商
-      const customProviders = await configStoreService.getStoreValue('customProviders') || [];
+      const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
+      const customProviders = providersResponse.data || [];
       const isCustomProvider = customProviders.some(provider => provider.name === providerToDelete);
       
       if (isCustomProvider) {
         // 删除自定义提供商
-        const result = await globalProviderService.deleteCustomProvider(providerToDelete);
+        const result = await httpClient.delete(`/api/provider/custom-providers/${providerToDelete}`);
         
         if (result.success) {
           // 刷新提供商列表
-          const providersResult = await globalProviderService.getProviders();
+          const providersResult = await httpClient.get('/api/provider/providers');
           if (providersResult.success) {
             setProviders(providersResult.data || []);
           }
@@ -139,15 +143,20 @@ const ProviderSettingsPanel = () => {
     
     if (isFavorite) {
       // 从常用列表中移除
-      const result = await globalProviderService.removeFavoriteModel(modelId);
+      const result = await httpClient.delete('/api/provider/favorite-models', {
+        params: { modelId }
+      });
       if (result.success) {
-        setFavoriteModels(result.models);
+        setFavoriteModels(result.data || {});
       }
     } else {
       // 添加到常用列表
-      const result = await globalProviderService.addFavoriteModel(modelId, provider);
+      const result = await httpClient.post('/api/provider/favorite-models', {
+        modelId,
+        provider
+      });
       if (result.success) {
-        setFavoriteModels(result.models);
+        setFavoriteModels(result.data || {});
       }
     }
   }
@@ -160,7 +169,8 @@ const ProviderSettingsPanel = () => {
       
       if (!isBuiltinProvider) {
         // 对于自定义提供商，使用customProviders数组
-        let customProviders = await configStoreService.getStoreValue('customProviders') || [];
+        const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
+        let customProviders = providersResponse.data || [];
         const existingProviderIndex = customProviders.findIndex(provider => provider.name === selectedProviderId);
         
         if (existingProviderIndex !== -1) {
@@ -180,42 +190,31 @@ const ProviderSettingsPanel = () => {
         }
         
         // 保存更新后的customProviders数组
-        const result = await configStoreService.setStoreValue('customProviders', customProviders);
-        
-        if (result.success) {          
-          setSubmitStatus({
-            success: true,
-            message: `${selectedProviderId} 配置保存成功`
-          });
-          setNotificationMessage(`${selectedProviderId} 配置保存成功`);
-          setShowNotification(true);
-        } else {
-          setSubmitStatus({
-            success: false,
-            message: `保存失败: ${result.error}`
-          });
-        }
+        await httpClient.post('/api/config/store', {
+          key: 'customProviders',
+          value: customProviders
+        });
+        setSubmitStatus({
+          success: true,
+          message: `${selectedProviderId} 配置保存成功`
+        });
+        setNotificationMessage(`${selectedProviderId} 配置保存成功`);
+        setShowNotification(true);
       } else {
         // 对于内置提供商，使用原来的方式
         const apiKeyConfigKey = `${selectedProviderId}ApiKey`;
         const baseUrlConfigKey = `${selectedProviderId}BaseUrl`;
         
-        const apiKeyResult = await configStoreService.setStoreValue(apiKeyConfigKey, apiKey);
-        const baseUrlResult = await configStoreService.setStoreValue(baseUrlConfigKey, baseUrl);
-        
-        if (apiKeyResult.success && baseUrlResult.success) {
-          setSubmitStatus({
-            success: true,
-            message: `${selectedProviderId} 配置保存成功`
-          });
-          setNotificationMessage(`${selectedProviderId} 配置保存成功`);
-          setShowNotification(true);
-        } else {
-          setSubmitStatus({
-            success: false,
-            message: `保存失败: ${apiKeyResult.error || baseUrlResult.error}`
-          });
-        }
+        await Promise.all([
+          httpClient.post('/api/config/store', { key: apiKeyConfigKey, value: apiKey }),
+          httpClient.post('/api/config/store', { key: baseUrlConfigKey, value: baseUrl })
+        ]);
+        setSubmitStatus({
+          success: true,
+          message: `${selectedProviderId} 配置保存成功`
+        });
+        setNotificationMessage(`${selectedProviderId} 配置保存成功`);
+        setShowNotification(true);
       }
     } catch (error) {
       setSubmitStatus({
@@ -229,15 +228,15 @@ const ProviderSettingsPanel = () => {
   const handleCustomProviderSubmit = async (e) => {
     e.preventDefault();
     try {
-      const result = await globalProviderService.addCustomProvider(
-        customProviderName,
-        '', // 稍后配置
-        ''  // 稍后配置
-      );
+      const result = await httpClient.post('/api/provider/custom-providers', {
+        name: customProviderName,
+        baseUrl: '',
+        apiKey: ''
+      });
       
       if (result.success) {
         // 刷新提供商列表
-        const providersResult = await globalProviderService.getProviders();
+        const providersResult = await httpClient.get('/api/provider/providers');
         if (providersResult.success) {
           setProviders(providersResult.data || []);
         }
@@ -267,10 +266,10 @@ const ProviderSettingsPanel = () => {
         setBaseUrl('');
         return;
       }
-
       try {
         // 检查是否是自定义提供商
-        const customProviders = await configStoreService.getStoreValue('customProviders') || [];
+        const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
+        const customProviders = providersResponse.data || [];
         const customProvider = customProviders.find(provider => provider.name === selectedProviderId);
         
         if (customProvider) {
@@ -282,18 +281,20 @@ const ProviderSettingsPanel = () => {
           const apiKeyConfigKey = `${selectedProviderId}ApiKey`;
           const baseUrlConfigKey = `${selectedProviderId}BaseUrl`;
           
-          const apiKeyResult = await configStoreService.getStoreValue(apiKeyConfigKey);
-          const baseUrlResult = await configStoreService.getStoreValue(baseUrlConfigKey);
+          const [apiKeyResponse, baseUrlResponse] = await Promise.all([
+            httpClient.get(`/api/config/store?key=${encodeURIComponent(apiKeyConfigKey)}`),
+            httpClient.get(`/api/config/store?key=${encodeURIComponent(baseUrlConfigKey)}`)
+          ]);
           
-          // 检查返回结果结构，configStoreService.getStoreValue直接返回data
-          if (apiKeyResult) {
-            setApiKey(apiKeyResult);
+          // 检查返回结果结构
+          if (apiKeyResponse.data) {
+            setApiKey(apiKeyResponse.data);
           } else {
             setApiKey('');
           }
           
-          if (baseUrlResult) {
-            setBaseUrl(baseUrlResult);
+          if (baseUrlResponse.data) {
+            setBaseUrl(baseUrlResponse.data);
           } else {
             // 如果没有自定义URL，对于内置提供商，使用默认URL
             if (selectedProviderId === 'deepseek') {

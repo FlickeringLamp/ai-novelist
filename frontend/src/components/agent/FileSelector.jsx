@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faFolder, faSearch, faPlus } from '@fortawesome/free-solid-svg-icons';
-import chapterService from '../../services/chapterService.js';
-import fileService from '../../services/fileService.js';
+import httpClient from '../../utils/httpClient.js';
 import './FileSelector.css';
 
 const FileSelector = ({ onFileContentAdd }) => {
@@ -13,13 +12,14 @@ const FileSelector = ({ onFileContentAdd }) => {
   const [expandedFolders, setExpandedFolders] = useState({});
 
   // 获取文件列表
+  // 获取文件列表
   const fetchFiles = async () => {
     setIsLoading(true);
     try {
-      const result = await chapterService.getChapters();
+      const result = await httpClient.get('/api/file/tree');
       if (result.success) {
-        setFiles(result.chapters || []);
-        setFilteredFiles(result.chapters || []);
+        setFiles(result.data || []);
+        setFilteredFiles(result.data || []);
       } else {
         console.error('获取文件列表失败:', result.error);
       }
@@ -29,7 +29,6 @@ const FileSelector = ({ onFileContentAdd }) => {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     fetchFiles();
   }, []);
@@ -87,14 +86,9 @@ const FileSelector = ({ onFileContentAdd }) => {
       toggleFolder(file.id);
       return;
     }
-
     try {
-      const result = await fileService.readFile(file.id);
-      if (result.success) {
-        onFileContentAdd(result.content);
-      } else {
-        console.error('读取文件内容失败:', result.error);
-      }
+      const response = await httpClient.get(`/api/file/read/${encodeURIComponent(file.id)}`);
+      onFileContentAdd(response.data);
     } catch (error) {
       console.error('读取文件内容出错:', error);
     }

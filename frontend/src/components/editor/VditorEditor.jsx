@@ -4,7 +4,7 @@ import 'vditor/dist/index.css';
 import './VditorEditor.css';
 import { convertMarkdownToPlainText, copyToClipboard } from '../../utils/markdownToPlainText';
 import NotificationModal from '../others/NotificationModal';
-import imageUploadService from '../../services/imageUploadService';
+import httpClient from '../../utils/httpClient.js';
 
 const VditorEditor = forwardRef(({
   value = '',
@@ -31,7 +31,6 @@ const VditorEditor = forwardRef(({
       placeholder,
       value,
       theme: 'dark',
-      icon: 'ant',
       typewriterMode: true,
       cache: {
         enable: false,
@@ -56,8 +55,6 @@ const VditorEditor = forwardRef(({
         'list',
         'ordered-list',
         'check',
-        'outdent',
-        'indent',
         '|',
         'quote',
         'line',
@@ -141,13 +138,14 @@ const VditorEditor = forwardRef(({
           try {
             const file = files[0];
             
-            // 使用图片上传服务
-            const result = await imageUploadService.uploadImage(file);
+            // 直接使用 httpClient 上传图片
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await httpClient.post('/api/file/upload/image', formData);
             
-            if (result.success) {
-              console.log('图片上传成功:', result.data);
-              // 使用自定义处理器时，需要手动插入 Markdown 图片语法
-              const markdownImage = `![${result.data.filename}](${result.data.url})\n`;
+            console.log('图片上传成功:', response.data);
+            // 使用自定义处理器时，需要手动插入 Markdown 图片语法
+            const markdownImage = `![${response.data.filename}](${response.data.url})\n`;
               // 使用 ref 来访问最新的 Vditor 实例
               setTimeout(() => {
                 const currentInstance = vditorInstanceRef.current;
@@ -160,10 +158,6 @@ const VditorEditor = forwardRef(({
                 }
               }, 0);
               return true; // 返回 true 表示成功
-            } else {
-              console.error('图片上传失败:', result.error);
-              throw new Error(result.error);
-            }
           } catch (error) {
             console.error('上传处理错误:', error);
             throw error;

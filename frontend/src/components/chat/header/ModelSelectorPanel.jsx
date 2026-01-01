@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faSyncAlt, faRobot } from '@fortawesome/free-solid-svg-icons';
-import modelSelectionService from '../../../services/modelSelectionService';
+import httpClient from '../../../utils/httpClient';
+import { isEmbeddingModel } from '../../../utils/embeddingModelUtils';
 import './ModelSelectorPanel.css';
 
 const ModelSelectorPanel = () => {
@@ -14,17 +15,37 @@ const ModelSelectorPanel = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [selectedModel, setSelectedModel] = useState('');
 
+  // 转换后端模型数据格式
+  const convertBackendModels = (backendModels) => {
+    if (!backendModels || typeof backendModels !== 'object') return [];
+    
+    const models = [];
+    for (const [modelId, modelInfo] of Object.entries(backendModels)) {
+      if (!modelInfo || typeof modelInfo !== 'object') continue;
+      
+      models.push({
+        id: modelId,
+        name: modelInfo.name || modelId,
+        provider: modelInfo.provider || 'unknown'
+      });
+    }
+    
+    return models;
+  };
+
   // 加载模型列表
   const loadAvailableModels = async () => {
     try {
       setLoading(true);
-      const result = await modelSelectionService.getAvailableModels();
+      const result = await httpClient.get('/api/provider/favorite-models');
       
       if (result.success) {
-        setAvailableModels(result.models);
+        const models = convertBackendModels(result.data);
+        const filteredModels = models.filter(model => !isEmbeddingModel(model.id));
+        setAvailableModels(filteredModels);
         console.log('ModelSelectorPanel: 从后端获取到模型数据:', {
-          availableModelsCount: result.models.length,
-          availableModels: result.models
+          availableModelsCount: filteredModels.length,
+          availableModels: filteredModels
         });
       } else {
         console.error('获取模型列表失败:', result.error);
@@ -39,12 +60,8 @@ const ModelSelectorPanel = () => {
   // 加载选中的模型
   const loadSelectedModel = async () => {
     try {
-      const result = await modelSelectionService.getSelectedModel();
-      if (result.success) {
-        setSelectedModel(result.selectedModel);
-      } else {
-        console.error('获取选中模型失败:', result.error);
-      }
+      const response = await httpClient.get('/api/ai-config/selected-model');
+      setSelectedModel(response.data.selectedModel || '');
     } catch (error) {
       console.error('加载选中模型失败:', error);
     }
@@ -54,14 +71,7 @@ const ModelSelectorPanel = () => {
   const handleRefreshModels = async () => {
     try {
       setRefreshing(true);
-      const result = await modelSelectionService.getAvailableModels();
-      
-      if (result.success) {
-        // 刷新成功后重新加载模型列表
-        await loadAvailableModels();
-      } else {
-        console.error('刷新模型列表失败:', result.error);
-      }
+      await loadAvailableModels();
     } catch (error) {
       console.error('刷新模型列表失败:', error);
     } finally {
@@ -72,22 +82,17 @@ const ModelSelectorPanel = () => {
   // 处理模型选择
   const handleModelSelect = async (modelId) => {
     try {
-      // 找到选中的模型信息
       const selectedModelInfo = availableModels.find(model => model.id === modelId);
       const provider = selectedModelInfo?.provider || '';
       
-      // 保存选中的模型到后端
-      const result = await modelSelectionService.setSelectedModel(modelId, provider);
+      await httpClient.post('/api/ai-config/selected-model', {
+        selectedModel: modelId,
+        selectedProvider: provider
+      });
       
-      if (result.success) {
-        console.log(`模型选择已保存: ${modelId}`);
-        // 更新本地状态
-        setSelectedModel(modelId);
-        // 关闭面板
-        setIsVisible(false);
-      } else {
-        console.error('保存模型选择失败:', result.error);
-      }
+      console.log(`模型选择已保存: ${modelId}`);
+      setSelectedModel(modelId);
+      setIsVisible(false);
     } catch (error) {
       console.error('处理模型选择失败:', error);
     }

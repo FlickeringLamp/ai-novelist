@@ -1,5 +1,5 @@
 import React from 'react';
-import chapterService from '../../services/chapterService.js';
+import httpClient from '../../utils/httpClient.js';
 
 /**
  * 文件操作模块
@@ -60,22 +60,38 @@ export class FileOperations {
     // 使用对应的 HTTP 服务方法
     switch (action) {
       case 'delete-item':
-        result = await chapterService.deleteItem(...args);
+        result = await httpClient.delete(`/api/file/chapters/${args[0]}`);
         break;
       case 'rename-item':
-        result = await chapterService.renameItem(...args);
+        result = await httpClient.post('/api/file/rename', {
+          old_path: args[0],
+          new_name: args[1]
+        });
         break;
       case 'create-novel-file':
-        result = await chapterService.createFile(...args);
+        result = await httpClient.post('/api/file/chapters', {
+          name: args[0],
+          content: args[1],
+          parent_path: args[2]
+        });
         break;
       case 'create-folder':
-        result = await chapterService.createFolder(...args);
+        result = await httpClient.post('/api/file/folders', {
+          name: args[0],
+          parent_path: args[1]
+        });
         break;
       case 'move-item':
-        result = await chapterService.moveItem(...args);
+        result = await httpClient.post('/api/file/move', {
+          source_path: args[0],
+          target_path: args[1]
+        });
         break;
       case 'copy-item':
-        result = await chapterService.copyItem(...args);
+        result = await httpClient.post('/api/file/copy', {
+          source_path: args[0],
+          target_path: args[1]
+        });
         break;
       default:
         // 对于未知操作，回退到原始 invoke
@@ -99,8 +115,6 @@ export class FileOperations {
         this.setNotificationMessage(result.message);
         this.setShowNotificationModal(true);
       }
-      // 手动触发章节更新，确保列表及时刷新
-      await chapterService.triggerChaptersUpdate();
       this.fetchChapters(); // 刷新章节列表
     } else {
       this.setNotificationMessage(`操作失败: ${result.error}`);
@@ -185,11 +199,6 @@ export class FileOperations {
     }
     
     const result = await this.handleHttpAction('rename-item', oldItemId, finalNewTitle);
-
-    if (result.success) {
-      // 在重命名操作完成后，手动触发章节更新
-      await chapterService.triggerChaptersUpdate();
-    }
   }
 
   /**

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUndo } from '@fortawesome/free-solid-svg-icons';
-import toolConfigService from '../../../services/toolConfigService.js';
+import httpClient from '../../../utils/httpClient.js';
 import './ToolConfigTab.css';
 
 /**
@@ -23,14 +23,10 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
   const loadToolConfig = async () => {
     setIsLoading(true);
     try {
-      const result = await toolConfigService.getModeToolConfig(mode);
-      if (result.success) {
-        setToolConfig(result.data);
-        setOriginalConfig(result.data);
-        setHasChanges(false);
-      } else {
-        console.error('获取工具配置失败:', result.error);
-      }
+      const response = await httpClient.get(`/api/tool-config/modes/${mode}`);
+      setToolConfig(response.data);
+      setOriginalConfig(response.data);
+      setHasChanges(false);
     } catch (error) {
       console.error('调用工具配置API失败:', error);
     } finally {
@@ -48,15 +44,11 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
   // 重置工具配置
   const resetToolConfig = async () => {
     try {
-      const result = await toolConfigService.resetModeToolConfig(mode);
-      if (result.success) {
-        setToolConfig(result.data);
-        setOriginalConfig(result.data);
-        setHasChanges(false);
-        console.log('工具配置重置成功');
-      } else {
-        console.error('重置工具配置失败:', result.error);
-      }
+      const response = await httpClient.post(`/api/tool-config/modes/${mode}/reset`);
+      setToolConfig(response.data);
+      setOriginalConfig(response.data);
+      setHasChanges(false);
+      console.log('工具配置重置成功');
     } catch (error) {
       console.error('调用重置工具配置API失败:', error);
     }

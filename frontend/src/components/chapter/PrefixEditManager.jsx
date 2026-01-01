@@ -1,6 +1,5 @@
 import React from 'react';
-import chapterService from '../../services/chapterService';
-import fileService from '../../services/fileService';
+import httpClient from '../../utils/httpClient';
 
 /**
  * 前缀编辑管理模块
@@ -87,29 +86,27 @@ const PrefixEditManager = ({
           newFileIds.splice(newFileIndex, 0, targetItem.id);
         }
       }
-
       // 调用后端API更新排序顺序
-      let result;
-      if (targetItem.isFolder) {
-        // 如果是文件夹，更新文件夹顺序
-        result = await fileService.updateFolderOrder(
-          editingPrefix.currentPath || '',
-          newFolderIds
-        );
-      } else {
-        // 如果是文件，更新文件顺序
-        result = await fileService.updateFileOrder(
-          editingPrefix.currentPath || '',
-          newFileIds
-        );
-      }
+      try {
+        if (targetItem.isFolder) {
+          // 如果是文件夹，更新文件夹顺序
+          await httpClient.post('/api/file/order/folders', {
+            folder_paths: newFolderIds,
+            directory_path: editingPrefix.currentPath || ''
+          });
+        } else {
+          // 如果是文件，更新文件顺序
+          await httpClient.post('/api/file/order/files', {
+            file_paths: newFileIds,
+            directory_path: editingPrefix.currentPath || ''
+          });
+        }
 
-      if (result.success) {
-        setNotificationMessage(result.message || '排序顺序更新成功！');
+        setNotificationMessage('排序顺序更新成功！');
         setShowNotificationModal(true);
         fetchChapters(); // 刷新章节列表
-      } else {
-        setNotificationMessage(`排序顺序更新失败: ${result.error}`);
+      } catch (error) {
+        setNotificationMessage(`排序顺序更新失败: ${error.message}`);
         setShowNotificationModal(true);
       }
     } catch (error) {

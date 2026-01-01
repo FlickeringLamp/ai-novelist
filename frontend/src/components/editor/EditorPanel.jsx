@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { updateNovelTitle, updateTabContent } from '../../store/slices/novelSlice.js';
 import VditorEditor from './VditorEditor.jsx';
 import DiffViewer from './DiffViewer.jsx';
 import ContextMenu from '../others/ContextMenu.jsx';
 import { vditorLifecycleManager } from './services/VditorLifecycleManager.js';
+import SplitViewPanel from './SplitViewPanel';
+import TabBar from './TabBar';
 
 import './EditorPanel.css';
 import NotificationModal from '../others/NotificationModal.jsx';
@@ -12,7 +12,8 @@ import BackgroundImage from './BackgroundImage.jsx';
 
 import { useCharacterCount } from './services/CharacterCountService.js';
 import { useContextMenu } from './hooks/useContextMenu.js';
-import { getContextMenuItems, handleMenuItemClick } from './utils/editorHelpers.js';
+import tabStateService from '../../services/tabStateService';
+import httpClient from '../../utils/httpClient.js';
 
 // 辅助函数：获取不带扩展名的显示名称
 const getDisplayName = (fileName) => {
@@ -29,10 +30,24 @@ const getFileExtension = (fileName) => {
 };
 
 function EditorPanel({ splitViewTabId = null }) {
-  const dispatch = useDispatch();
-  const { openTabs, activeTabId, splitView } = useSelector((state) => state.novel);
-  
-  // 在分屏模式下，使用传入的tabId，否则使用activeTabId
+  const [openTabs, setOpenTabs] = useState(tabStateService.getOpenTabs());
+  const [activeTabId, setActiveTabId] = useState(tabStateService.getActiveTabId());
+  const [splitView, setSplitView] = useState(tabStateService.getSplitView());
+
+  useEffect(() => {
+    const handleStateChange = (event) => {
+      setOpenTabs(event.detail.openTabs);
+      setActiveTabId(event.detail.activeTabId);
+      setSplitView(event.detail.splitView);
+    };
+
+    tabStateService.addEventListener('stateChanged', handleStateChange);
+
+    return () => {
+      tabStateService.removeEventListener('stateChanged', handleStateChange);
+    };
+  }, []);
+
   const displayTabId = splitViewTabId || activeTabId;
   const activeTab = openTabs.find(tab => tab.id === displayTabId);
 
@@ -58,26 +73,17 @@ function EditorPanel({ splitViewTabId = null }) {
   const handleEditorChange = useCallback((newContent) => {
     if (!activeTab) return;
     
-    // 检查内容是否真的发生了变化
     const isContentChanged = newContent !== activeTab.content;
     
-    // 派发 action 更新 tab 内容和 isDirty 状态
-    // 只有当内容真正变化时才标记为脏
-    dispatch(updateTabContent({
-      tabId: activeTab.id,
-      content: newContent,
-      isDirty: isContentChanged
-    }));
+    tabStateService.updateTabContent(activeTab.id, newContent, isContentChanged);
 
-    // 更新字符计数 - 使用HTML内容计算，确保传入有效值
     const contentToCount = newContent || '';
     setCharacterCount(calculateCharacterCount(contentToCount));
 
     if (window.electron) {
         window.electron.setUnsavedChanges(isContentChanged);
     }
-  }, [dispatch, activeTab?.id, activeTab?.content, calculateCharacterCount]);
-
+  }, [activeTab?.id, activeTab?.content, calculateCharacterCount]);
   // 注册编辑器实例
   const registerEditorInstance = useCallback((tabId, editorInstance) => {
     if (tabId && editorInstance) {
@@ -117,24 +123,28 @@ function EditorPanel({ splitViewTabId = null }) {
   }, [activeTab?.id, activeTab?.content, calculateCharacterCount, setCharacterCount]);
 
   // 简化的标题管理
-  const handleTitleSave = useCallback(() => {
+  const handleTitleSave = useCallback(async () => {
     if (!activeTab || !title.trim()) return;
     
     const oldFilePath = activeTab.id;
     const newTitle = title.trim();
     
-    // 获取原始文件的扩展名
     const originalExtension = getFileExtension(oldFilePath);
-    // 构建完整的新文件名（包含扩展名）
     const fullFileName = newTitle.includes('.') ? newTitle : newTitle + originalExtension;
-    
     if (newTitle !== getDisplayName(activeTab.title)) {
-      dispatch(updateNovelTitle({ oldFilePath, newTitle: fullFileName }));
+      try {
+        await httpClient.post('/api/file/rename', {
+          old_path: oldFilePath,
+          new_name: fullFileName
+        });
+        tabStateService.fileRenamed(oldFilePath, fullFileName);
+      } catch (error) {
+        console.error('重命名失败:', error);
+      }
     }
     
     setIsTitleEditing(false);
-  }, [activeTab, title, dispatch]);
-
+  }, [activeTab, title]);
   const handleTitleKeyDown = useCallback((e) => {
     if (e.key === 'Enter') {
       handleTitleSave();
@@ -173,16 +183,14 @@ function EditorPanel({ splitViewTabId = null }) {
     }
   }, [activeTab?.id, activeTab?.title]);
 
-  // 在分屏模式下，如果当前标签页不在分屏中，则不显示
-  const shouldShowInSplitView = splitView.enabled && splitViewTabId === null &&
-      displayTabId !== splitView.leftTabId && displayTabId !== splitView.rightTabId;
-  
-  if (splitView.enabled && shouldShowInSplitView) {
-    return null;
+  // 如果是分屏模式，渲染 SplitViewPanel
+  if (splitView.enabled && splitViewTabId === null) {
+    return <SplitViewPanel />;
   }
 
   return (
     <>
+      {!splitView.enabled && <TabBar />}
       {!activeTab ? (
         <div className="no-file-selected-panel">
           <BackgroundImage />
@@ -240,16 +248,6 @@ function EditorPanel({ splitViewTabId = null }) {
                   总字符数: {characterCount}
                 </div>
               </div>
-              {showContextMenu && (
-                <ContextMenu
-                  x={contextMenuPos.x}
-                  y={contextMenuPos.y}
-                  items={getContextMenuItems(getCurrentEditorInstance(), (action) =>
-                    handleMenuItemClick(getCurrentEditorInstance(), action)
-                  )}
-                  onClose={handleCloseContextMenu}
-                />
-              )}
             </>
           )}
         </div>

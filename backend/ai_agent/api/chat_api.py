@@ -9,7 +9,7 @@ import logging
 import base64
 import asyncio
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, validator
 
@@ -17,7 +17,6 @@ from backend.ai_agent.config import ai_settings
 from backend.ai_agent.core.graph_builder import build_graph
 from backend.ai_agent.core.tool_load import import_tools_from_directory
 from backend.ai_agent.core.system_prompt_builder import system_prompt_builder
-from backend.services.websocket_manager import websocket_manager
 
 # 导入LangChain相关类型用于类型检查
 from langgraph.types import StateSnapshot, Interrupt
@@ -525,34 +524,6 @@ async def summarize_conversation():
         logger.error(f"总结对话失败: {e}")
         raise HTTPException(status_code=500, detail=f"总结对话失败: {str(e)}")
 
-# WebSocket端点
-@router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """
-    WebSocket连接端点，用于实时通信
-    """
-    await websocket_manager.connect(websocket)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            message = json.loads(data)
-            
-            # 处理客户端消息
-            if message.get("type") == "subscribe":
-                # 处理订阅事件
-                event_types = message.get("event_types", [])
-                logger.info(f"Client subscribed to events: {event_types}")
-                
-            elif message.get("type") == "unsubscribe":
-                # 处理取消订阅
-                event_types = message.get("event_types", [])
-                logger.info(f"Client unsubscribed from events: {event_types}")
-                
-    except WebSocketDisconnect:
-        websocket_manager.disconnect(websocket)
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-        websocket_manager.disconnect(websocket)
 
 # 初始化工具
 initialize_tools()

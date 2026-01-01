@@ -24,6 +24,12 @@ class CustomProviderResponse(BaseModel):
     message: str
     data: Optional[Any] = None
 
+class ProvidersListResponse(BaseModel):
+    """提供商列表响应模型"""
+    success: bool
+    message: str
+    data: Optional[list] = None
+
 # 常用模型相关API
 class FavoriteModelsRequest(BaseModel):
     """常用模型请求模型"""
@@ -36,10 +42,16 @@ class FavoriteModelsResponse(BaseModel):
     message: str
     data: Optional[Any] = None
 
+class ModelsListResponse(BaseModel):
+    """模型列表响应模型"""
+    success: bool
+    message: str
+    data: Optional[dict] = None
+
 # API端点
 
 # 所有提供商列表
-@router.get("/providers",summary="获取提供商列表")
+@router.get("/providers", response_model=ProvidersListResponse, summary="获取提供商列表")
 def providers_list():
     """获取所有提供商列表（包括内置和自定义）"""
     
@@ -51,11 +63,15 @@ def providers_list():
     builtin_provider_names = list(BUILTIN_PROVIDERS.keys())
     all_providers = builtin_provider_names + custom_provider_names
     
-    return all_providers
+    return ProvidersListResponse(
+        success=True,
+        message="获取提供商列表成功",
+        data=all_providers
+    )
 
 
 
-@router.get("/{provider_id}/models",summary="获取指定模型提供商的模型列表")
+@router.get("/{provider_id}/models", response_model=ModelsListResponse, summary="获取指定模型提供商的模型列表")
 def model_list(provider_id: str):
     """
     获取指定模型提供商的模型列表
@@ -74,10 +90,14 @@ def model_list(provider_id: str):
         # 获取模型列表
         models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
         
-        return {
-            "models": models,
-            "count": len(models)
-        }
+        return ModelsListResponse(
+            success=True,
+            message="获取模型列表成功",
+            data={
+                "models": models,
+                "count": len(models)
+            }
+        )
     except Exception as e:
         logger.error(f"获取提供商 {provider_id} 的模型列表失败: {e}")
         # 尝试从错误信息中提取HTTP状态码

@@ -22,7 +22,6 @@ from backend.ai_agent.api.config_api import router as ai_config_router
 from backend.ai_agent.api.tool_config_api import router as tool_config_router
 from backend.ai_agent.api.history_api import router as history_router
 from backend.file.file_api import router as file_router
-from backend.services.websocket_manager import websocket_manager
 from backend.services.config_api import router as config_router
 from backend.embedding.embedding_api import router as embedding_router
 from backend.ai_agent.api.models_api import router as model_router
@@ -129,7 +128,6 @@ async def http_exception_handler(request, exc):
         }
     )
 
-# WebSocket端点 (在ai_agent/api.py中已经实现，这里不再重复)
 
 # 配置日志
 import logging

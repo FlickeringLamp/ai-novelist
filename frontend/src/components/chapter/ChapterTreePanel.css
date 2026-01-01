@@ -116,12 +116,12 @@
 }
 
 /* 文件/文件夹图标 */
-.item-icon {
+.folder-file-icon {
     margin-right: 8px;
     color: #a6e22e; /* 绿色 */
 }
 
-.folder-item > .chapter-item-content > .item-icon {
+.folder-item > .chapter-item-content > .folder-file-icon {
     color: var(--text-color-secondary); /* 改为深灰色系 */
 }
 
@@ -341,7 +341,7 @@
 }
 
 /* 调整图标大小 */
-.nested-folder-content .item-icon {
+.nested-folder-content .folder-file-icon {
     font-size: 0.9em; /* 图标也稍微小一点 */
 }
 

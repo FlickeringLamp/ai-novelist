@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './MessageInput.css';
 import FileListPopup from './FileListPopup.jsx';
-import fileService from '../../../services/fileService.js';
+import httpClient from '../../../utils/httpClient.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
-import ToolCallService from '../../../services/ToolCallService';
 
 const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disabled, autoApproveSettings }) => {
   const [message, setMessage] = useState('');
@@ -13,12 +12,6 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
   const [fileReferences, setFileReferences] = useState([]); // 存储文件引用
   const textareaRef = useRef(null);
   const containerRef = useRef(null);
-  
-  // 创建工具调用服务实例
-  const toolCallServiceRef = React.useRef(null);
-  if (!toolCallServiceRef.current) {
-    toolCallServiceRef.current = new ToolCallService();
-  }
 
   // 检查是否应该显示文件列表
   const checkForAtTrigger = (text, cursorPosition) => {
@@ -108,15 +101,14 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
         fileRefs.push(fileName);
         // 获取文件内容
         fileContentPromises.push(
-          fileService.readFile(fileName).then(result => {
-            if (result.success) {
-              return { fileName, content: result.content };
-            }
-            return { fileName, content: `[文件读取失败: ${fileName}]` };
-          }).catch(error => {
-            console.error(`读取文件 ${fileName} 失败:`, error);
-            return { fileName, content: `[文件读取失败: ${fileName}]` };
-          })
+          httpClient.get(`/api/file/read/${encodeURIComponent(fileName)}`)
+            .then(response => {
+              return { fileName, content: response.data };
+            })
+            .catch(error => {
+              console.error(`读取文件 ${fileName} 失败:`, error);
+              return { fileName, content: `[文件读取失败: ${fileName}]` };
+            })
         );
       }
       

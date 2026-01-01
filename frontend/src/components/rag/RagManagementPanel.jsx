@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import globalProviderService from '../../services/providerService';
-import ragService from '../../services/ragService';
+import httpClient from '../../utils/httpClient';
+import { filterEmbeddingModels } from '../../utils/embeddingModelUtils';
 import './RagManagementPanel.css';
-
-
 
 const RagSettingsPanel = () =>{
   const [activeTab, setActiveTab] = useState('embedding'); // 默认显示嵌入配置标签
@@ -23,9 +21,9 @@ const RagSettingsPanel = () =>{
 
   useEffect(()=>{
     const initializeData = async() => {
-      const [providersResult,chunkSettingsResult] = await Promise.all([
-        globalProviderService.getProviders(),
-        ragService.getRagChunkSettings(),
+      const [providersResult, chunkSettingsResult] = await Promise.all([
+        httpClient.get('/api/provider/providers'),
+        httpClient.get('/api/embedding/rag/chunk-settings'),
       ]);
       setProviders(providersResult.data || []);
       setChunkSize(chunkSettingsResult.chunkSize || "");
@@ -37,8 +35,11 @@ const RagSettingsPanel = () =>{
   useEffect(()=>{
     const fetchEmbeddingModels = async() => {
       if (selectedProviderId) {
-        const result = await ragService.getEmbeddingModels(selectedProviderId);
-        setEmbeddingModels(result.data || []);
+        const response = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
+        if (response.success) {
+          const embeddingList = filterEmbeddingModels(response.data.models || []);
+          setEmbeddingModels(embeddingList);
+        }
       }
     };
     fetchEmbeddingModels();
@@ -46,8 +47,8 @@ const RagSettingsPanel = () =>{
 
   useEffect(()=>{
     const fetchKnowledgeBaseFiles = async() => {
-      const result = await ragService.listKnowledgeBaseFiles();
-      setRagFile(result.files || []);
+      const response = await httpClient.get('/api/embedding/rag/files');
+      setRagFile(response.files || []);
     };
     fetchKnowledgeBaseFiles();
   },[])
@@ -59,10 +60,11 @@ const RagSettingsPanel = () =>{
   const handleEmbeddingModelClick = async (modelId) => {
     setSelectedEmbeddingModelId(modelId);
     try {
-      // 构造包含提供商前缀的模型信息
       const modelInfo = `${selectedProviderId}:${modelId}`;
-      const result = await ragService.getEmbeddingDimensions(modelInfo);
-      setEmbeddingDimensions(result.dimensions || "");
+      const response = await httpClient.post('/api/embedding/dimensions', {
+        model_info: modelInfo
+      });
+      setEmbeddingDimensions(response.dimensions || "");
     } catch (error) {
       console.error('获取嵌入维度失败:', error);
       setEmbeddingDimensions("");
@@ -72,13 +74,14 @@ const RagSettingsPanel = () =>{
   const handleSubmit = async(e) => {
     e.preventDefault();
     try {
-      const result = await ragService.saveRagChunkSettings(chunkSize, chunkOverlap);
-      if (result.success) {
-        console.log('RAG分块设置保存成功:', result.message);
-        // 可以在这里添加成功提示
+      const response = await httpClient.post('/api/embedding/rag/chunk-settings', {
+        chunkSize: parseInt(chunkSize),
+        chunkOverlap: parseInt(chunkOverlap)
+      });
+      if (response.success) {
+        console.log('RAG分块设置保存成功:', response.message);
       } else {
-        console.error('RAG分块设置保存失败:', result.error);
-        // 可以在这里添加错误提示
+        console.error('RAG分块设置保存失败:', response.error);
       }
     } catch (error) {
       console.error('保存RAG分块设置时发生错误:', error);
@@ -96,25 +99,20 @@ const RagSettingsPanel = () =>{
     setUploadStatus('正在上传文件...')
     
     try {
-      const result = await ragService.addFileToKnowledgeBase(file)
+      const formData = new FormData();
+      formData.append('file', file);
+      await httpClient.post('/api/embedding/rag/files', formData);
       
-      if (result.success) {
-        setUploadStatus(`文件 "${file.name}" 上传成功！`)
-        // 刷新文件列表
-        const fileListResult = await ragService.listKnowledgeBaseFiles()
-        setRagFile(fileListResult.files || [])
-      } else {
-        setUploadStatus(`文件上传失败: ${result.error}`)
-      }
+      setUploadStatus(`文件 "${file.name}" 上传成功！`)
+      const fileListResult = await httpClient.get('/api/embedding/rag/files');
+      setRagFile(fileListResult.files || [])
     } catch (error) {
       console.error('文件上传过程中发生错误:', error)
       setUploadStatus(`文件上传失败: ${error.message}`)
     }
 
-    // 清空文件输入，允许重复选择同一文件
     event.target.value = ''
     
-    // 3秒后清除状态消息
     setTimeout(() => {
       setUploadStatus('')
     }, 3000)
@@ -122,16 +120,11 @@ const RagSettingsPanel = () =>{
 
   const handleDeleteFile = async (fileId) => {
     try {
-      const result = await ragService.deleteKnowledgeBaseFile(fileId);
+      await httpClient.delete(`/api/embedding/rag/files/${fileId}`);
       
-      if (result.success) {
-        console.log('文件删除成功:', result.message);
-        // 刷新文件列表
-        const fileListResult = await ragService.listKnowledgeBaseFiles();
-        setRagFile(fileListResult.files || []);
-      } else {
-        console.error('文件删除失败:', result.error);
-      }
+      console.log('文件删除成功');
+      const fileListResult = await httpClient.get('/api/embedding/rag/files');
+      setRagFile(fileListResult.files || []);
     } catch (error) {
       console.error('文件删除过程中发生错误:', error);
     }
@@ -144,19 +137,15 @@ const RagSettingsPanel = () =>{
     }
 
     try {
-      const result = await ragService.renameKnowledgeBaseFile(fileId, newFileName);
+      await httpClient.put(`/api/embedding/rag/files/${fileId}/rename`, null, {
+        params: { new_name: newFileName }
+      });
       
-      if (result.success) {
-        console.log('文件重命名成功:', result.message);
-        // 刷新文件列表
-        const fileListResult = await ragService.listKnowledgeBaseFiles();
-        setRagFile(fileListResult.files || []);
-        // 重置重命名状态
-        setRenamingFileId(null);
-        setNewFileName('');
-      } else {
-        console.error('文件重命名失败:', result.error);
-      }
+      console.log('文件重命名成功');
+      const fileListResult = await httpClient.get('/api/embedding/rag/files');
+      setRagFile(fileListResult.files || []);
+      setRenamingFileId(null);
+      setNewFileName('');
     } catch (error) {
       console.error('文件重命名过程中发生错误:', error);
     }
