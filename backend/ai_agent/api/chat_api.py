@@ -1,17 +1,11 @@
-"""
-AI聊天API模块
-为前端提供AI聊天、工具调用等功能的RESTful API
-专注于聊天交互和流式响应
-"""
-
 import json
 import logging
 import base64
 import asyncio
 from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, validator
 
 from backend.ai_agent.config import ai_settings
 from backend.ai_agent.core.graph_builder import build_graph
@@ -22,6 +16,17 @@ from backend.ai_agent.core.system_prompt_builder import system_prompt_builder
 from langgraph.types import StateSnapshot, Interrupt
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 LANGCHAIN_IMPORTS_AVAILABLE = True
+
+# 请求模型
+class ChatMessageRequest(BaseModel):
+    """发送聊天消息请求"""
+    message: str = Field(..., description="用户消息内容")
+
+class InterruptResponseRequest(BaseModel):
+    """中断响应请求"""
+    interrupt_id: str = Field(..., description="中断ID")
+    choice: str = Field(..., description="用户选择 ('1'=恢复, '2'=取消)")
+    additional_data: str = Field(default="", description="附加信息")
 
 logger = logging.getLogger(__name__)
 
@@ -193,24 +198,6 @@ def create_graph(mode: str = None):
         logger.error(f"Failed to create graph: {e}")
         raise
 
-# 数据模型
-class ChatMessageRequest(BaseModel):
-    """聊天消息请求模型"""
-    message: str
-    
-    @validator('message')
-    def validate_message(cls, v):
-        if len(v.strip()) == 0:
-            raise ValueError('消息不能为空')
-        return v
-
-class InterruptResponseRequest(BaseModel):
-    """中断响应请求模型"""
-    interrupt_id: str
-    choice: str  # '1'=恢复, '2'=取消
-    additional_data: str = ""
-
-# API端点
 # API端点
 @router.post("/message", summary="发送聊天消息")
 async def send_chat_message(request: ChatMessageRequest):
@@ -219,6 +206,7 @@ async def send_chat_message(request: ChatMessageRequest):
     
     - **message**: 用户消息内容
     """
+    message = request.message
     try:
         # 从配置文件获取当前模式和thread_id
         current_mode = ai_settings.CURRENT_MODE
@@ -243,7 +231,7 @@ async def send_chat_message(request: ChatMessageRequest):
                
                 # 添加用户消息
                 from langchain_core.messages import HumanMessage
-                updated_messages = current_messages + [HumanMessage(content=request.message)]
+                updated_messages = current_messages + [HumanMessage(content=message)]
                
                 # 创建输入状态
                 from ai_agent.config import State
@@ -321,10 +309,13 @@ async def send_interrupt_response(request: InterruptResponseRequest):
     - **choice**: 用户选择 ('1'=恢复, '2'=取消)
     - **additional_data**: 附加信息
     """
+    interrupt_id = request.interrupt_id
+    choice = request.choice
+    additional_data = request.additional_data
     try:
         # 从配置文件获取thread_id
         thread_id = ai_settings.get_thread_id()
-        logger.info(f"收到中断响应: interrupt_id={request.interrupt_id}, choice={request.choice}, thread_id: {thread_id}")
+        logger.info(f"收到中断响应: interrupt_id={interrupt_id}, choice={choice}, thread_id: {thread_id}")
         
         # 每次请求都创建新的graph实例，确保使用最新的模型配置和工具
         # 从配置文件读取当前模式
@@ -336,8 +327,8 @@ async def send_interrupt_response(request: InterruptResponseRequest):
         from langgraph.types import Command
         human_response = Command(
             resume= {
-                "choice_action": request.choice,
-                "choice_data": request.additional_data
+                "choice_action": choice,
+                "choice_data": additional_data
             }
         )
         config = {"configurable": {"thread_id": thread_id}}
@@ -403,7 +394,7 @@ async def send_interrupt_response(request: InterruptResponseRequest):
         logger.error(f"Interrupt response processing error: {e}")
         raise HTTPException(status_code=500, detail=f"处理中断响应时出错: {str(e)}")
 
-@router.post("/new-thread", summary="创建新的会话")
+@router.post("/new-thread", summary="创建新的会话", response_model=str)
 async def create_new_thread():
     """
     创建新的thread_id并返回
@@ -421,16 +412,12 @@ async def create_new_thread():
         
         logger.info(f"创建新的thread_id: {new_thread_id}")
         
-        return {
-            "success": True,
-            "thread_id": new_thread_id,
-            "message": "新会话创建成功"
-        }
+        return new_thread_id
     except Exception as e:
         logger.error(f"创建新thread_id失败: {e}")
         raise HTTPException(status_code=500, detail=f"创建新会话失败: {str(e)}")
 
-@router.get("/current-thread", summary="获取当前会话ID")
+@router.get("/current-thread", summary="获取当前会话ID", response_model=str)
 async def get_current_thread():
     """
     获取当前的thread_id
@@ -444,16 +431,12 @@ async def get_current_thread():
         
         logger.info(f"获取当前thread_id: {current_thread_id}")
         
-        return {
-            "success": True,
-            "thread_id": current_thread_id,
-            "message": "获取当前会话ID成功"
-        }
+        return current_thread_id
     except Exception as e:
         logger.error(f"获取当前thread_id失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取当前会话ID失败: {str(e)}")
 
-@router.post("/summarize", summary="总结对话")
+@router.post("/summarize", summary="总结对话", response_model=str)
 async def summarize_conversation():
     """
     总结当前对话历史
@@ -481,11 +464,7 @@ async def summarize_conversation():
             logger.info(f"消息 {i}: 完整内容={msg}")
         
         if not current_messages:
-            return {
-                "success": False,
-                "summary": "",
-                "message": "没有可总结的对话历史"
-            }
+            return ""
         
         # 使用总结指令触发总结（与主循环相同的方式）
         from langchain_core.messages import HumanMessage
@@ -514,11 +493,7 @@ async def summarize_conversation():
         logger.info(f"对话总结完成，总结长度: {len(updated_summary)}")
         logger.info(f"总结后的消息数量: {len(updated_messages_after)}:完整内容={updated_messages_after}")
         
-        return {
-            "success": True,
-            "summary": updated_summary,
-            "message": "对话总结成功"
-        }
+        return updated_summary
         
     except Exception as e:
         logger.error(f"总结对话失败: {e}")

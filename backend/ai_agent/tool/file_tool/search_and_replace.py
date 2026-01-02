@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from langchain import tools
 from langchain.tools import tool, ToolRuntime
 from langgraph.types import interrupt,Command
@@ -10,7 +10,7 @@ from langgraph.types import interrupt,Command
 # 导入配置和路径验证器
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from backend.config import settings
+from backend.config.config import settings
 from file.utils.path_validator import PathValidator
 
 
@@ -25,7 +25,7 @@ class SearchAndReplaceInput(BaseModel):
 @tool(args_schema=SearchAndReplaceInput)
 def search_and_replace(path: str, search: str, replace: str,
                            use_regex: bool = False, ignore_case: bool = False,
-                           runtime: ToolRuntime = None) -> str:
+                           runtime: Optional[ToolRuntime] = None) -> str:
     """搜索并替换文本
     
     Args:

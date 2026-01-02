@@ -9,7 +9,7 @@ from langgraph.types import Command, interrupt
 # 导入配置和路径验证器
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from backend.config import settings
+from backend.config.config import settings
 from file.utils.path_validator import PathValidator
 
 class InsertContentInput(BaseModel):

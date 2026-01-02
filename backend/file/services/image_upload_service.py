@@ -1,11 +1,11 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import base64
 from fastapi import UploadFile, HTTPException
 import aiofiles
-from backend.config import settings
+from backend.config.config import settings
 
 class ImageUploadService:
     def __init__(self):
@@ -27,8 +27,10 @@ class ImageUploadService:
             print(f"创建上传目录失败: {e}")
             raise
 
-    def generate_filename(self, original_filename: str) -> str:
+    def generate_filename(self, original_filename: Optional[str] = None) -> str:
         """生成唯一的文件名"""
+        if original_filename is None:
+            original_filename = "image.png"
         ext = Path(original_filename).suffix.lower()
         if ext not in self.allowed_extensions:
             ext = '.png'  # 默认使用 png 格式
@@ -37,8 +39,10 @@ class ImageUploadService:
         random_str = uuid.uuid4().hex[:8]
         return f"image_{timestamp}_{random_str}{ext}"
 
-    def is_allowed_file(self, filename: str) -> bool:
+    def is_allowed_file(self, filename: Optional[str]) -> bool:
         """检查文件类型是否允许"""
+        if filename is None:
+            return False
         ext = Path(filename).suffix.lower()
         return ext in self.allowed_extensions
 
@@ -85,7 +89,7 @@ class ImageUploadService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
 
-    async def upload_from_buffer(self, buffer_data: bytes, filename: str = None) -> Dict[str, Any]:
+    async def upload_from_buffer(self, buffer_data: bytes, filename: Optional[str] = None) -> Dict[str, Any]:
         """从缓冲区上传图片（用于剪贴板粘贴）"""
         try:
             # 检查文件大小
@@ -123,7 +127,7 @@ class ImageUploadService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"图片上传失败: {str(e)}")
 
-    async def upload_from_base64(self, base64_data: str, filename: str = None) -> Dict[str, Any]:
+    async def upload_from_base64(self, base64_data: str, filename: Optional[str] = None) -> Dict[str, Any]:
         """从 base64 数据上传图片"""
         try:
             # 解析 base64 数据

@@ -1,57 +1,38 @@
 import logging
+from typing import List, Dict, Optional
+from pydantic import BaseModel, Field
 from backend.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.ai_agent.config import ai_settings
-from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException
-from typing import Optional, Any
 from backend.ai_agent.models.providers_list import BUILTIN_PROVIDERS
 
 logger = logging.getLogger(__name__)
 
+# 请求模型
+class AddFavoriteModelRequest(BaseModel):
+    """添加常用模型请求"""
+    modelId: str = Field(..., description="模型ID")
+    provider: str = Field(..., description="提供商")
+
+class AddCustomProviderRequest(BaseModel):
+    """添加自定义提供商请求"""
+    name: str = Field(..., description="提供商名称")
+    baseUrl: str = Field(..., description="API基础URL")
+    apiKey: str = Field(default="", description="API密钥")
+
+class UpdateCustomProviderRequest(BaseModel):
+    """更新自定义提供商请求"""
+    name: str = Field(..., description="提供商名称")
+    baseUrl: str = Field(..., description="API基础URL")
+    apiKey: str = Field(default="", description="API密钥")
+
 # 创建API路由器
 router = APIRouter(prefix="/api/provider")
-
-# 自定义提供商相关API
-class CustomProviderRequest(BaseModel):
-    """自定义提供商请求模型"""
-    name: str
-    baseUrl: str
-    apiKey: str = ""
-
-class CustomProviderResponse(BaseModel):
-    """自定义提供商响应模型"""
-    success: bool
-    message: str
-    data: Optional[Any] = None
-
-class ProvidersListResponse(BaseModel):
-    """提供商列表响应模型"""
-    success: bool
-    message: str
-    data: Optional[list] = None
-
-# 常用模型相关API
-class FavoriteModelsRequest(BaseModel):
-    """常用模型请求模型"""
-    modelId: str
-    provider: str
-
-class FavoriteModelsResponse(BaseModel):
-    """常用模型响应模型"""
-    success: bool
-    message: str
-    data: Optional[Any] = None
-
-class ModelsListResponse(BaseModel):
-    """模型列表响应模型"""
-    success: bool
-    message: str
-    data: Optional[dict] = None
 
 # API端点
 
 # 所有提供商列表
-@router.get("/providers", response_model=ProvidersListResponse, summary="获取提供商列表")
+@router.get("/providers", summary="获取提供商列表", response_model=List[str])
 def providers_list():
     """获取所有提供商列表（包括内置和自定义）"""
     
@@ -63,15 +44,11 @@ def providers_list():
     builtin_provider_names = list(BUILTIN_PROVIDERS.keys())
     all_providers = builtin_provider_names + custom_provider_names
     
-    return ProvidersListResponse(
-        success=True,
-        message="获取提供商列表成功",
-        data=all_providers
-    )
+    return all_providers
 
 
 
-@router.get("/{provider_id}/models", response_model=ModelsListResponse, summary="获取指定模型提供商的模型列表")
+@router.get("/{provider_id}/models", summary="获取指定模型提供商的模型列表", response_model=List[str])
 def model_list(provider_id: str):
     """
     获取指定模型提供商的模型列表
@@ -90,32 +67,13 @@ def model_list(provider_id: str):
         # 获取模型列表
         models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
         
-        return ModelsListResponse(
-            success=True,
-            message="获取模型列表成功",
-            data={
-                "models": models,
-                "count": len(models)
-            }
-        )
+        return models
     except Exception as e:
         logger.error(f"获取提供商 {provider_id} 的模型列表失败: {e}")
-        # 尝试从错误信息中提取HTTP状态码
-        error_message = str(e)
-        status_code = 500  # 默认状态码
-        
-        # 检查错误信息中是否包含HTTP状态码
-        import re
-        http_status_match = re.search(r'HTTP (\d{3})', error_message)
-        if http_status_match:
-            status_code = int(http_status_match.group(1))
-            # 提取纯错误信息（去掉HTTP状态码部分）
-            error_message = re.sub(r' \(HTTP \d{3}\).*$', '', error_message)
-        
-        raise HTTPException(status_code=status_code, detail=error_message)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 常用模型相关API
-@router.get("/favorite-models", response_model=FavoriteModelsResponse, summary="获取常用模型列表")
+@router.get("/favorite-models", summary="获取常用模型列表", response_model=Dict[str, Dict])
 async def get_favorite_models():
     """
     获取常用模型列表
@@ -123,18 +81,14 @@ async def get_favorite_models():
     try:
         config = ai_settings.get_all_config()
         favorite_models = config.get("favoriteModels", {})
-        return FavoriteModelsResponse(
-            success=True,
-            message="获取常用模型列表成功",
-            data=favorite_models
-        )
+        return favorite_models
         
     except Exception as e:
         logger.error(f"获取常用模型列表失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取常用模型列表失败: {str(e)}")
 
-@router.post("/favorite-models", response_model=FavoriteModelsResponse, summary="添加常用模型")
-async def add_favorite_model(request: FavoriteModelsRequest):
+@router.post("/favorite-models", summary="添加常用模型", response_model=Dict[str, Dict])
+async def add_favorite_model(request: AddFavoriteModelRequest):
     """
     添加模型到常用模型列表
     
@@ -155,17 +109,13 @@ async def add_favorite_model(request: FavoriteModelsRequest):
         }
         
         ai_settings.update_config(config)
-        return FavoriteModelsResponse(
-            success=True,
-            message="添加常用模型成功",
-            data=config["favoriteModels"]
-        )
+        return config["favoriteModels"]
         
     except Exception as e:
         logger.error(f"添加常用模型失败: {e}")
         raise HTTPException(status_code=500, detail=f"添加常用模型失败: {str(e)}")
 
-@router.delete("/favorite-models", response_model=FavoriteModelsResponse, summary="删除常用模型")
+@router.delete("/favorite-models", summary="删除常用模型", response_model=Dict[str, Dict])
 async def remove_favorite_model(modelId: str):
     """
     从常用模型列表中删除模型
@@ -184,33 +134,23 @@ async def remove_favorite_model(modelId: str):
             del config["favoriteModels"][modelId]
             ai_settings.update_config(config)
             
-            return FavoriteModelsResponse(
-                success=True,
-                message="删除常用模型成功",
-                data=config["favoriteModels"]
-            )
+            return config["favoriteModels"]
         else:
-            return FavoriteModelsResponse(
-                success=False,
-                message="模型不在常用列表中",
-                data=config["favoriteModels"]
-            )
+            return config["favoriteModels"]
         
     except Exception as e:
         logger.error(f"删除常用模型失败: {e}")
         raise HTTPException(status_code=500, detail=f"删除常用模型失败: {str(e)}")
 
 
-@router.post("/custom-providers", response_model=CustomProviderResponse, summary="添加自定义提供商")
-async def add_custom_provider(request: CustomProviderRequest):
+@router.post("/custom-providers", summary="添加自定义提供商", response_model=List[Dict])
+async def add_custom_provider(request: AddCustomProviderRequest):
     """
     添加自定义提供商
     
-    - **id**: 提供商唯一标识
     - **name**: 提供商名称
     - **baseUrl**: API基础URL
     - **apiKey**: API密钥
-    - **description**: 提供商描述
     """
     try:
         config = ai_settings.get_all_config()
@@ -222,11 +162,7 @@ async def add_custom_provider(request: CustomProviderRequest):
         # 检查提供商名称是否已存在
         existing_names = [provider.get("name") for provider in config["customProviders"]]
         if request.name in existing_names:
-            return CustomProviderResponse(
-                success=False,
-                message=f"提供商名称 '{request.name}' 已存在",
-                data=config["customProviders"]
-            )
+            return config["customProviders"]
         
         # 添加新的自定义提供商
         new_provider = {
@@ -238,27 +174,21 @@ async def add_custom_provider(request: CustomProviderRequest):
         config["customProviders"].append(new_provider)
         ai_settings.update_config(config)
         
-        return CustomProviderResponse(
-            success=True,
-            message="添加自定义提供商成功",
-            data=config["customProviders"]
-        )
+        return config["customProviders"]
         
     except Exception as e:
         logger.error(f"添加自定义提供商失败: {e}")
         raise HTTPException(status_code=500, detail=f"添加自定义提供商失败: {str(e)}")
 
-@router.put("/custom-providers/{provider_id}", response_model=CustomProviderResponse, summary="更新自定义提供商")
-async def update_custom_provider(provider_id: str, request: CustomProviderRequest):
+@router.put("/custom-providers/{provider_id}", summary="更新自定义提供商", response_model=List[Dict])
+async def update_custom_provider(provider_id: str, request: UpdateCustomProviderRequest):
     """
     更新自定义提供商
     
     - **provider_id**: 提供商ID（路径参数）
-    - **id**: 提供商唯一标识
     - **name**: 提供商名称
     - **baseUrl**: API基础URL
     - **apiKey**: API密钥
-    - **description**: 提供商描述
     """
     try:
         config = ai_settings.get_all_config()
@@ -280,25 +210,17 @@ async def update_custom_provider(provider_id: str, request: CustomProviderReques
                 break
         
         if not provider_found:
-            return CustomProviderResponse(
-                success=False,
-                message=f"提供商名称 '{provider_id}' 不存在",
-                data=config["customProviders"]
-            )
+            return config["customProviders"]
         
         ai_settings.update_config(config)
         
-        return CustomProviderResponse(
-            success=True,
-            message="更新自定义提供商成功",
-            data=config["customProviders"]
-        )
+        return config["customProviders"]
         
     except Exception as e:
         logger.error(f"更新自定义提供商失败: {e}")
         raise HTTPException(status_code=500, detail=f"更新自定义提供商失败: {str(e)}")
 
-@router.delete("/custom-providers/{provider_id}", response_model=CustomProviderResponse, summary="删除自定义提供商")
+@router.delete("/custom-providers/{provider_id}", summary="删除自定义提供商", response_model=List[Dict])
 async def delete_custom_provider(provider_id: str):
     """
     删除自定义提供商
@@ -321,19 +243,11 @@ async def delete_custom_provider(provider_id: str):
                 break
         
         if not provider_found:
-            return CustomProviderResponse(
-                success=False,
-                message=f"提供商名称 '{provider_id}' 不存在",
-                data=config["customProviders"]
-            )
+            return config["customProviders"]
         
         ai_settings.update_config(config)
         
-        return CustomProviderResponse(
-            success=True,
-            message="删除自定义提供商成功",
-            data=config["customProviders"]
-        )
+        return config["customProviders"]
         
     except Exception as e:
         logger.error(f"删除自定义提供商失败: {e}")

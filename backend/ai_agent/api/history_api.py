@@ -1,19 +1,14 @@
-"""
-历史管理API模块
-为前端提供历史记录管理的RESTful API
-包括存档点管理、历史消息管理等功能
-"""
-
 import json
 import logging
 import sqlite3
 import os
 import msgpack
 from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, validator
+from langchain_core.runnables.config import RunnableConfig
 
-from backend.ai_agent.config import ai_settings
+from backend.ai_agent.config import ai_settings, State
 from backend.ai_agent.core.graph_builder import build_graph
 from backend.ai_agent.core.tool_load import import_tools_from_directory
 from backend.ai_agent.core.system_prompt_builder import system_prompt_builder
@@ -21,6 +16,32 @@ from backend.ai_agent.api.chat_api import serialize_langchain_object
 import time
 
 logger = logging.getLogger(__name__)
+
+# 请求模型
+class GetCheckpointsRequest(BaseModel):
+    """获取存档点列表请求"""
+    thread_id: str = Field(default="default", description="会话ID")
+    mode: str = Field(default="outline", description="对话模式 (outline/writing/adjustment)")
+
+class RollbackCheckpointRequest(BaseModel):
+    """回档到指定存档点请求"""
+    thread_id: str = Field(default="default", description="会话ID")
+    checkpoint_index: int = Field(default=0, description="存档点索引")
+    new_message: str = Field(default="", description="新的用户消息内容")
+    mode: str = Field(default="outline", description="对话模式")
+
+class GetMessagesRequest(BaseModel):
+    """获取历史消息列表请求"""
+    thread_id: str = Field(default="default", description="会话ID")
+    mode: str = Field(default="outline", description="对话模式")
+
+class OperateMessagesRequest(BaseModel):
+    """操作历史消息请求"""
+    thread_id: str = Field(default="default", description="会话ID")
+    operation_type: str = Field(default="", description="操作类型 ('delete_all', 'delete_index', 'delete_ids')")
+    target_indices: Optional[List[int]] = Field(default=None, description="目标索引列表（用于delete_index操作）")
+    target_ids: Optional[List[str]] = Field(default=None, description="目标ID列表（用于delete_ids操作）")
+    mode: str = Field(default="outline", description="对话模式")
 
 # 创建API路由器
 router = APIRouter(prefix="/api/history", tags=["History Management"])
@@ -39,7 +60,7 @@ def get_db_connection():
     
     if _db_connection is None:
         # 确保数据库目录存在
-        from backend.config import settings
+        from backend.config.config import settings
         _db_connection = sqlite3.connect(settings.CHECKPOINTS_DB_PATH, check_same_thread=False)
         # 设置更长的超时时间，默认5秒可能不够
         _db_connection.execute("PRAGMA busy_timeout = 30000")  # 30秒超时
@@ -55,7 +76,7 @@ def get_db_connection():
     except sqlite3.ProgrammingError as e:
         if "Cannot operate on a closed database" in str(e):
             logger.warning("数据库连接已关闭，重新创建连接")
-            from backend.config import settings
+            from backend.config.config import settings
             _db_connection = sqlite3.connect(settings.CHECKPOINTS_DB_PATH, check_same_thread=False)
             _db_connection.execute("PRAGMA busy_timeout = 30000")  # 30秒超时
             _db_connection.execute("PRAGMA journal_mode=WAL")
@@ -85,7 +106,7 @@ def close_db_connection():
         except Exception as e:
             logger.error(f"关闭数据库连接时发生错误: {e}")
 
-def get_memory_storage(mode: str = None):
+def get_memory_storage(mode: Optional[str] = None):
     """获取或创建内存存储，避免重复创建"""
     from langgraph.checkpoint.sqlite import SqliteSaver
     
@@ -104,7 +125,7 @@ def get_memory_storage(mode: str = None):
     
     return _memory_storage[mode]
 
-def create_graph(mode: str = None):
+def create_graph(mode: Optional[str] = None):
     """创建新的图实例
     
     Args:
@@ -112,7 +133,7 @@ def create_graph(mode: str = None):
     """
     try:
         # 根据模式加载工具
-        tools = import_tools_from_directory('tool', mode)
+        tools = import_tools_from_directory('tool', mode or "outline")
         
         # 构建图实例
         # 使用全局内存存储，避免重复创建连接
@@ -128,11 +149,11 @@ def create_graph(mode: str = None):
             import nest_asyncio
             nest_asyncio.apply()
             current_prompt = loop.run_until_complete(
-                system_prompt_builder.build_system_prompt(mode=mode, include_persistent_memory=True)
+                system_prompt_builder.build_system_prompt(mode=mode or "outline", include_persistent_memory=True)
             )
         except RuntimeError:
             # 没有运行中的循环，可以安全创建新循环
-            current_prompt = asyncio.run(system_prompt_builder.build_system_prompt(mode=mode, include_persistent_memory=True))
+            current_prompt = asyncio.run(system_prompt_builder.build_system_prompt(mode=mode or "outline", include_persistent_memory=True))
         
         graph = build_graph(tools, memory, system_prompt=current_prompt, mode=mode)
         
@@ -142,109 +163,23 @@ def create_graph(mode: str = None):
         logger.error(f"Failed to create graph: {e}")
         raise
 
-# 数据模型
-class CheckpointListRequest(BaseModel):
-    """存档点列表请求模型"""
-    thread_id: str = "default"
-    mode: str = "outline"
-
-class CheckpointInfo(BaseModel):
-    """存档点信息模型"""
-    checkpoint_id: str
-    index: int
-    next_node: tuple
-    last_message_type: str
-    last_message_content: str
-    tool_calls: Optional[List[str]] = None
-
-class CheckpointListResponse(BaseModel):
-    """存档点列表响应模型"""
-    success: bool
-    message: str
-    data: List[CheckpointInfo]
-
-class CheckpointOperationRequest(BaseModel):
-    """存档点操作请求模型"""
-    thread_id: str = "default"
-    checkpoint_index: int
-    new_message: str
-    mode: str = "outline"
-
-class CheckpointOperationResponse(BaseModel):
-    """存档点操作响应模型"""
-    success: bool
-    message: str
-    data: Optional[Dict[str, Any]] = None
-
-class MessageListRequest(BaseModel):
-    """历史消息列表请求模型"""
-    thread_id: str = "default"
-    mode: str = "outline"
-
-class MessageInfo(BaseModel):
-    """消息信息模型"""
-    index: int
-    message_id: str
-    message_type: str
-    content: str
-    tool_calls: Optional[List[Dict[str, Any]]] = None
-
-class MessageListResponse(BaseModel):
-    """历史消息列表响应模型"""
-    success: bool
-    message: str
-    data: List[MessageInfo]
-
-class MessageOperationRequest(BaseModel):
-    """历史消息操作请求模型"""
-    thread_id: str = "default"
-    operation_type: str  # 'delete_all', 'delete_index', 'delete_ids'
-    target_indices: Optional[List[int]] = None
-    target_ids: Optional[List[str]] = None
-    mode: str = "outline"
-
-class MessageOperationResponse(BaseModel):
-    """历史消息操作响应模型"""
-    success: bool
-    message: str
-    data: Optional[Dict[str, Any]] = None
-
-
-# 会话管理相关数据模型
-class SessionInfo(BaseModel):
-    """会话信息模型"""
-    session_id: str
-    message_count: int
-    created_at: Optional[str] = None
-    last_accessed: Optional[str] = None
-    preview: Optional[str] = None
-
-class SessionListResponse(BaseModel):
-    """会话列表响应模型"""
-    success: bool
-    message: str
-    sessions: List[SessionInfo]
-
-class SessionOperationResponse(BaseModel):
-    """会话操作响应模型"""
-    success: bool
-    message: str
-    data: Optional[Dict[str, Any]] = None
 
 # API端点
 
-@router.post("/checkpoints", response_model=CheckpointListResponse, summary="获取存档点列表")
-async def get_checkpoints(request: CheckpointListRequest):
+@router.post("/checkpoints", summary="获取存档点列表", response_model=List[Dict[str, Any]])
+async def get_checkpoints(request: GetCheckpointsRequest):
     """
     获取指定会话的所有存档点列表
     
     - **thread_id**: 会话ID
     - **mode**: 对话模式 (outline/writing/adjustment)
     """
+    thread_id = request.thread_id
+    mode = request.mode
     try:
         # 创建图实例
-        graph = create_graph(request.mode)
-        config = {"configurable": {"thread_id": request.thread_id}}
+        graph = create_graph(mode)
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         
         # 获取存档点历史
         states = list(graph.get_state_history(config))
@@ -271,28 +206,24 @@ async def get_checkpoints(request: CheckpointListRequest):
                     tool_calls = tool_names
                     last_message_content = f"工具调用: {', '.join(tool_names)}"
             
-            checkpoint_info = CheckpointInfo(
-                checkpoint_id=checkpoint_id,
-                index=index,
-                next_node=state.next,
-                last_message_type=last_message_type,
-                last_message_content=last_message_content,
-                tool_calls=tool_calls
-            )
+            checkpoint_info = {
+                "checkpoint_id": checkpoint_id,
+                "index": index,
+                "next_node": state.next,
+                "last_message_type": last_message_type,
+                "last_message_content": last_message_content,
+                "tool_calls": tool_calls
+            }
             checkpoints.append(checkpoint_info)
         
-        return CheckpointListResponse(
-            success=True,
-            message=f"成功获取 {len(checkpoints)} 个存档点",
-            data=checkpoints
-        )
+        return checkpoints
         
     except Exception as e:
         logger.error(f"获取存档点列表失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取存档点列表失败: {str(e)}")
 
-@router.post("/checkpoint/rollback", response_model=CheckpointOperationResponse, summary="回档到指定存档点")
-async def rollback_to_checkpoint(request: CheckpointOperationRequest):
+@router.post("/checkpoint/rollback", summary="回档到指定存档点", response_model=Dict[str, Any])
+async def rollback_to_checkpoint(request: RollbackCheckpointRequest):
     """
     回档到指定存档点并继续对话
     
@@ -301,19 +232,23 @@ async def rollback_to_checkpoint(request: CheckpointOperationRequest):
     - **new_message**: 新的用户消息内容
     - **mode**: 对话模式
     """
+    thread_id = request.thread_id
+    checkpoint_index = request.checkpoint_index
+    new_message = request.new_message
+    mode = request.mode
     try:
         # 创建图实例
-        graph = create_graph(request.mode)
-        config = {"configurable": {"thread_id": request.thread_id}}
+        graph = create_graph(mode)
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         
         # 获取存档点历史
         states = list(graph.get_state_history(config))
         
-        if request.checkpoint_index < 0 or request.checkpoint_index >= len(states):
+        if checkpoint_index < 0 or checkpoint_index >= len(states):
             raise HTTPException(status_code=400, detail="存档点索引无效")
         
         # 获取选中的存档点
-        selected_state = states[request.checkpoint_index]
+        selected_state = states[checkpoint_index]
         
         # 更新状态：获取整个消息列表，去掉最后一条用户信息，添加新的用户消息
         current_messages = selected_state.values.get("messages", [])
@@ -322,52 +257,49 @@ async def rollback_to_checkpoint(request: CheckpointOperationRequest):
         
         # 如果消息列表为空，直接添加新消息
         if not current_messages:
-            new_messages = [HumanMessage(content=request.new_message)]
+            new_messages = [HumanMessage(content=new_message)]
         else:
             # 检查最后一条消息是否是用户消息
             last_message = current_messages[-1]
             if hasattr(last_message, 'type') and last_message.type == 'human':
                 # 如果最后一条是用户消息，替换它
-                new_messages = current_messages[:-1] + [HumanMessage(content=request.new_message)]
+                new_messages = current_messages[:-1] + [HumanMessage(content=new_message)]
             else:
                 # 如果最后一条不是用户消息，直接添加新消息
-                new_messages = current_messages + [HumanMessage(content=request.new_message)]
+                new_messages = current_messages + [HumanMessage(content=new_message)]
         
         # 用整个新状态替换原本的旧状态
         new_config = graph.update_state(selected_state.config, values={"messages": new_messages})
         
         # 触发回复
-        from ai_agent.config import State
         input_state = State(messages=new_messages)
         
         # 执行对话
         result = graph.invoke(input_state, new_config)
         
-        return CheckpointOperationResponse(
-            success=True,
-            message="回档成功",
-            data={
-                "new_config": new_config,
-                "result": serialize_langchain_object(result)
-            }
-        )
+        return {
+            "new_config": new_config,
+            "result": serialize_langchain_object(result)
+        }
         
     except Exception as e:
         logger.error(f"回档操作失败: {e}")
         raise HTTPException(status_code=500, detail=f"回档操作失败: {str(e)}")
 
-@router.post("/messages", response_model=MessageListResponse, summary="获取历史消息列表")
-async def get_messages(request: MessageListRequest):
+@router.post("/messages", summary="获取历史消息列表", response_model=List[Dict[str, Any]])
+async def get_messages(request: GetMessagesRequest):
     """
     获取指定会话的所有历史消息列表
     
     - **thread_id**: 会话ID
     - **mode**: 对话模式
     """
+    thread_id = request.thread_id
+    mode = request.mode
     try:
         # 创建图实例
-        graph = create_graph(request.mode)
-        config = {"configurable": {"thread_id": request.thread_id}}
+        graph = create_graph(mode)
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         
         # 获取当前状态
         current_state = graph.get_state(config)
@@ -375,27 +307,23 @@ async def get_messages(request: MessageListRequest):
         
         messages = []
         for index, msg in enumerate(current_messages):
-            message_info = MessageInfo(
-                index=index,
-                message_id=getattr(msg, 'id', f"msg_{index}") or f"msg_{index}",
-                message_type=msg.type if hasattr(msg, 'type') else 'unknown',
-                content=msg.content if hasattr(msg, 'content') else str(msg),
-                tool_calls=getattr(msg, 'tool_calls', None)
-            )
+            message_info = {
+                "index": index,
+                "message_id": getattr(msg, 'id', f"msg_{index}") or f"msg_{index}",
+                "message_type": msg.type if hasattr(msg, 'type') else 'unknown',
+                "content": msg.content if hasattr(msg, 'content') else str(msg),
+                "tool_calls": getattr(msg, 'tool_calls', None)
+            }
             messages.append(message_info)
         
-        return MessageListResponse(
-            success=True,
-            message=f"成功获取 {len(messages)} 条历史消息",
-            data=messages
-        )
+        return messages
         
     except Exception as e:
         logger.error(f"获取历史消息列表失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取历史消息列表失败: {str(e)}")
 
-@router.post("/messages/operation", response_model=MessageOperationResponse, summary="操作历史消息")
-async def operate_messages(request: MessageOperationRequest):
+@router.post("/messages/operation", summary="操作历史消息", response_model=Dict[str, Any])
+async def operate_messages(request: OperateMessagesRequest):
     """
     对历史消息进行操作（删除等）
     
@@ -405,10 +333,15 @@ async def operate_messages(request: MessageOperationRequest):
     - **target_ids**: 目标ID列表（用于delete_ids操作）
     - **mode**: 对话模式
     """
+    thread_id = request.thread_id
+    operation_type = request.operation_type
+    target_indices = request.target_indices
+    target_ids = request.target_ids
+    mode = request.mode
     try:
         # 创建图实例
-        graph = create_graph(request.mode)
-        config = {"configurable": {"thread_id": request.thread_id}}
+        graph = create_graph(mode)
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         
         # 获取当前状态
         current_state = graph.get_state(config)
@@ -416,7 +349,7 @@ async def operate_messages(request: MessageOperationRequest):
         
         from langchain_core.messages import HumanMessage
         
-        if request.operation_type == 'delete_all':
+        if operation_type == 'delete_all':
             # 删除所有消息
             delete_instruction = HumanMessage(content="/delete all")
             updated_messages = current_messages + [delete_instruction]
@@ -427,15 +360,12 @@ async def operate_messages(request: MessageOperationRequest):
                 config
             )
             
-            return MessageOperationResponse(
-                success=True,
-                message="已删除所有消息",
-                data={"result": serialize_langchain_object(result)}
-            )
+            return {"result": serialize_langchain_object(result)}
             
-        elif request.operation_type == 'delete_index' and request.target_indices:
+        elif operation_type == 'delete_index' and target_indices:
             # 删除指定索引的消息
-            for index in request.target_indices:
+            result = None
+            for index in target_indices:
                 if 0 <= index < len(current_messages):
                     # 使用自定义删除指令删除特定索引的消息
                     delete_instruction = HumanMessage(content=f"/delete index {index}")
@@ -450,16 +380,13 @@ async def operate_messages(request: MessageOperationRequest):
                 else:
                     logger.warning(f"无效的消息索引: {index}")
             
-            return MessageOperationResponse(
-                success=True,
-                message=f"已删除 {len(request.target_indices)} 条消息",
-                data={"result": serialize_langchain_object(result)}
-            )
+            return {"result": serialize_langchain_object(result)}
             
-        elif request.operation_type == 'delete_ids' and request.target_ids:
+        elif operation_type == 'delete_ids' and target_ids:
             # 删除指定ID的消息
             deleted_count = 0
-            for msg_id in request.target_ids:
+            result = None
+            for msg_id in target_ids:
                 # 查找消息索引
                 for index, msg in enumerate(current_messages):
                     if getattr(msg, 'id', None) == msg_id:
@@ -476,11 +403,9 @@ async def operate_messages(request: MessageOperationRequest):
                         deleted_count += 1
                         break
             
-            return MessageOperationResponse(
-                success=True,
-                message=f"已删除 {deleted_count} 条消息",
-                data={"result": serialize_langchain_object(result)}
-            )
+            if result is None:
+                result = {"messages": current_messages}
+            return {"result": serialize_langchain_object(result)}
         
         else:
             raise HTTPException(status_code=400, detail="无效的操作类型或参数")
@@ -490,7 +415,7 @@ async def operate_messages(request: MessageOperationRequest):
         raise HTTPException(status_code=500, detail=f"消息操作失败: {str(e)}")
 
 # 会话管理API端点
-@router.get("/sessions", response_model=SessionListResponse, summary="获取所有会话列表")
+@router.get("/sessions", summary="获取所有会话列表", response_model=Dict[str, Any])
 async def get_all_sessions():
     """
     获取所有会话的列表
@@ -498,15 +423,11 @@ async def get_all_sessions():
     返回所有用户的会话信息，包括会话ID、消息数量等
     """
     try:
-        from backend.config import settings
+        from backend.config.config import settings
         db_path = settings.CHECKPOINTS_DB_PATH
         
         if not os.path.exists(db_path):
-            return SessionListResponse(
-                success=True,
-                message="数据库文件不存在",
-                sessions=[]
-            )
+            return {"sessions": []}
         
         # 使用全局连接，避免锁定问题
         conn = get_db_connection()
@@ -552,7 +473,6 @@ async def get_all_sessions():
             # 尝试从checkpoint数据中提取时间戳
             if first_checkpoint and first_checkpoint[0]:
                 try:
-                    import msgpack
                     checkpoint_data = msgpack.unpackb(first_checkpoint[0])
                     created_at = checkpoint_data.get('ts', None)
                 except:
@@ -560,7 +480,6 @@ async def get_all_sessions():
             
             if last_checkpoint and last_checkpoint[0]:
                 try:
-                    import msgpack
                     checkpoint_data = msgpack.unpackb(last_checkpoint[0])
                     last_accessed = checkpoint_data.get('ts', None)
                 except:
@@ -651,29 +570,25 @@ async def get_all_sessions():
                     logger.warning(f"解析消息预览失败: {e}")
                     preview = "无法解析消息预览"
             
-            session_info = SessionInfo(
-                session_id=user_id,
-                message_count=message_count,
-                created_at=created_at,
-                last_accessed=last_accessed,
-                preview=preview
-            )
+            session_info = {
+                "session_id": user_id,
+                "message_count": message_count,
+                "created_at": created_at,
+                "last_accessed": last_accessed,
+                "preview": preview
+            }
             sessions.append(session_info)
         
         # 不关闭全局连接，保持连接开放
         # conn.close()
         
-        return SessionListResponse(
-            success=True,
-            message=f"成功获取 {len(sessions)} 个会话",
-            sessions=sessions
-        )
+        return {"sessions": sessions}
         
     except Exception as e:
         logger.error(f"获取会话列表失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取会话列表失败: {str(e)}")
 
-@router.get("/sessions/{session_id}", response_model=SessionOperationResponse, summary="获取指定会话详情")
+@router.get("/sessions/{session_id}", summary="获取指定会话详情", response_model=Dict[str, Any])
 async def get_session(session_id: str):
     """
     获取指定会话的详细信息
@@ -681,7 +596,7 @@ async def get_session(session_id: str):
     - **session_id**: 会话ID
     """
     try:
-        from backend.config import settings
+        from backend.config.config import settings
         db_path = settings.CHECKPOINTS_DB_PATH
         
         if not os.path.exists(db_path):
@@ -727,7 +642,6 @@ async def get_session(session_id: str):
         # 尝试从checkpoint数据中提取时间戳
         if first_checkpoint and first_checkpoint[0]:
             try:
-                import msgpack
                 checkpoint_data = msgpack.unpackb(first_checkpoint[0])
                 created_at = checkpoint_data.get('ts', None)
             except:
@@ -735,7 +649,6 @@ async def get_session(session_id: str):
         
         if last_checkpoint and last_checkpoint[0]:
             try:
-                import msgpack
                 checkpoint_data = msgpack.unpackb(last_checkpoint[0])
                 last_accessed = checkpoint_data.get('ts', None)
             except:
@@ -829,19 +742,13 @@ async def get_session(session_id: str):
         # 不关闭全局连接，保持连接开放
         # conn.close()
         
-        return SessionOperationResponse(
-            success=True,
-            message=f"成功获取会话 {session_id} 的详情",
-            data={
-                "session_data": {
-                    "session_id": session_id,
-                    "message_count": message_count,
-                    "created_at": created_at,
-                    "last_accessed": last_accessed,
-                    "preview": preview
-                }
-            }
-        )
+        return {
+            "session_id": session_id,
+            "message_count": message_count,
+            "created_at": created_at,
+            "last_accessed": last_accessed,
+            "preview": preview
+        }
         
     except HTTPException:
         raise
@@ -849,7 +756,7 @@ async def get_session(session_id: str):
         logger.error(f"获取会话详情失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取会话详情失败: {str(e)}")
 
-@router.delete("/sessions/{session_id}", response_model=SessionOperationResponse, summary="删除指定会话")
+@router.delete("/sessions/{session_id}", summary="删除指定会话", response_model=Dict[str, Any])
 async def delete_session(session_id: str):
     """
     删除指定会话的所有数据
@@ -857,7 +764,7 @@ async def delete_session(session_id: str):
     - **session_id**: 会话ID
     """
     try:
-        from backend.config import settings
+        from backend.config.config import settings
         db_path = settings.CHECKPOINTS_DB_PATH
         
         if not os.path.exists(db_path):
@@ -878,6 +785,8 @@ async def delete_session(session_id: str):
         # 删除会话数据，添加重试机制
         max_retries = 3
         retry_delay = 0.5  # 秒
+        checkpoints_deleted = 0
+        writes_deleted = 0
         
         for attempt in range(max_retries):
             try:
@@ -899,14 +808,10 @@ async def delete_session(session_id: str):
         # 不关闭全局连接，保持连接开放
         # conn.close()
         
-        return SessionOperationResponse(
-            success=True,
-            message=f"已删除会话 {session_id}",
-            data={
-                "checkpoints_deleted": checkpoints_deleted,
-                "writes_deleted": writes_deleted
-            }
-        )
+        return {
+            "checkpoints_deleted": checkpoints_deleted,
+            "writes_deleted": writes_deleted
+        }
         
     except HTTPException:
         raise

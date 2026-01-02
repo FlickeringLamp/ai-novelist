@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from ..config import ai_settings
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from file.utils.file_tree_builder import file_tree_builder
-from backend.config import settings
+from backend.config.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ class SystemPromptBuilder:
     
     async def build_system_prompt(
         self,
-        mode: str = None,
+        mode: Optional[str] = None,
         include_file_tree: bool = True,
         include_persistent_memory: bool = True,
         rag_content: str = ""
@@ -178,7 +178,7 @@ class SystemPromptBuilder:
         """
         try:
             # 获取基础系统提示词
-            base_prompt = ai_settings.get_prompt_for_mode(mode)
+            base_prompt = ai_settings.get_prompt_for_mode(mode or "")
             
             # 构建完整提示词
             prompt_parts = [base_prompt]
@@ -190,7 +190,7 @@ class SystemPromptBuilder:
             
             # 添加持久记忆信息
             if include_persistent_memory:
-                persistent_memory = self._get_persistent_memory_for_mode(mode)
+                persistent_memory = self._get_persistent_memory_for_mode(mode or "")
                 if persistent_memory:
                     prompt_parts.append(f"[持久记忆信息]:\n{persistent_memory}")
             
@@ -203,7 +203,7 @@ class SystemPromptBuilder:
         except Exception as e:
             logger.error(f"构建系统提示词时出错: {e}")
             # 出错时返回基础提示词
-            return ai_settings.get_prompt_for_mode(mode)
+            return ai_settings.get_prompt_for_mode(mode or "")
     
     async def refresh_file_tree_cache(self):
         """刷新文件树缓存"""

@@ -18,7 +18,7 @@ class Settings:
         self.PORT: int = self._get_config("port", 8000)
         
         # 数据目录
-        base_dir = Path(__file__).parent
+        base_dir = Path(__file__).parent.parent  # 指向 backend/ 目录
         self.DATA_DIR: str = str(base_dir / "data")
         self.NOVEL_DIR: str = str(base_dir / "data" / "novel")
         

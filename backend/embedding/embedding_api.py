@@ -1,36 +1,33 @@
-"""
-嵌入模型API
-提供获取嵌入模型维度等功能的API端点
-"""
-
 import os
 import json
-from typing import Dict, Any, Optional
+from typing import List, Dict, Any, Optional
 from pathlib import Path
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
-from pydantic import BaseModel
 
 from .emb_service import prepare_emb, load_config, list_available_tables, delete_table, update_table_metadata, prepare_doc, create_db
 from backend.ai_agent.config import ai_settings
 from backend.ai_agent.models.providers_list import BUILTIN_PROVIDERS
 
+# 请求模型
+class GetEmbeddingDimensionsRequest(BaseModel):
+    """获取嵌入模型维度请求"""
+    model_info: str = Field(..., description="模型信息，格式为'提供商:模型ID'")
+
+class SaveRagChunkSettingsRequest(BaseModel):
+    """保存RAG分块设置请求"""
+    chunkSize: int = Field(..., description="分块大小")
+    chunkOverlap: int = Field(..., description="分块重叠大小")
+
+class RenameKnowledgeBaseFileRequest(BaseModel):
+    """重命名知识库文件请求"""
+    new_name: str = Field(..., description="新的文件名")
+
 # 创建路由器
 router = APIRouter(prefix="/api/embedding", tags=["embedding"])
 
-class EmbeddingDimensionsRequest(BaseModel):
-    """获取嵌入维度请求模型"""
-    model_info: str  # 格式为"模型提供商：模型id"
-
-class EmbeddingDimensionsResponse(BaseModel):
-    """嵌入维度响应模型"""
-    success: bool
-    dimensions: int
-    message: str
-    model_id: Optional[str] = None
-
-
-@router.post("/dimensions", response_model=EmbeddingDimensionsResponse)
-async def get_embedding_dimensions(request: EmbeddingDimensionsRequest):
+@router.post("/dimensions", response_model=Dict[str, Any])
+async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
     """
     获取指定嵌入模型的维度
     
@@ -93,12 +90,10 @@ async def get_embedding_dimensions(request: EmbeddingDimensionsRequest):
             # 保存维度信息到store.json
             await save_embedding_dimensions_to_config(provider, model_id, dimensions)
             print(f"获取到维度{dimensions}")
-            return EmbeddingDimensionsResponse(
-                success=True,
-                dimensions=dimensions,
-                message=f"成功获取模型 {model_id} 的嵌入维度",
-                model_id=model_id
-            )
+            return {
+                "dimensions": dimensions,
+                "model_id": model_id
+            }
             
         except Exception as api_error:
             # 如果API调用失败，返回0
@@ -114,12 +109,10 @@ async def get_embedding_dimensions(request: EmbeddingDimensionsRequest):
             # 保存默认维度信息到store.json
             await save_embedding_dimensions_to_config(provider, model_id, dimensions)
             
-            return EmbeddingDimensionsResponse(
-                success=True,
-                dimensions=dimensions,
-                message=f"无法确定模型 {model_id} 的维度: {str(api_error)}",
-                model_id=model_id
-            )
+            return {
+                "dimensions": dimensions,
+                "model_id": model_id
+            }
                 
     except HTTPException:
         raise
@@ -194,19 +187,7 @@ def get_emb_model_key_url_dimensions():
     return provider, model_id, embedding_url, api_key, dimensions
 
 # RAG分块设置相关API
-class ChunkSettingsResponse(BaseModel):
-    """RAG分块设置响应模型"""
-    success: bool
-    chunkSize: int
-    chunkOverlap: int
-    message: str
-
-class ChunkSettingsRequest(BaseModel):
-    """RAG分块设置请求模型"""
-    chunkSize: int
-    chunkOverlap: int
-
-@router.get("/rag/chunk-settings", response_model=ChunkSettingsResponse)
+@router.get("/rag/chunk-settings", response_model=Dict[str, Any])
 async def get_rag_chunk_settings():
     """
     获取RAG分块设置
@@ -222,12 +203,10 @@ async def get_rag_chunk_settings():
         chunk_size = config.get("ragChunkSize", 200)
         chunk_overlap = config.get("ragChunkOverlap", 50)
         
-        return ChunkSettingsResponse(
-            success=True,
-            chunkSize=chunk_size,
-            chunkOverlap=chunk_overlap,
-            message="RAG分块设置获取成功"
-        )
+        return {
+            "chunkSize": chunk_size,
+            "chunkOverlap": chunk_overlap
+        }
         
     except Exception as e:
         raise HTTPException(
@@ -235,8 +214,8 @@ async def get_rag_chunk_settings():
             detail=f"获取RAG分块设置失败: {str(e)}"
         )
 
-@router.post("/rag/chunk-settings", response_model=ChunkSettingsResponse)
-async def save_rag_chunk_settings(request: ChunkSettingsRequest):
+@router.post("/rag/chunk-settings", response_model=Dict[str, Any])
+async def save_rag_chunk_settings(request: SaveRagChunkSettingsRequest):
     """
     保存RAG分块设置
     
@@ -259,14 +238,12 @@ async def save_rag_chunk_settings(request: ChunkSettingsRequest):
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
             
-        print(f"已保存RAG分块设置: chunkSize={request.chunkSize}, chunkOverlap={request.chunkOverlap}")
+        print(f"已保存RAG分块设置: chunkSize={chunkSize}, chunkOverlap={chunkOverlap}")
         
-        return ChunkSettingsResponse(
-            success=True,
-            chunkSize=request.chunkSize,
-            chunkOverlap=request.chunkOverlap,
-            message="RAG分块设置保存成功"
-        )
+        return {
+            "chunkSize": chunkSize,
+            "chunkOverlap": chunkOverlap
+        }
         
     except Exception as e:
         raise HTTPException(
@@ -275,13 +252,7 @@ async def save_rag_chunk_settings(request: ChunkSettingsRequest):
         )
 
 # 知识库文件列表相关API
-class KnowledgeBaseFilesResponse(BaseModel):
-    """知识库文件列表响应模型"""
-    success: bool
-    files: list
-    message: str
-
-@router.get("/rag/files", response_model=KnowledgeBaseFilesResponse)
+@router.get("/rag/files", response_model=List[Dict[str, Any]])
 async def list_knowledge_base_files():
     """
     列出知识库中的所有文件
@@ -321,11 +292,7 @@ async def list_knowledge_base_files():
                 "dimensions": table.get("dimensions",0) # 嵌入维度
             })
         
-        return KnowledgeBaseFilesResponse(
-            success=True,
-            files=files,
-            message="知识库文件列表获取成功"
-        )
+        return files
         
     except Exception as e:
         raise HTTPException(
@@ -334,16 +301,7 @@ async def list_knowledge_base_files():
         )
 
 # 删除知识库文件相关API
-class DeleteKnowledgeBaseFileRequest(BaseModel):
-    """删除知识库文件请求模型"""
-    table_name: str
-
-class DeleteKnowledgeBaseFileResponse(BaseModel):
-    """删除知识库文件响应模型"""
-    success: bool
-    message: str
-
-@router.delete("/rag/files/{table_name}", response_model=DeleteKnowledgeBaseFileResponse)
+@router.delete("/rag/files/{table_name}", response_model=Dict[str, Any])
 async def delete_knowledge_base_file(table_name: str):
     """
     删除指定的知识库文件
@@ -362,15 +320,9 @@ async def delete_knowledge_base_file(table_name: str):
         result = delete_table(db_path, table_name)
         
         if result:
-            return DeleteKnowledgeBaseFileResponse(
-                success=True,
-                message=f"知识库文件 '{table_name}' 删除成功"
-            )
+            return {}
         else:
-            return DeleteKnowledgeBaseFileResponse(
-                success=False,
-                message=f"知识库文件 '{table_name}' 删除失败，表可能不存在"
-            )
+            return {}
         
     except Exception as e:
         raise HTTPException(
@@ -379,24 +331,19 @@ async def delete_knowledge_base_file(table_name: str):
         )
 
 # 重命名知识库文件相关API
-class RenameKnowledgeBaseFileResponse(BaseModel):
-    """重命名知识库文件响应模型"""
-    success: bool
-    message: str
-
-@router.put("/rag/files/{table_name}/rename", response_model=RenameKnowledgeBaseFileResponse)
-async def rename_knowledge_base_file(table_name: str, new_name: str = Query(...)):
+@router.put("/rag/files/{table_name}/rename", response_model=Dict[str, Any])
+async def rename_knowledge_base_file(table_name: str, request: RenameKnowledgeBaseFileRequest):
     """
     重命名指定的知识库文件（仅更新元数据中的original_filename）
     
     Args:
         table_name: 要重命名的表名
-        new_name: 新的文件名
+        request: 包含新文件名的请求体
         
     Returns:
         重命名结果响应
     """
-    try:        
+    try:
         # 确定提供商，模型名，url，密钥，维度
         provider, embedding_model, embedding_url, api_key, dimensions = get_emb_model_key_url_dimensions()
         
@@ -421,18 +368,12 @@ async def rename_knowledge_base_file(table_name: str, new_name: str = Query(...)
             )
         
         # 调用更新元数据函数，只更新original_filename字段
-        result = update_table_metadata(db_path, table_name, embeddings, {'original_filename': new_name})
+        result = update_table_metadata(db_path, table_name, embeddings, {'original_filename': request.new_name})
         
         if result:
-            return RenameKnowledgeBaseFileResponse(
-                success=True,
-                message=f"知识库文件显示名称已更新为 '{new_name}'"
-            )
+            return {}
         else:
-            return RenameKnowledgeBaseFileResponse(
-                success=False,
-                message=f"知识库文件重命名失败，表 '{table_name}' 可能不存在"
-            )
+            return {}
         
     except HTTPException:
         raise
@@ -443,13 +384,7 @@ async def rename_knowledge_base_file(table_name: str, new_name: str = Query(...)
         )
 
 # 添加文件到知识库相关API
-class AddFileToKnowledgeBaseResponse(BaseModel):
-    """添加文件到知识库响应模型"""
-    success: bool
-    message: str
-    table_name: Optional[str] = None
-
-@router.post("/rag/files", response_model=AddFileToKnowledgeBaseResponse)
+@router.post("/rag/files", response_model=str)
 async def add_file_to_knowledge_base(file: UploadFile = File(...)):
     """
     添加文件到知识库
@@ -492,11 +427,7 @@ async def add_file_to_knowledge_base(file: UploadFile = File(...)):
             # 创建数据库
             table_name = create_db(documents, embeddings, db_path)
             
-            return AddFileToKnowledgeBaseResponse(
-                success=True,
-                message=f"文件 '{file.filename}' 已成功添加到知识库",
-                table_name=table_name
-            )
+            return table_name
             
         finally:
             # 清理临时文件

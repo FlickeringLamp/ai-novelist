@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from backend.config import settings
+from backend.config.config import settings
 
 # 清理对话数据的函数
 def cleanup_conversations():

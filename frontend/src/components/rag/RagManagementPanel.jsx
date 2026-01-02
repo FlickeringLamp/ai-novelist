@@ -36,10 +36,8 @@ const RagSettingsPanel = () =>{
     const fetchEmbeddingModels = async() => {
       if (selectedProviderId) {
         const response = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
-        if (response.success) {
-          const embeddingList = filterEmbeddingModels(response.data.models || []);
-          setEmbeddingModels(embeddingList);
-        }
+        const embeddingList = filterEmbeddingModels(response.data.models || []);
+        setEmbeddingModels(embeddingList);
       }
     };
     fetchEmbeddingModels();
@@ -78,11 +76,7 @@ const RagSettingsPanel = () =>{
         chunkSize: parseInt(chunkSize),
         chunkOverlap: parseInt(chunkOverlap)
       });
-      if (response.success) {
-        console.log('RAG分块设置保存成功:', response.message);
-      } else {
-        console.error('RAG分块设置保存失败:', response.error);
-      }
+      console.log('RAG分块设置保存成功');
     } catch (error) {
       console.error('保存RAG分块设置时发生错误:', error);
     }

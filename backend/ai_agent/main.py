@@ -25,7 +25,7 @@ tool = import_tools_from_directory('tool', mode=current_mode)
 try:
     # 使用SqliteSaver自动管理连接，避免线程问题
     # 直接创建SqliteSaver实例，让它在内部管理连接
-    from backend.config import settings
+    from backend.config.config import settings
     memory = SqliteSaver(sqlite3.connect(settings.CHECKPOINTS_DB_PATH, check_same_thread=False))
 except Exception as e:
     print(f"[ERROR] SQLite检查点初始化失败: {e}")

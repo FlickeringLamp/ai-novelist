@@ -1,6 +1,6 @@
 import sqlite3
 import msgpack
-from backend.config import settings
+from backend.config.config import settings
 
 # 连接数据库
 conn = sqlite3.connect(settings.CHECKPOINTS_DB_PATH)

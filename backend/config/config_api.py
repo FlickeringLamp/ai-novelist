@@ -9,24 +9,19 @@ import yaml
 from typing import Any, Dict, Optional
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 # 创建API路由器
 router = APIRouter(prefix="/api/config", tags=["Config"])
 
-# 数据模型
-class StoreValueRequest(BaseModel):
-    """存储值请求模型"""
-    key: str
-    value: Any
+# 请求模型
+class SetStoreValueRequest(BaseModel):
+    """设置存储值请求"""
+    key: str = Field(..., description="存储键名", min_length=1)
+    value: Any = Field(..., description="存储值")
 
-class StoreValueResponse(BaseModel):
-    """存储值响应模型"""
-    success: bool
-    message: str
-    data: Optional[Any] = None
 
 def load_store_config():
     """加载存储配置"""
@@ -52,7 +47,7 @@ def save_store_config(config: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=f"保存配置文件失败: {str(e)}")
 
 # API端点
-@router.get("/store", response_model=StoreValueResponse, summary="获取存储值")
+@router.get("/store", summary="获取存储值", response_model=Any)
 async def get_store_value(key: str):
     """
     根据键名获取存储值
@@ -63,18 +58,14 @@ async def get_store_value(key: str):
         config = load_store_config()
         value = config.get(key)
         
-        return StoreValueResponse(
-            success=True,
-            message="获取存储值成功",
-            data=value
-        )
+        return value
         
     except Exception as e:
         logger.error(f"获取存储值失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取存储值失败: {str(e)}")
 
-@router.post("/store", response_model=StoreValueResponse, summary="设置存储值")
-async def set_store_value(request: StoreValueRequest):
+@router.post("/store", summary="设置存储值", response_model=Any)
+async def set_store_value(request: SetStoreValueRequest):
     """
     设置存储值
     
@@ -86,11 +77,7 @@ async def set_store_value(request: StoreValueRequest):
         config[request.key] = request.value
         save_store_config(config)
         
-        return StoreValueResponse(
-            success=True,
-            message="设置存储值成功",
-            data=request.value
-        )
+        return request.value
         
     except Exception as e:
         logger.error(f"设置存储值失败: {e}")

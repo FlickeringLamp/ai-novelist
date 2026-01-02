@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from langchain import tools
 from langchain.tools import tool, ToolRuntime
 from langgraph.types import interrupt,Command
@@ -10,7 +10,7 @@ from langgraph.types import interrupt,Command
 # 导入配置和路径验证器
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from backend.config import settings
+from backend.config.config import settings
 from file.utils.path_validator import PathValidator
 
 class ApplyDiffInput(BaseModel):
@@ -207,7 +207,7 @@ def fuzzy_search(lines: List[str], search_chunk: str, start_index: int, end_inde
 
 
 @tool(args_schema=ApplyDiffInput)
-def apply_diff(path: str, diff: str, runtime: ToolRuntime = None) -> str:
+def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> str:
     """应用差异修改
     用于替换已有文本
     
@@ -403,14 +403,30 @@ def apply_diff(path: str, diff: str, runtime: ToolRuntime = None) -> str:
         
                 # 应用替换，保持缩进
                 matched_lines = result_lines[match_index:match_index + len(search_lines)]
-                original_indents = [re.match(r'^[\t ]*', line).group() if line else "" for line in matched_lines]
-                search_indents = [re.match(r'^[\t ]*', line).group() if line else "" for line in search_lines]
+                original_indents = []
+                for line in matched_lines:
+                    if line:
+                        match = re.match(r'^[\t ]*', line)
+                        original_indents.append(match.group() if match else "")
+                    else:
+                        original_indents.append("")
+                search_indents = []
+                for line in search_lines:
+                    if line:
+                        match = re.match(r'^[\t ]*', line)
+                        search_indents.append(match.group() if match else "")
+                    else:
+                        search_indents.append("")
         
                 indented_replace_lines = []
                 for i, line in enumerate(replace_lines):
                     if i < len(original_indents):
                         matched_indent = original_indents[0] if original_indents else ""
-                        current_indent = re.match(r'^[\t ]*', line).group() if line else ""
+                        if line:
+                            match_result = re.match(r'^[\t ]*', line)
+                            current_indent = match_result.group() if match_result else ""
+                        else:
+                            current_indent = ""
                         search_base_indent = search_indents[0] if search_indents else ""
                 
                         search_base_level = len(search_base_indent)
