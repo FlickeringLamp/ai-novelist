@@ -1,5 +1,3 @@
-from typing_extensions import TypedDict
-from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import tools_condition
 from langchain_core.messages import ToolMessage, AIMessage, SystemMessage, HumanMessage
@@ -7,24 +5,20 @@ from langchain_core.messages.utils import (
     trim_messages,
     count_tokens_approximately
 )
-import sys
-import os
-# 添加父目录到路径，确保可以导入ai_agent模块
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from ..config import ai_settings, State
-from ..models.multi_model_adapter import MultiModelAdapter
-def build_graph(tool, memory, system_prompt=None, mode=None):
+from backend.config.config import ai_settings, State
+from backend.ai_agent.models.multi_model_adapter import MultiModelAdapter
+def build_graph(tool_dict, memory, system_prompt=None, mode=None):
     """构建并返回图实例
     
     Args:
-        tool: 工具字典
+        tool_dict: 工具字典
         memory: 记忆存储
         system_prompt: 系统提示词
         mode: 模式名称，用于工具过滤
     """
     # 从配置中获取当前选择的模型和提供商
-    selected_model = ai_settings.DEFAULT_MODEL
-    selected_provider = ai_settings._get_config("selectedProvider", "deepseek")
+    selected_model = ai_settings.default_model
+    selected_provider = ai_settings.get_config("selectedProvider", "deepseek")
     
     # 如果模型ID包含提供商信息（如 "zhipuai/glm-4-plus"），则解析提供商和模型名称
     if "/" in selected_model:
@@ -45,9 +39,9 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
     )
     
     # 绑定工具到模型
-    if tool:
-        llm_with_tools = llm.bind_tools(list(tool.values()))
-        print(f"[INFO] 已绑定 {len(tool)} 个工具到模型")
+    if tool_dict:
+        llm_with_tools = llm.bind_tools(list(tool_dict.values()))
+        print(f"[INFO] 已绑定 {len(tool_dict)} 个工具到模型")
     else:
         llm_with_tools = llm
         print(f"[WARNING] 没有可用的工具绑定到模型")
@@ -66,38 +60,32 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
     def call_llm(state: State):
         """调用LLM生成响应"""
         # 获取当前消息列表
-        current_messages = state.get("messages", [])
+        current_messages = state["messages"]
         print(f"当前消息列表{current_messages}")
         
         # 获取模式特定的最大token数
         mode_max_tokens = ai_settings.get_max_tokens_for_mode(mode)
         print(f"最大tokens数被设置为{mode_max_tokens}")
-        # 修剪消息历史，避免超出上下文限制
+        # 修剪消息历史，避免超出上下文限制，不填 include_system默认裁掉系统提示词
         current_messages = trim_messages(
             current_messages,
             strategy="last",  # 保留最新的消息
             token_counter=count_tokens_approximately,
-            max_tokens=mode_max_tokens,  # 使用模式特定的最大token数
+            max_tokens=mode_max_tokens,
             start_on="human",  # 从human消息开始保留
             end_on=("human", "tool"),  # 在human或tool消息结束
         )
-        print(f"是你导致的吗？{current_messages}")
         
-        # 如果有系统提示词，更新系统消息
-        if system_prompt:
-            # 过滤掉现有的系统消息
-            filtered_messages = [msg for msg in current_messages if not isinstance(msg, SystemMessage)]
-            # 添加新的系统消息到开头
-            current_messages = [SystemMessage(content=system_prompt)] + filtered_messages
-        print(f"llm节点获得的最新消息：{current_messages}")
         # 调用模型生成响应
-        response = llm_with_tools.invoke(current_messages)
+        response = llm_with_tools.invoke([SystemMessage(content=system_prompt)] + current_messages)
+        print(f"response长什么样{response}")
         # 手动将新消息添加到现有消息列表中
         updated_messages = current_messages + [response]
+        print(f"添加后的消息，看看是否有自动生成AIMessage： {updated_messages}")
         return {"messages": updated_messages}
-    tools_by_name = {tool.name: tool for tool in tool.values()}
+    tools_by_name = {tool.name: tool for tool in tool_dict.values()}
 
-    # 自定义工具节点
+    # 自定义工具节点（0.3的预构建组件在1.0教程并未提及，故按照langgraph官方文档，手动处理tool_node）
     def tool_node(state: State):
         """执行工具调用"""
         # 获取当前消息列表
@@ -110,12 +98,12 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
             observation = tool.invoke(tool_call["args"])
             result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
         
-        # 手动将工具消息添加到现有消息列表中
+
         updated_messages = current_messages + result
-        
+        print(f"看看长什么样，是否有自动生成ToolMessage: {updated_messages}")
         return {"messages": updated_messages}
 
-    # 自定义删除节点 - 完全替换官方删除机制
+    # 准备换用官方1.0推荐的删除机制
     def custom_delete_messages(state: State):
         """自定义删除消息节点 - 完全手动管理消息删除"""
         messages = state["messages"]
@@ -168,18 +156,15 @@ def build_graph(tool, memory, system_prompt=None, mode=None):
         
         return {"messages": remaining_messages}
 
-    # 创建总结节点
+    # 创建总结节点，准备换用官方1.0推荐的总结机制，同时应该取消手动添加消息状态的机制
     def summarize_conversation(state: State):
         """总结对话历史"""
         # 设置总结节点的系统提示词
         summary_system_prompt = "你是一个对话总结助手，请阅读上述对话，总结重点信息"
         
         # 创建消息列表，包含系统提示词
-        messages = []
-        
-        # 添加系统提示词
-        messages.append(SystemMessage(content=summary_system_prompt))
-        
+        messages = [SystemMessage(content=summary_system_prompt)]
+
         # 添加原始消息
         messages.extend(state["messages"])
         

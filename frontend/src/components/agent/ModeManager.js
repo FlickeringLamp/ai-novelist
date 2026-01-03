@@ -41,7 +41,7 @@ export const useModeManager = () => {
     setIsLoading(true);
     try {
       const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customModes')}`);
-      const storedCustomModes = response.data || [];
+      const storedCustomModes = response || [];
       setCustomModes(storedCustomModes);
       console.log('[ModeManager] 初始化完成，自定义模式:', storedCustomModes);
     } catch (error) {
@@ -296,7 +296,7 @@ export const useModeManager = () => {
   const getAllDefaultPrompts = async () => {
     try {
       const response = await httpClient.get('/api/ai-config/default-prompts');
-      return response.data || {};
+      return response || {};
     } catch (error) {
       console.error('获取默认提示词失败:', error);
       return {};

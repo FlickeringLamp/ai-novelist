@@ -83,7 +83,7 @@ const ProviderSettingsPanel = () => {
     try {
       // 检查是否是自定义提供商
       const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-      const customProviders = providersResponse.data || [];
+      const customProviders = providersresponse || [];
       const isCustomProvider = customProviders.some(provider => provider.name === providerToDelete);
       
       if (isCustomProvider) {
@@ -170,7 +170,7 @@ const ProviderSettingsPanel = () => {
       if (!isBuiltinProvider) {
         // 对于自定义提供商，使用customProviders数组
         const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-        let customProviders = providersResponse.data || [];
+        let customProviders = providersresponse || [];
         const existingProviderIndex = customProviders.findIndex(provider => provider.name === selectedProviderId);
         
         if (existingProviderIndex !== -1) {
@@ -269,7 +269,7 @@ const ProviderSettingsPanel = () => {
       try {
         // 检查是否是自定义提供商
         const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-        const customProviders = providersResponse.data || [];
+        const customProviders = providersresponse || [];
         const customProvider = customProviders.find(provider => provider.name === selectedProviderId);
         
         if (customProvider) {
@@ -287,14 +287,14 @@ const ProviderSettingsPanel = () => {
           ]);
           
           // 检查返回结果结构
-          if (apiKeyResponse.data) {
-            setApiKey(apiKeyResponse.data);
+          if (apiKeyresponse) {
+            setApiKey(apiKeyresponse);
           } else {
             setApiKey('');
           }
           
-          if (baseUrlResponse.data) {
-            setBaseUrl(baseUrlResponse.data);
+          if (baseUrlresponse) {
+            setBaseUrl(baseUrlresponse);
           } else {
             // 如果没有自定义URL，对于内置提供商，使用默认URL
             if (selectedProviderId === 'deepseek') {

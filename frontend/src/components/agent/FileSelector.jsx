@@ -88,7 +88,7 @@ const FileSelector = ({ onFileContentAdd }) => {
     }
     try {
       const response = await httpClient.get(`/api/file/read/${encodeURIComponent(file.id)}`);
-      onFileContentAdd(response.data);
+      onFileContentAdd(response);
     } catch (error) {
       console.error('读取文件内容出错:', error);
     }

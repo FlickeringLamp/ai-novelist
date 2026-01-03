@@ -23,7 +23,7 @@ const AdvancedSettings = ({
   const loadContextLimitSettings = async () => {
     try {
       const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent('contextLimitSettings')}`);
-      setContextLimitSettings(response.data || {});
+      setContextLimitSettings(response || {});
     } catch (error) {
       console.error('加载上下文限制设置失败:', error);
     }

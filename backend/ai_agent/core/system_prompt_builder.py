@@ -4,17 +4,13 @@
 """
 
 import os
-import sys
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 import logging
 
-# 添加父目录到路径，确保可以导入ai_agent模块
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from ..config import ai_settings
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from file.utils.file_tree_builder import file_tree_builder
+from backend.config.config import ai_settings
+from backend.file.utils.file_tree_builder import file_tree_builder
 from backend.config.config import settings
 
 logger = logging.getLogger(__name__)

@@ -9,11 +9,10 @@ from langchain_openai import ChatOpenAI
 import sys
 import os
 import requests
-import json
 import logging
 # 添加父目录到路径，确保可以导入ai_agent模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from ..config import ai_settings
+from backend.config.config import ai_settings
 from langchain_community.chat_models import ChatZhipuAI
 
 logger = logging.getLogger(__name__)

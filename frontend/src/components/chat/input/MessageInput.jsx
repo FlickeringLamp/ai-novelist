@@ -103,7 +103,7 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
         fileContentPromises.push(
           httpClient.get(`/api/file/read/${encodeURIComponent(fileName)}`)
             .then(response => {
-              return { fileName, content: response.data };
+              return { fileName, content: response };
             })
             .catch(error => {
               console.error(`读取文件 ${fileName} 失败:`, error);

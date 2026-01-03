@@ -50,7 +50,7 @@ const SettingsManager = ({
     setShowSettings(false);
     // 重新从 store 加载，以防用户取消后恢复旧值
     const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent('deepseekApiKey')}`);
-    setApiKey(response.data || '');
+    setApiKey(response || '');
   };
 
   /**

@@ -21,9 +21,9 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
       setIsLoading(true);
       try {
         const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent('autoApproveSettings')}`);
-        if (response.data) {
+        if (response) {
           setAutoApproveSettings({
-            ...response.data,
+            ...response,
             delay: 1000
           });
         }

@@ -24,8 +24,8 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
     setIsLoading(true);
     try {
       const response = await httpClient.get(`/api/tool-config/modes/${mode}`);
-      setToolConfig(response.data);
-      setOriginalConfig(response.data);
+      setToolConfig(response);
+      setOriginalConfig(response);
       setHasChanges(false);
     } catch (error) {
       console.error('调用工具配置API失败:', error);
@@ -45,8 +45,8 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
   const resetToolConfig = async () => {
     try {
       const response = await httpClient.post(`/api/tool-config/modes/${mode}/reset`);
-      setToolConfig(response.data);
-      setOriginalConfig(response.data);
+      setToolConfig(response);
+      setOriginalConfig(response);
       setHasChanges(false);
       console.log('工具配置重置成功');
     } catch (error) {

@@ -36,7 +36,7 @@ const RagSettingsPanel = () =>{
     const fetchEmbeddingModels = async() => {
       if (selectedProviderId) {
         const response = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
-        const embeddingList = filterEmbeddingModels(response.data.models || []);
+        const embeddingList = filterEmbeddingModels(response.models || []);
         setEmbeddingModels(embeddingList);
       }
     };

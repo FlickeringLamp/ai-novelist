@@ -1,23 +1,17 @@
-from typing import Literal
-import json
-import os
 import sqlite3
 import asyncio
-from langgraph.types import Command, interrupt
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 # 导入自定义模块
-from backend.ai_agent.config import ai_settings
+from backend.config.config import ai_settings
 from core.tool_load import import_tools_from_directory
-from core.graph_builder import build_graph, State
+from core.graph_builder import build_graph
 from core.clean_checkpoint import cleanup_conversations
 from core.main_loop import main_loop
 from core.system_prompt_builder import system_prompt_builder
-from prompts import sys_prompts
 
 # 导入所有工具（按当前模式过滤）
-current_mode = ai_settings.CURRENT_MODE
+current_mode = ai_settings.current_mode
 print(f"[INFO] 当前模式: {current_mode}")
 tool = import_tools_from_directory('tool', mode=current_mode)
 

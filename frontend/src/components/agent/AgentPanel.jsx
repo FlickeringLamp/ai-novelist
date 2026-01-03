@@ -46,8 +46,8 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
     setIsLoadingPrompts(true);
     try {
       const response = await httpClient.get('/api/ai-config/default-prompts');
-      if (response.data) {
-        setDefaultPrompts(response.data);
+      if (response) {
+        setDefaultPrompts(response);
       } else {
         // 如果后端获取失败，使用内置默认值作为fallback
         const defaultPrompts = await modeManager.getAllDefaultPrompts();
@@ -63,7 +63,6 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
     }
   };
 
-  // 加载模式配置
   // 加载模式配置
   const loadModeConfig = async () => {
     try {

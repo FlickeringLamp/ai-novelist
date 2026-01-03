@@ -61,7 +61,7 @@ const ModelSelectorPanel = () => {
   const loadSelectedModel = async () => {
     try {
       const response = await httpClient.get('/api/ai-config/selected-model');
-      setSelectedModel(response.data.selectedModel || '');
+      setSelectedModel(response.selectedModel || '');
     } catch (error) {
       console.error('加载选中模型失败:', error);
     }

@@ -1,8 +1,8 @@
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict
 from pydantic import BaseModel, Field
 from backend.ai_agent.models.multi_model_adapter import MultiModelAdapter
-from backend.ai_agent.config import ai_settings
+from backend.config.config import ai_settings
 from fastapi import APIRouter, HTTPException
 from backend.ai_agent.models.providers_list import BUILTIN_PROVIDERS
 
@@ -37,7 +37,7 @@ def providers_list():
     """获取所有提供商列表（包括内置和自定义）"""
     
     # 获取自定义提供商
-    custom_providers = ai_settings._get_config("customProviders", [])
+    custom_providers = ai_settings.get_config("customProviders", [])
     custom_provider_names = [provider.get("name") for provider in custom_providers if provider.get("name")]
     
     # 合并内置提供商和自定义提供商
@@ -116,7 +116,7 @@ async def add_favorite_model(request: AddFavoriteModelRequest):
         raise HTTPException(status_code=500, detail=f"添加常用模型失败: {str(e)}")
 
 @router.delete("/favorite-models", summary="删除常用模型", response_model=Dict[str, Dict])
-async def remove_favorite_model(modelId: str):
+async def remove_favorite_model(model_id: str):
     """
     从常用模型列表中删除模型
     
@@ -130,8 +130,8 @@ async def remove_favorite_model(modelId: str):
             config["favoriteModels"] = {}
         
         # 从常用列表中删除模型
-        if modelId in config["favoriteModels"]:
-            del config["favoriteModels"][modelId]
+        if model_id in config["favoriteModels"]:
+            del config["favoriteModels"][model_id]
             ai_settings.update_config(config)
             
             return config["favoriteModels"]

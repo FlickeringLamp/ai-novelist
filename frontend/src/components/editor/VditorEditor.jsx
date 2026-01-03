@@ -143,9 +143,9 @@ const VditorEditor = forwardRef(({
             formData.append('file', file);
             const response = await httpClient.post('/api/file/upload/image', formData);
             
-            console.log('图片上传成功:', response.data);
+            console.log('图片上传成功:', response);
             // 使用自定义处理器时，需要手动插入 Markdown 图片语法
-            const markdownImage = `![${response.data.filename}](${response.data.url})\n`;
+            const markdownImage = `![${response.filename}](${response.url})\n`;
               // 使用 ref 来访问最新的 Vditor 实例
               setTimeout(() => {
                 const currentInstance = vditorInstanceRef.current;

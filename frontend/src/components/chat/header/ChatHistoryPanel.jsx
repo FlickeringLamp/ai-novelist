@@ -238,7 +238,7 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                 
                 // 如果回档的是当前会话，刷新消息
                 const threadResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('thread_id')}`);
-                const currentThreadId = threadResponse.data;
+                const currentThreadId = threadresponse;
                 if (currentThreadId === rollbackSessionId) {
                     // 重新加载当前会话的消息
                     const messagesResult = await httpClient.post('/api/history/messages', {

@@ -1,12 +1,12 @@
 import os
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pathlib import Path
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File
 
 from .emb_service import prepare_emb, load_config, list_available_tables, delete_table, update_table_metadata, prepare_doc, create_db
-from backend.ai_agent.config import ai_settings
+from backend.config.config import ai_settings
 from backend.ai_agent.models.providers_list import BUILTIN_PROVIDERS
 
 # 请求模型

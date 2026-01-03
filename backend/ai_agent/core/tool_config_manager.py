@@ -1,8 +1,6 @@
-import os
 import json
 from pathlib import Path
 from typing import Dict, List, Set, Any
-from ..config import ai_settings
 
 class ToolConfigManager:
     """
@@ -45,7 +43,7 @@ class ToolConfigManager:
             }
         }
     
-    def _load_config(self) -> Dict[str, Any]:
+    def load_config(self) -> Dict[str, Any]:
         """从 store.json 加载配置"""
         if not self._config_file.exists():
             return {}
@@ -56,7 +54,7 @@ class ToolConfigManager:
         except (json.JSONDecodeError, Exception):
             return {}
     
-    def _save_config(self, config: Dict[str, Any]):
+    def save_config(self, config: Dict[str, Any]):
         """保存配置到 store.json"""
         try:
             with open(self._config_file, 'w', encoding='utf-8') as f:
@@ -66,7 +64,7 @@ class ToolConfigManager:
     
     def get_tools_for_mode(self, mode: str) -> List[str]:
         """获取指定模式启用的工具列表"""
-        config = self._load_config()
+        config = self.load_config()
         
         # 从配置中获取模式工具设置
         mode_tools_config = config.get("mode_tools", {})
@@ -82,7 +80,7 @@ class ToolConfigManager:
     
     def set_tools_for_mode(self, mode: str, enabled_tools: List[str]):
         """设置指定模式的工具配置"""
-        config = self._load_config()
+        config = self.load_config()
         
         # 初始化模式工具配置
         if "mode_tools" not in config:
@@ -103,7 +101,7 @@ class ToolConfigManager:
             "description": f"自定义模式 - {mode}"
         }
         
-        self._save_config(config)
+        self.save_config(config)
         print(f"[INFO] 已更新模式 '{mode}' 的工具配置: {valid_tools}")
     
     def get_all_available_tools(self) -> List[str]:
@@ -123,7 +121,7 @@ class ToolConfigManager:
     
     def reset_mode_tools(self, mode: str = None):
         """重置模式工具配置为默认值"""
-        config = self._load_config()
+        config = self.load_config()
         
         if mode:
             # 重置指定模式
@@ -136,12 +134,12 @@ class ToolConfigManager:
             if "mode_tools" in config:
                 del config["mode_tools"]
         
-        self._save_config(config)
+        self.save_config(config)
         print(f"[INFO] 已重置模式 '{mode if mode else 'all'}' 的工具配置")
     
     def get_mode_tool_info(self, mode: str) -> Dict[str, Any]:
         """获取模式的工具配置信息"""
-        config = self._load_config()
+        config = self.load_config()
         
         if "mode_tools" in config and mode in config["mode_tools"]:
             # 返回自定义配置

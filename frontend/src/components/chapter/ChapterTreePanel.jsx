@@ -179,7 +179,7 @@ function ChapterTreePanel() {
       } else {
         try {
           const response = await httpClient.get(`/api/file/read/${encodeURIComponent(item.id)}`);
-          tabStateService.createTab(item.id, response.data);
+          tabStateService.createTab(item.id, response);
         } catch (error) {
           console.error('读取文件失败:', error);
         }

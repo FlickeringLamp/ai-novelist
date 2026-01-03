@@ -353,20 +353,20 @@ def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> s
                 search_start_index = 0
                 search_end_index = len(result_lines)
         
-                FUZZY_THRESHOLD = 0.9
-                BUFFER_LINES = 40
+                fuzzy_threshold = 0.9
+                buffer_lines = 40
         
                 if start_line > 0:
                     exact_start_index = start_line - 1
                     if exact_start_index < len(result_lines):
                         original_chunk = "\n".join(result_lines[exact_start_index:exact_start_index + len(search_lines)])
                         similarity = get_similarity(original_chunk, search_chunk)
-                        if similarity >= FUZZY_THRESHOLD:
+                        if similarity >= fuzzy_threshold:
                             match_index = exact_start_index
                             best_match_score = similarity
                         else:
-                            search_start_index = max(0, start_line - (BUFFER_LINES + 1))
-                            search_end_index = min(len(result_lines), start_line + len(search_lines) + BUFFER_LINES)
+                            search_start_index = max(0, start_line - (buffer_lines + 1))
+                            search_end_index = min(len(result_lines), start_line + len(search_lines) + buffer_lines)
         
                 # 如果精确匹配失败，进行模糊搜索
                 if match_index == -1:
@@ -375,12 +375,12 @@ def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> s
                     best_match_score = search_result["best_score"]
         
                 # 如果仍然没有找到匹配，尝试宽松的行号移除
-                if match_index == -1 or best_match_score < FUZZY_THRESHOLD:
+                if match_index == -1 or best_match_score < fuzzy_threshold:
                     aggressive_search_content = strip_line_numbers(search_content, aggressive=True)
                     if aggressive_search_content != search_content:
                         aggressive_search_chunk = "\n".join(aggressive_search_content.splitlines())
                         search_result = fuzzy_search(result_lines, aggressive_search_chunk, search_start_index, search_end_index)
-                        if search_result["best_match_index"] != -1 and search_result["best_score"] >= FUZZY_THRESHOLD:
+                        if search_result["best_match_index"] != -1 and search_result["best_score"] >= fuzzy_threshold:
                             match_index = search_result["best_match_index"]
                             best_match_score = search_result["best_score"]
                             search_content = aggressive_search_content
@@ -389,8 +389,8 @@ def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> s
                             replace_lines = replace_content.splitlines()
         
                 # 检查匹配结果
-                if match_index == -1 or best_match_score < FUZZY_THRESHOLD:
-                    error_msg = f"【工具结果】：未找到足够相似的匹配 (相似度: {best_match_score:.2f}, 需要: {FUZZY_THRESHOLD}) ;**【用户信息】：{choice_data}**"
+                if match_index == -1 or best_match_score < fuzzy_threshold:
+                    error_msg = f"【工具结果】：未找到足够相似的匹配 (相似度: {best_match_score:.2f}, 需要: {fuzzy_threshold}) ;**【用户信息】：{choice_data}**"
                     # 显示附近的内容
                     start = max(0, start_line - 5)
                     end = min(len(result_lines), start_line + 5)

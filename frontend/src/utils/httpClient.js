@@ -6,25 +6,12 @@ const api = {
   baseURL: API_BASE_URL,
   timeout: 30000, // 请求超时时间（30秒）
   
-  // 解析响应的统一处理函数
   async parseResponse(response) {
     const data = await response.json();
-    if (response.ok) {
-      return {
-        success: true,
-        data: data.data,
-        message: data.message,
-        status: response.status,
-        // 保留原始数据，以便某些接口直接使用
-        sessions: data.sessions,
-        checkpoints: data.checkpoints
-      };
+    if (!response.ok) {
+      throw new Error(data.detail || '请求失败');
     }
-    return {
-      success: false,
-      error: data.detail || data.error || data.message,
-      status: response.status
-    };
+    return data;
   },
   
   // GET 请求

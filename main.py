@@ -1,8 +1,3 @@
-"""
-AI Novelist 后端主应用
-基于FastAPI的Web服务，提供AI聊天、文件操作、RAG等功能
-"""
-
 import os
 import signal
 import sys
@@ -18,15 +13,13 @@ from fastapi.responses import JSONResponse
 
 from backend.config.config import settings
 from backend.ai_agent.api.chat_api import router as chat_router
-from backend.ai_agent.api.config_api import router as ai_config_router
-from backend.ai_agent.api.tool_config_api import router as tool_config_router
 from backend.ai_agent.api.history_api import router as history_router
 from backend.file.file_api import router as file_router
 from backend.config.config_api import router as config_router
 from backend.embedding.embedding_api import router as embedding_router
 from backend.ai_agent.api.models_api import router as model_router
 
-from backend.ai_agent.api.history_api import close_db_connection
+from backend.ai_agent.utils.db_utils import close_db_connection
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -75,8 +68,6 @@ app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 # 包含API路由
 app.include_router(chat_router)
-app.include_router(ai_config_router)
-app.include_router(tool_config_router)
 app.include_router(history_router)
 app.include_router(file_router)
 app.include_router(config_router)
@@ -155,8 +146,8 @@ def cleanup_resources():
                 try:
                     os.remove(temp_file)
                     logger.info(f"已清理临时文件: {temp_file}")
-                except Exception as e:
-                    logger.warning(f"清理临时文件失败 {temp_file}: {e}")
+                except Exception as exist_err:
+                    logger.warning(f"清理临时文件失败 {temp_file}: {exist_err}")
         
         logger.info("资源清理完成")
     except Exception as e:
