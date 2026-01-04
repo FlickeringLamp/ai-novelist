@@ -32,7 +32,7 @@ export const useManualSave = (activeTab, isSaving, setIsSaving, setLastSavedTime
       setIsSaving(true);
 
       try {
-        await httpClient.put(`/api/file/write/${encodeURIComponent(filePath)}`, {
+        await httpClient.put(`/api/file/update/${encodeURIComponent(filePath)}`, {
           content
         });
         console.log('[ManualSave] 文件保存成功！');

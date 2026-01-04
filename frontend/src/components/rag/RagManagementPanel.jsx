@@ -25,7 +25,7 @@ const RagSettingsPanel = () =>{
         httpClient.get('/api/provider/providers'),
         httpClient.get('/api/embedding/rag/chunk-settings'),
       ]);
-      setProviders(providersResult.data || []);
+      setProviders(providersResult || []);
       setChunkSize(chunkSettingsResult.chunkSize || "");
       setChunkOverlap(chunkSettingsResult.chunkOverlap || "")
     };

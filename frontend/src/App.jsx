@@ -34,7 +34,7 @@ function App() {
         if (activeTab && activeTab.isDirty) {
           console.log('[App] Ctrl+S pressed - 保存编辑器内容:', activeTab.title);
           console.log('[App] 使用HTTP服务保存文件');
-          httpClient.put(`/api/file/write/${encodeURIComponent(activeTab.id)}`, {
+          httpClient.put(`/api/file/update/${encodeURIComponent(activeTab.id)}`, {
             content: activeTab.content
           })
             .then(() => {

@@ -64,7 +64,7 @@ function TabBar() {
       const tab = openTabs.find(t => t.id === pendingTabId);
       if (tab) {
         try {
-          await httpClient.put(`/api/file/write/${encodeURIComponent(tab.id)}`, {
+          await httpClient.put(`/api/file/update/${encodeURIComponent(tab.id)}`, {
             content: tab.content
           });
           tabStateService.updateTabContent(pendingTabId, tab.content, false);

@@ -1,0 +1,246 @@
+"""
+多模型适配器
+统一处理不同模型提供商的初始化，支持init_chat_model原生模型和OpenAI兼容模型
+"""
+
+from typing import Optional, Dict, Any, List
+from langchain.chat_models import init_chat_model
+from langchain_openai import ChatOpenAI
+import sys
+import os
+import requests
+import logging
+# 添加父目录到路径，确保可以导入ai_agent模块
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from backend.config import ai_settings
+from langchain_community.chat_models import ChatZhipuAI
+
+logger = logging.getLogger(__name__)
+
+class MultiModelAdapter:
+    """
+    多模型适配器
+    根据模型提供商类型选择合适的初始化方式
+    """
+    
+    @classmethod
+    def create_model(
+        cls,
+        model: str,
+        provider: str,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        timeout: int = 30,
+        **kwargs
+    ):
+        """
+        创建模型实例
+        
+        Args:
+            model: 模型名称
+            provider: 模型提供商
+            api_key: API密钥，如果为None则从配置中获取
+            base_url: API基础URL，如果为None则从配置中获取
+            temperature: 温度参数
+            max_tokens: 最大token数
+            timeout: 超时时间
+            **kwargs: 其他参数
+            
+        Returns:
+            模型实例
+        """
+        # 获取API密钥
+        if api_key is None:
+            api_key = ai_settings.get_api_key_for_provider(provider)
+        
+        # 获取base_url
+        if base_url is None:
+            base_url = ai_settings.get_base_url_for_provider(provider)
+        
+        print(f"初始化模型: {model}, 提供商: {provider}, base_url: {base_url}")
+        # 根据提供商类型选择初始化方式
+        if provider in ["deepseek", "ollama"]:
+            # 使用init_chat_model初始化原生支持的提供商
+            # 构建模型标识符：provider:model
+            model_identifier = f"{provider}:{model}"
+            
+            # 创建可配置模型
+            configurable_model = init_chat_model(
+                model_identifier,
+                api_key=api_key,
+                base_url=base_url,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                **kwargs
+            )
+            return configurable_model
+        elif provider == "zhipuai":
+            # 使用ChatZhipuAI初始化智谱AI
+            return ChatZhipuAI(
+                model=model,
+                api_key=api_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                **kwargs
+            )
+        else :
+            # 使用ChatOpenAI初始化OpenAI兼容的提供商
+            return ChatOpenAI(
+                model=model,
+                api_key=api_key,
+                base_url=base_url,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                **kwargs
+            )
+
+    @classmethod
+    def get_available_models(cls, provider: str, api_key: str = None, base_url: str = None):
+        """
+        获取指定提供商的可用模型列表
+        
+        Args:
+            provider: 模型提供商
+            api_key: API密钥
+            base_url: API基础URL
+            
+        Returns:
+            模型信息列表
+        """
+        try:
+            if provider == "ollama":
+                return cls._get_ollama_models(base_url)
+            else:
+                return cls._get_openai_compatible_models(provider, api_key, base_url)
+        except Exception as e:
+            logger.error(f"获取 {provider} 模型列表失败: {e}")
+            # 重新抛出异常，让调用方处理错误信息
+            raise e
+
+    @classmethod
+    def _get_ollama_models(cls, base_url: str = None):
+        """获取Ollama可用模型列表"""
+        try:            
+            response = requests.get(f"{base_url}/api/tags", timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                models = []
+                for model_data in data.get("models", []):
+                    model_name = model_data.get("name", "")
+                    # 保留完整的模型名称，包括标签（如 qwen3:0.6b）
+                    # 不再截断冒号后的部分
+                    
+                    models.append({
+                        "id": f"ollama/{model_name}",
+                        "name": f"Ollama {model_name}",
+                        "provider": "ollama",
+                        "description": f"本地Ollama模型: {model_name}"
+                    })
+                return models
+            else:
+                logger.warning(f"Ollama服务不可用: {response.status_code}")
+                return []
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"无法连接到Ollama服务: {e}")
+            return []
+
+    @classmethod
+    def _get_openai_compatible_models(cls, provider: str, api_key: str = None, base_url: str = None) -> List[Dict[str, Any]]:
+        """获取OpenAI兼容提供商的模型列表"""
+        try:
+            headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+            response = requests.get(f"{base_url}/models", headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                models = []
+                for model_data in data.get("data", []):
+                    model_id = model_data.get("id", "")
+                    models.append({
+                        "id": f"{provider}/{model_id}",
+                        "name": f"{provider.title()} {model_id}",
+                        "provider": provider,
+                        "description": f"{provider.title()} 模型: {model_id}"
+                    })
+                
+                # 添加嵌入模型列表
+                if provider == "aliyun":
+                    embedding_models = [
+                        {
+                            "id": "aliyun/text-embedding-v4",
+                            "name": "阿里云 text-embedding-v4",
+                            "provider": "aliyun",
+                            "description": "阿里云文本嵌入模型v4，支持多种向量维度"
+                        },
+                        {
+                            "id": "aliyun/text-embedding-v3",
+                            "name": "阿里云 text-embedding-v3",
+                            "provider": "aliyun",
+                            "description": "阿里云文本嵌入模型v3，支持多种向量维度"
+                        },
+                        {
+                            "id": "aliyun/text-embedding-v2",
+                            "name": "阿里云 text-embedding-v2",
+                            "provider": "aliyun",
+                            "description": "阿里云文本嵌入模型v2，向量维度1536"
+                        },
+                        {
+                            "id": "aliyun/text-embedding-v1",
+                            "name": "阿里云 text-embedding-v1",
+                            "provider": "aliyun",
+                            "description": "阿里云文本嵌入模型v1"
+                        }
+                    ]
+                    models.extend(embedding_models)
+                elif provider == "zhipuai":
+                    embedding_models = [
+                        {
+                            "id": "zhipuai/embedding-3",
+                            "name": "智谱 Embedding-3",
+                            "provider": "zhipuai",
+                            "description": "智谱向量模型V3，上下文8K"
+                        },
+                        {
+                            "id": "zhipuai/embedding-2",
+                            "name": "智谱 Embedding-2",
+                            "provider": "zhipuai",
+                            "description": "智谱向量模型V2，上下文8K"
+                        }
+                    ]
+                    models.extend(embedding_models)
+                elif provider == "openrouter":
+                    embedding_models = [
+                        {
+                            "id": "openrouter/qwen/qwen3-embedding-4b",
+                            "name": "OpenRouter 千问 text-embedding-v4",
+                            "provider": "openrouter",
+                            "description": "OpenRouter 代理的阿里云文本嵌入模型v4，支持多种向量维度"
+                        }
+                    ]
+                    models.extend(embedding_models)
+                
+                return models
+            else:
+                # 如果API调用失败，抛出错误，包含原始状态码和响应内容
+                error_detail = f"api key连接失败，请确定apikey可用 (HTTP {response.status_code})"
+                try:
+                    # 尝试获取更详细的错误信息
+                    error_data = response.json()
+                    if 'error' in error_data:
+                        error_detail = f"{error_data['error']} (HTTP {response.status_code})"
+                    elif 'message' in error_data:
+                        error_detail = f"{error_data['message']} (HTTP {response.status_code})"
+                except:
+                    # 如果无法解析JSON，使用状态码
+                    pass
+                raise Exception(error_detail)
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"api key连接失败，请确定apikey可用 ({str(e)})")
+
+# 创建全局适配器实例
+multi_model_adapter = MultiModelAdapter()

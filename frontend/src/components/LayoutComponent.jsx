@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import SidebarComponent from './SidebarComponent';
 import ProviderSettingsPanel from './aiprovider/ProviderSettingsPanel';

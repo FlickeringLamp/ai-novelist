@@ -7,6 +7,10 @@ const api = {
   timeout: 30000, // 请求超时时间（30秒）
   
   async parseResponse(response) {
+    // 处理204 No Content响应
+    if (response.status === 204) {
+      return null;
+    }
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.detail || '请求失败');

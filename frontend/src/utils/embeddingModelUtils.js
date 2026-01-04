@@ -4,9 +4,6 @@ export const isEmbeddingModel = (modelName) => {
     return false;
   }
 
-  // 重排序模型的关键词 - 需要排除的模型
-  const rerankKeywords = ['rerank', 'reranker'];
-
   // 嵌入模型的关键词
   const embeddingKeywords = [
     'embedding',
@@ -20,13 +17,23 @@ export const isEmbeddingModel = (modelName) => {
 
   const lowerModelName = modelName.toLowerCase();
   
-  // 如果包含重排序关键词，则不是嵌入模型
-  if (rerankKeywords.some(keyword => lowerModelName.includes(keyword))) {
+  // 检查模型名称是否包含嵌入模型的关键词
+  return embeddingKeywords.some(keyword => lowerModelName.includes(keyword));
+};
+
+// 判断是否为重排序模型
+export const isRerankModel = (modelName) => {
+  if (!modelName) {
     return false;
   }
 
-  // 检查模型名称是否包含嵌入模型的关键词
-  return embeddingKeywords.some(keyword => lowerModelName.includes(keyword));
+  // 重排序模型的关键词
+  const rerankKeywords = ['rerank', 'reranker'];
+
+  const lowerModelName = modelName.toLowerCase();
+  
+  // 检查模型名称是否包含重排序模型的关键词
+  return rerankKeywords.some(keyword => lowerModelName.includes(keyword));
 };
 
 // 过滤嵌入模型
@@ -37,7 +44,18 @@ export const filterEmbeddingModels = (models) => {
   }
   return models.filter(model => {
     const modelName = model.id || '';
-    const isEmbedding = isEmbeddingModel(modelName);    
-    return isEmbedding;
+    return isEmbeddingModel(modelName);
+  });
+};
+
+// 过滤重排序模型
+export const filterRerankModels = (models) => {
+  if (!Array.isArray(models)) {
+    console.warn('filterRerankModels: 输入不是数组', models);
+    return [];
+  }
+  return models.filter(model => {
+    const modelName = model.id || '';
+    return isRerankModel(modelName);
   });
 };

@@ -1,15 +1,13 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import './ChapterTreePanel.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGear, faCaretRight, faCaretDown, faFolderPlus, faFileCirclePlus, faFolder, faFile, faRotate, faEdit, faCheck, faTimes, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faGear, faFolder, faFile, faRotate, faPlus } from '@fortawesome/free-solid-svg-icons';
 import CombinedIcon from '../others/CombinedIcon';
 import ContextMenuManager from './ContextMenuManager';
 import ModalManager from '../others/ModalManager';
-import FileOperations from './FileOperations';
 import httpClient from '../../utils/httpClient.js';
 import PrefixEditManager from './PrefixEditManager';
 import ChapterTreeRenderer from './ChapterTreeRenderer';
-import SettingsManager from './SettingsManager';
 import tabStateService from '../../services/tabStateService';
 
 function ChapterTreePanel() {
@@ -18,8 +16,6 @@ function ChapterTreePanel() {
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [currentRenameItemId, setCurrentRenameItemId] = useState(null);
   const [currentRenameItemTitle, setCurrentRenameItemTitle] = useState('');
-  const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState('');
   const [collapsedChapters, setCollapsedChapters] = useState({});
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
@@ -47,31 +43,20 @@ function ChapterTreePanel() {
     itemParentPath: null
   });
 
-  // 文件操作模块实例
-  const [fileOperations, setFileOperations] = useState(null);
-
-  // 获取 API Key
-  useEffect(() => {
-    const getApiKey = async () => {
-      try {
-        const apiKey = localStorage.getItem('store_deepseekApiKey') || '';
-        setApiKey(apiKey ? JSON.parse(apiKey) : '');
-      } catch (error) {
-        console.warn('获取 API Key 失败:', error);
-        setApiKey('');
-      }
-    };
-    getApiKey();
-  }, []);
+  // 复制/剪切操作的临时存储
+  const [copiedItem, setCopiedItem] = useState(null);
+  const [cutItem, setCutItem] = useState(null);
 
   // 获取章节列表
   const fetchChapters = useCallback(async () => {
-    const result = await httpClient.get('/api/file/tree');
-    if (result.success) {
-      setChapters(result.data || []);
-      tabStateService.setChapters(result.data || []);
-    } else {
-      console.error('获取章节列表失败:', result.error);
+    try{
+      const result = await httpClient.get('/api/file/tree');
+      setChapters(result||[]);
+      tabStateService.setChapters(result||[]);
+    }catch(error){
+      console.error('获取章节列表失败：',error)
+      setNotificationMessage(error.toString());
+      setShowNotificationModal(true);
     }
   }, []);
 
@@ -128,19 +113,6 @@ function ChapterTreePanel() {
       currentPath: ''
     });
   }, []);
-
-  // 初始化文件操作模块
-  // 初始化文件操作模块
-  useEffect(() => {
-    const operations = new FileOperations(
-      null,
-      fetchChapters,
-      null,
-      setNotificationMessage,
-      setShowNotificationModal
-    );
-    setFileOperations(operations);
-  }, [fetchChapters, setNotificationMessage, setShowNotificationModal]);
 
   // 注册章节更新监听器和初始加载
   useEffect(() => {
@@ -207,20 +179,88 @@ function ChapterTreePanel() {
 
   // 文件操作处理函数
   const handleDeleteItem = useCallback(async (itemId) => {
-    if (!fileOperations) return;
-    fileOperations.handleDeleteItem(
-      itemId,
-      setConfirmationMessage,
-      setOnConfirmCallback,
-      setOnCancelCallback,
-      setShowConfirmationModal
-    );
-  }, [fileOperations]);
+    setConfirmationMessage(`确定要删除 "${itemId}" 吗？`);
+    setOnConfirmCallback(() => async () => {
+      setShowConfirmationModal(false);
+      try {
+        await httpClient.delete(`/api/file/delete/${itemId}`);
+        await fetchChapters();
+      } catch (error) {
+        console.error('删除失败:', error);
+        setNotificationMessage(error.toString());
+        setShowNotificationModal(true);
+      }
+    });
+    setOnCancelCallback(() => () => {
+      setShowConfirmationModal(false);
+    });
+    setShowConfirmationModal(true);
+  }, [fetchChapters]);
 
   const handleRenameConfirm = useCallback(async (oldItemId, newTitle) => {
-    if (!fileOperations) return;
-    await fileOperations.handleRenameConfirm(oldItemId, newTitle, chapters, handleCloseContextMenu);
-  }, [fileOperations, chapters, handleCloseContextMenu]);
+    if (!newTitle || !newTitle.trim()) {
+      setNotificationMessage('名称不能为空！');
+      setShowNotificationModal(true);
+      return;
+    }
+
+    const findItemInChapters = (items, idToFind) => {
+      for (const item of items) {
+        if (item.id === idToFind) {
+          return item;
+        }
+        if (item.children) {
+          const found = findItemInChapters(item.children, idToFind);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const originalItem = findItemInChapters(chapters, oldItemId);
+    if (!originalItem) {
+      console.error('未找到要重命名的项:', oldItemId);
+      setNotificationMessage('重命名失败：原始项不存在。');
+      setShowNotificationModal(true);
+      return;
+    }
+
+    let finalNewTitle = newTitle.trim();
+
+    if (!originalItem.isFolder) {
+      const originalFileName = originalItem.name || originalItem.title;
+      if (originalFileName) {
+        const lastDotIndex = originalFileName.lastIndexOf('.');
+        if (lastDotIndex !== -1) {
+          const originalExtension = originalFileName.substring(lastDotIndex);
+          if (!finalNewTitle.includes('.') && originalExtension) {
+            finalNewTitle += originalExtension;
+          }
+        } else {
+          if (!finalNewTitle.includes('.')) {
+            finalNewTitle += '.md';
+          }
+        }
+      } else {
+        if (!finalNewTitle.includes('.')) {
+          finalNewTitle += '.md';
+        }
+      }
+    }
+
+    try {
+      await httpClient.post('/api/file/rename', {
+        old_path: oldItemId,
+        new_name: finalNewTitle
+      });
+      handleCloseContextMenu();
+      await fetchChapters();
+    } catch (error) {
+      console.error('重命名失败:', error);
+      setNotificationMessage(error.toString());
+      setShowNotificationModal(true);
+    }
+  }, [chapters, handleCloseContextMenu, fetchChapters]);
 
   const handleRenameItem = useCallback((item) => {
     handleCloseContextMenu();
@@ -248,30 +288,83 @@ function ChapterTreePanel() {
     setCurrentRenameItemTitle(e.target.value);
   }, []);
 
+  // 新建文件
   const handleNewFile = useCallback(async (parentPath = '') => {
-    if (!fileOperations) return;
-    await fileOperations.handleNewFile(parentPath, handleCloseContextMenu);
-  }, [fileOperations, handleCloseContextMenu]);
+    const defaultTitle = '新建文件';
+    const fileName = `${defaultTitle}.md`;
+    try {
+      await httpClient.post('/api/file/files', {
+        name: fileName,
+        content: '',
+        parent_path: parentPath
+      });
+      handleCloseContextMenu();
+      await fetchChapters();
+    } catch (error) {
+      console.error('新建文件失败:', error);
+      setNotificationMessage(error.toString());
+      setShowNotificationModal(true);
+    }
+  }, [handleCloseContextMenu, fetchChapters]);
 
+  // 新建文件夹
   const handleNewFolder = useCallback(async (parentPath = '') => {
-    if (!fileOperations) return;
-    await fileOperations.handleNewFolder(parentPath, handleCloseContextMenu);
-  }, [fileOperations, handleCloseContextMenu]);
+    const defaultFolderName = '新文件夹';
+    try {
+      await httpClient.post('/api/file/folders', {
+        name: defaultFolderName,
+        parent_path: parentPath
+      });
+      handleCloseContextMenu();
+      await fetchChapters();
+    } catch (error) {
+      console.error('新建文件夹失败:', error);
+      setNotificationMessage(error.toString());
+      setShowNotificationModal(true);
+    }
+  }, [handleCloseContextMenu, fetchChapters]);
 
   const handleCopy = useCallback((itemId, isCut) => {
-    if (!fileOperations) return;
-    fileOperations.handleCopy(itemId, isCut, handleCloseContextMenu);
-  }, [fileOperations, handleCloseContextMenu]);
+    if (isCut) {
+      setCutItem({ id: itemId, isCut: true });
+      setCopiedItem(null);
+    } else {
+      setCopiedItem({ id: itemId, isCut: false });
+      setCutItem(null);
+    }
+    handleCloseContextMenu();
+  }, [handleCloseContextMenu]);
 
   const handlePaste = useCallback(async (targetFolderId) => {
-    if (!fileOperations) return;
-    await fileOperations.handlePaste(targetFolderId, handleCloseContextMenu);
-  }, [fileOperations, handleCloseContextMenu]);
+    try {
+      if (cutItem) {
+        await httpClient.post('/api/file/move', {
+          source_path: cutItem.id,
+          target_path: targetFolderId
+        });
+        setCutItem(null);
+      } else if (copiedItem) {
+        await httpClient.post('/api/file/copy', {
+          source_path: copiedItem.id,
+          target_path: targetFolderId
+        });
+        setCopiedItem(null);
+      }
+      handleCloseContextMenu();
+      await fetchChapters();
+    } catch (error) {
+      console.error('粘贴失败:', error);
+      setNotificationMessage(error.toString());
+      setShowNotificationModal(true);
+    }
+  }, [cutItem, copiedItem, handleCloseContextMenu, fetchChapters]);
 
   const getCopyCutState = useCallback(() => {
-    if (!fileOperations) return { copiedItem: null, cutItem: null };
-    return fileOperations.getCopyCutState();
-  }, [fileOperations]);
+    return {
+      copiedItem: copiedItem,
+      cutItem: cutItem
+    };
+  }, [copiedItem, cutItem]);
 
   // 使用模块管理器
   const prefixEditManager = PrefixEditManager({
@@ -285,13 +378,6 @@ function ChapterTreePanel() {
     fetchChapters
   });
 
-  const settingsManager = SettingsManager({
-    apiKey,
-    setApiKey,
-    setNotificationMessage,
-    setShowNotificationModal,
-    setShowSettings
-  });
 
   return (
     <div className="chapter-tree-panel-container">
@@ -341,7 +427,7 @@ function ChapterTreePanel() {
 
       {/* 设置按钮区域 */}
       <div className="settings-button-area">
-        <button className="settings-button" onClick={settingsManager.handleToggleSettings} title="设置">
+        <button className="settings-button" title="设置">
           <FontAwesomeIcon icon={faGear} />
         </button>
       </div>

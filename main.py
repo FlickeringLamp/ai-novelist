@@ -11,15 +11,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
-from backend.config.config import settings
-from backend.ai_agent.api.chat_api import router as chat_router
-from backend.ai_agent.api.history_api import router as history_router
-from backend.file.file_api import router as file_router
-from backend.config.config_api import router as config_router
-from backend.embedding.embedding_api import router as embedding_router
-from backend.ai_agent.api.models_api import router as model_router
+from backend.config import settings
+from backend.api.chat_api import router as chat_router
+from backend.api.history_api import router as history_router
+from backend.api.file_api import router as file_router
+from backend.api.config_api import router as config_router
+from backend.api.embedding_api import router as embedding_router
+from backend.api.provider_api import router as model_router
 
-from backend.ai_agent.utils.db_utils import close_db_connection
+from backend.core.ai_agent.utils.db_utils import close_db_connection
 
 # 创建FastAPI应用
 app = FastAPI(
