@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './ContextMenu.css';
 
 function ContextMenu({ x, y, items, onClose }) {

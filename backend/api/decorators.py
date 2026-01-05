@@ -23,8 +23,9 @@ def handle_api_errors(operation_name: str):
         async def async_wrapper(*args, **kwargs) -> Any:
             try:
                 return await func(*args, **kwargs)
-            except HTTPException:
-                raise
+            except HTTPException as e:
+                logger.error(f"{operation_name}失败: {str(e.detail)}")
+                raise HTTPException(status_code=e.status_code, detail=str(e.detail))
             except Exception as e:
                 logger.error(f"{operation_name}失败: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"{operation_name}失败: {str(e)}")
@@ -33,8 +34,9 @@ def handle_api_errors(operation_name: str):
         def sync_wrapper(*args, **kwargs) -> Any:
             try:
                 return func(*args, **kwargs)
-            except HTTPException:
-                raise
+            except HTTPException as e:
+                logger.error(f"{operation_name}失败: {str(e.detail)}")
+                raise HTTPException(status_code=e.status_code, detail=str(e.detail))
             except Exception as e:
                 logger.error(f"{operation_name}失败: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"{operation_name}失败: {str(e)}")

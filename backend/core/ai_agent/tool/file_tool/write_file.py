@@ -2,12 +2,10 @@ import os
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langgraph.types import interrupt
-
 # 导入配置和路径验证器
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from backend.config import settings
-from file.utils.path_validator import PathValidator
+from backend.core.file.file_service import normalize_path, get_full_path
 
 class WriteFileInput(BaseModel):
     """写入文件的输入参数"""
@@ -38,18 +36,11 @@ def write_file(path: str, content: str) -> str:
     
     if choice_action == "1":
         try:
-            # 初始化路径验证器
-            path_validator = PathValidator(settings.NOVEL_DIR)
-            
             # 规范化路径
-            clean_path = path_validator.normalize_path(path)
+            clean_path = normalize_path(path)
             
-            # 验证路径安全性
-            if not path_validator.is_safe_path(clean_path):
-                return f"【工具结果】：写入失败，不安全的文件路径: {path} ;**【用户信息】：{choice_data}**"
-                
             # 获取完整路径
-            full_path = path_validator.get_full_path(clean_path)
+            full_path = get_full_path(clean_path)
             
             # 确保目录存在
             full_path.parent.mkdir(parents=True, exist_ok=True)

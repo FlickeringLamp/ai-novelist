@@ -13,61 +13,72 @@ const api = {
     }
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.detail || '请求失败');
+      // 处理FastAPI的验证错误（422错误）
+      if (Array.isArray(data.detail)) {
+        const errorMessages = data.detail.map(error => {
+          const field = error.loc ? error.loc.join('.') : 'unknown';
+          return `${field}: ${error.msg}`;
+        }).join('; ');
+        throw new Error(errorMessages || '请求参数验证失败');
+      }
+      // 处理其他类型的错误，优先使用 detail 字段
+      throw new Error(data.detail || data.error || '请求失败');
     }
     return data;
   },
   
   // GET 请求
-  get: async (url, options = {}) => {
+  get: async (url) => {
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
+        'Content-Type': 'application/json'
+      }
     });
     return await api.parseResponse(response);
   },
   
   // POST 请求
-  post: async (url, data, options = {}) => {
+  post: async (url, data) => {
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(data),
-      ...options
+      body: JSON.stringify(data)
     });
     return await api.parseResponse(response);
   },
   
   // PUT 请求
-  put: async (url, data, options = {}) => {
+  put: async (url, data) => {
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(data),
-      ...options
+      body: JSON.stringify(data)
     });
     return await api.parseResponse(response);
   },
   
   // DELETE 请求
-  delete: async (url, options = {}) => {
+  delete: async (url) => {
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'DELETE',
       headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
+        'Content-Type': 'application/json'
+      }
+    });
+    return await api.parseResponse(response);
+  },
+  
+  // 上传文件请求
+  upload: async (url, formData) => {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'POST',
+      // 不设置 Content-Type，让浏览器自动设置 multipart/form-data
+      body: formData
     });
     return await api.parseResponse(response);
   }

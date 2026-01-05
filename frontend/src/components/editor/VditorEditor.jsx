@@ -141,7 +141,7 @@ const VditorEditor = forwardRef(({
             // 直接使用 httpClient 上传图片
             const formData = new FormData();
             formData.append('file', file);
-            const response = await httpClient.post('/api/file/upload/image', formData);
+            const response = await httpClient.upload('/api/file/images', formData);
             
             console.log('图片上传成功:', response);
             // 使用自定义处理器时，需要手动插入 Markdown 图片语法

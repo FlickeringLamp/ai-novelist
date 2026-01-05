@@ -8,7 +8,7 @@ from langgraph.types import interrupt
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 from backend.config import settings
-from file.utils.path_validator import PathValidator
+from backend.core.file.file_service import normalize_path, get_full_path
 
 class SearchFilesInput(BaseModel):
     """搜索文件的输入参数"""
@@ -39,18 +39,11 @@ def search_file(path: str, regex: str) -> str:
     
     if choice_action == "1":
         try:
-            # 初始化路径验证器
-            path_validator = PathValidator(settings.NOVEL_DIR)
-            
             # 规范化路径
-            clean_path = path_validator.normalize_path(path)
-            
-            # 验证路径安全性
-            if not path_validator.is_safe_path(clean_path):
-                return f"【工具结果】：搜索失败，不安全的文件路径: {path} ;**【用户信息】：{choice_data}**"
-                
+            clean_path = normalize_path(path)
+  
             # 获取完整路径
-            search_path = path_validator.get_full_path(clean_path)
+            search_path = get_full_path(clean_path)
             
             pattern = re.compile(regex)
             results = []

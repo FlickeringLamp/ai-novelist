@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/config", tags=["Config"])
 # 请求模型
 class SetStoreValueRequest(BaseModel):
     """设置存储值请求"""
-    key: str = Field(..., description="存储键名", min_length=1)
+    key: str = Field(..., description="存储键名")
     value: Any = Field(..., description="存储值")
 
 class SetSelectedModelRequest(BaseModel):

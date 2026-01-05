@@ -1,13 +1,11 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import './ChapterTreePanel.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGear, faFolder, faFile, faRotate, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faGear, faFolder, faFile, faRotate, faPlus, faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
 import CombinedIcon from '../others/CombinedIcon';
-import ContextMenuManager from './ContextMenuManager';
+import ContextMenu from '../others/ContextMenu';
 import ModalManager from '../others/ModalManager';
 import httpClient from '../../utils/httpClient.js';
-import PrefixEditManager from './PrefixEditManager';
-import ChapterTreeRenderer from './ChapterTreeRenderer';
 import tabStateService from '../../services/tabStateService';
 
 function ChapterTreePanel() {
@@ -23,14 +21,6 @@ function ChapterTreePanel() {
   const [confirmationMessage, setConfirmationMessage] = useState('');
   const [onConfirmCallback, setOnConfirmCallback] = useState(null);
   const [onCancelCallback, setOnCancelCallback] = useState(null);
-
-  // 前缀编辑状态
-  const [editingPrefix, setEditingPrefix] = useState({
-    itemId: null,
-    prefix: '',
-    isFolder: false,
-    currentPath: ''
-  });
 
   // 右键菜单状态
   const [contextMenu, setContextMenu] = useState({
@@ -48,76 +38,32 @@ function ChapterTreePanel() {
   const [cutItem, setCutItem] = useState(null);
 
   // 获取章节列表
-  const fetchChapters = useCallback(async () => {
-    try{
+  const fetchChapters = async () => {
+    try {
       const result = await httpClient.get('/api/file/tree');
-      setChapters(result||[]);
-      tabStateService.setChapters(result||[]);
-    }catch(error){
-      console.error('获取章节列表失败：',error)
+      setChapters(result || []);
+      tabStateService.setChapters(result || []);
+    } catch (error) {
+      console.error('获取章节列表失败：', error);
       setNotificationMessage(error.toString());
       setShowNotificationModal(true);
     }
-  }, []);
+  };
 
   // 辅助函数：根据文件名获取显示名称
-  const getDisplayName = useCallback((name, isFolder) => {
+  const getDisplayName = (name, isFolder) => {
     if (!name) return '';
     if (isFolder) {
       return name;
     }
     const lastDotIndex = name.lastIndexOf('.');
     return lastDotIndex !== -1 ? name.substring(0, lastDotIndex) : name;
-  }, []);
-
-  // 辅助函数：获取兄弟节点
-  const getSiblingItems = useCallback((items, path) => {
-    if (!path) return items;
-    
-    const findFolderByPath = (currentItems, targetPathParts, currentIndex) => {
-      if (currentIndex === targetPathParts.length) {
-        return currentItems;
-      }
-      const part = targetPathParts[currentIndex];
-      const folder = currentItems.find(item => item.isFolder && item.title === part);
-      if (folder && folder.children) {
-        return findFolderByPath(folder.children, targetPathParts, currentIndex + 1);
-      }
-      return [];
-    };
-
-    const pathParts = path.split('/');
-    return findFolderByPath(items, pathParts, 0);
-  }, []);
-
-  // 辅助函数：提取前缀
-  const getDisplayPrefix = useCallback((item) => {
-    return item.displayPrefix || '';
-  }, []);
-
-  // 前缀编辑处理函数
-  const handlePrefixEdit = useCallback((itemId, currentPrefix, isFolder, currentPath) => {
-    setEditingPrefix({
-      itemId,
-      prefix: currentPrefix,
-      isFolder,
-      currentPath
-    });
-  }, []);
-
-  const handlePrefixEditCancel = useCallback(() => {
-    setEditingPrefix({
-      itemId: null,
-      prefix: '',
-      isFolder: false,
-      currentPath: ''
-    });
-  }, []);
+  };
 
   // 注册章节更新监听器和初始加载
   useEffect(() => {
     fetchChapters();
-  }, [fetchChapters]);
+  }, []);
 
   // 监听 refreshCounter 变化
   useEffect(() => {
@@ -135,7 +81,8 @@ function ChapterTreePanel() {
   useEffect(() => {
     console.log('[ChapterTreePanel] refreshCounter 变化，触发 fetchChapters()');
     fetchChapters();
-  }, [refreshCounter, fetchChapters]);
+  }, [refreshCounter]);
+
   // 章节点击处理
   const handleChapterClick = async (item) => {
     if (item.isFolder) {
@@ -160,7 +107,7 @@ function ChapterTreePanel() {
   };
 
   // 右键菜单处理
-  const handleContextMenu = useCallback((event, itemId, isFolder, itemTitle, itemParentPath) => {
+  const handleContextMenu = (event, itemId, isFolder, itemTitle, itemParentPath) => {
     event.preventDefault();
     setContextMenu({
       show: true,
@@ -171,14 +118,14 @@ function ChapterTreePanel() {
       itemTitle: itemTitle,
       itemParentPath: itemParentPath,
     });
-  }, []);
+  };
 
-  const handleCloseContextMenu = useCallback(() => {
+  const handleCloseContextMenu = () => {
     setContextMenu({ ...contextMenu, show: false });
-  }, [contextMenu]);
+  };
 
   // 文件操作处理函数
-  const handleDeleteItem = useCallback(async (itemId) => {
+  const handleDeleteItem = async (itemId) => {
     setConfirmationMessage(`确定要删除 "${itemId}" 吗？`);
     setOnConfirmCallback(() => async () => {
       setShowConfirmationModal(false);
@@ -195,9 +142,9 @@ function ChapterTreePanel() {
       setShowConfirmationModal(false);
     });
     setShowConfirmationModal(true);
-  }, [fetchChapters]);
+  };
 
-  const handleRenameConfirm = useCallback(async (oldItemId, newTitle) => {
+  const handleRenameConfirm = async (oldItemId, newTitle) => {
     if (!newTitle || !newTitle.trim()) {
       setNotificationMessage('名称不能为空！');
       setShowNotificationModal(true);
@@ -260,71 +207,63 @@ function ChapterTreePanel() {
       setNotificationMessage(error.toString());
       setShowNotificationModal(true);
     }
-  }, [chapters, handleCloseContextMenu, fetchChapters]);
+  };
 
-  const handleRenameItem = useCallback((item) => {
+  const handleRenameItem = (item) => {
     handleCloseContextMenu();
     setCurrentRenameItemId(item.id);
     setCurrentRenameItemTitle(getDisplayName(item.title, item.isFolder));
     setShowRenameModal(true);
-  }, [handleCloseContextMenu, getDisplayName]);
+  };
 
-  const handleRenameModalConfirm = useCallback(() => {
+  const handleRenameModalConfirm = () => {
     if (currentRenameItemId && currentRenameItemTitle) {
       handleRenameConfirm(currentRenameItemId, currentRenameItemTitle);
       setShowRenameModal(false);
       setCurrentRenameItemId(null);
       setCurrentRenameItemTitle('');
     }
-  }, [currentRenameItemId, currentRenameItemTitle, handleRenameConfirm]);
+  };
 
-  const handleRenameModalCancel = useCallback(() => {
+  const handleRenameModalCancel = () => {
     setShowRenameModal(false);
     setCurrentRenameItemId(null);
     setCurrentRenameItemTitle('');
-  }, []);
+  };
 
-  const handleRenameInputChange = useCallback((e) => {
+  const handleRenameInputChange = (e) => {
     setCurrentRenameItemTitle(e.target.value);
-  }, []);
+  };
+
+  // 统一的创建项目函数
+  const handleCreateItem = async (name, isFolder, parentPath = '') => {
+    try {
+      await httpClient.post('/api/file/items', {
+        name,
+        content: '',
+        parent_path: parentPath,
+        is_folder: isFolder
+      });
+      handleCloseContextMenu();
+      await fetchChapters();
+    } catch (error) {
+      console.error('创建失败:', error);
+      setNotificationMessage(error.toString());
+      setShowNotificationModal(true);
+    }
+  };
 
   // 新建文件
-  const handleNewFile = useCallback(async (parentPath = '') => {
-    const defaultTitle = '新建文件';
-    const fileName = `${defaultTitle}.md`;
-    try {
-      await httpClient.post('/api/file/files', {
-        name: fileName,
-        content: '',
-        parent_path: parentPath
-      });
-      handleCloseContextMenu();
-      await fetchChapters();
-    } catch (error) {
-      console.error('新建文件失败:', error);
-      setNotificationMessage(error.toString());
-      setShowNotificationModal(true);
-    }
-  }, [handleCloseContextMenu, fetchChapters]);
+  const handleNewFile = async (parentPath = '') => {
+    await handleCreateItem('新建文件.md', false, parentPath);
+  };
 
   // 新建文件夹
-  const handleNewFolder = useCallback(async (parentPath = '') => {
-    const defaultFolderName = '新文件夹';
-    try {
-      await httpClient.post('/api/file/folders', {
-        name: defaultFolderName,
-        parent_path: parentPath
-      });
-      handleCloseContextMenu();
-      await fetchChapters();
-    } catch (error) {
-      console.error('新建文件夹失败:', error);
-      setNotificationMessage(error.toString());
-      setShowNotificationModal(true);
-    }
-  }, [handleCloseContextMenu, fetchChapters]);
+  const handleNewFolder = async (parentPath = '') => {
+    await handleCreateItem('新文件夹', true, parentPath);
+  };
 
-  const handleCopy = useCallback((itemId, isCut) => {
+  const handleCopy = (itemId, isCut) => {
     if (isCut) {
       setCutItem({ id: itemId, isCut: true });
       setCopiedItem(null);
@@ -333,9 +272,9 @@ function ChapterTreePanel() {
       setCutItem(null);
     }
     handleCloseContextMenu();
-  }, [handleCloseContextMenu]);
+  };
 
-  const handlePaste = useCallback(async (targetFolderId) => {
+  const handlePaste = async (targetFolderId) => {
     try {
       if (cutItem) {
         await httpClient.post('/api/file/move', {
@@ -357,27 +296,103 @@ function ChapterTreePanel() {
       setNotificationMessage(error.toString());
       setShowNotificationModal(true);
     }
-  }, [cutItem, copiedItem, handleCloseContextMenu, fetchChapters]);
+  };
 
-  const getCopyCutState = useCallback(() => {
-    return {
-      copiedItem: copiedItem,
-      cutItem: cutItem
-    };
-  }, [copiedItem, cutItem]);
+  // 渲染章节树
+  const renderChapterTree = (items, level = 0) => {
+    return items.map(item => {
+      const itemId = item.id || item.path || '';
+      const itemTitle = item.title || item.name || '';
+      const isFolder = item.isFolder || item.type === 'folder';
+      const hasChildren = item.children && item.children.length > 0;
+      const displayName = getDisplayName(itemTitle, isFolder);
 
-  // 使用模块管理器
-  const prefixEditManager = PrefixEditManager({
-    editingPrefix,
-    chapters,
-    onPrefixEdit: handlePrefixEdit,
-    onPrefixEditCancel: handlePrefixEditCancel,
-    getSiblingItems,
-    setNotificationMessage,
-    setShowNotificationModal,
-    fetchChapters
-  });
+      return (
+        <li
+          key={itemId}
+          className={`chapter-list-item ${isFolder ? 'folder-item' : 'file-item'} level-${level}`}
+        >
+          <div
+            className={`chapter-item-content ${isFolder && level > 0 ? 'nested-folder-content' : ''}`}
+            style={{ paddingLeft: `${level * 20}px` }}
+            onContextMenu={(e) => {
+              e.stopPropagation();
+              const parentPath = isFolder ? itemId : (itemId.includes('/') ? itemId.substring(0, itemId.lastIndexOf('/')) : '');
 
+              handleContextMenu(e, itemId, isFolder, itemTitle, parentPath);
+            }}
+          >
+            {isFolder && (
+              <span onClick={() => handleChapterClick(item)} className="collapse-icon">
+                <FontAwesomeIcon icon={collapsedChapters[itemId] ? faCaretRight : faCaretDown} />
+              </span>
+            )}
+
+            {/* 文件/文件夹图标 */}
+            <FontAwesomeIcon icon={isFolder ? faFolder : faFile} className="folder-file-icon" />
+
+            {/* 文件/文件夹名称 */}
+            <button
+              onClick={() => handleChapterClick(item)}
+              className="chapter-title-button"
+            >
+              {displayName}
+            </button>
+          </div>
+
+          {isFolder && hasChildren && !collapsedChapters[itemId] && (
+            <ul className="sub-chapter-list">
+              {renderChapterTree(item.children, level + 1)}
+            </ul>
+          )}
+        </li>
+      );
+    });
+  };
+  // 构建右键菜单项
+  const getContextMenuItems = () => {
+    const items = [];
+    const isItemSelected = contextMenu.itemId !== null &&
+                          contextMenu.itemId !== undefined &&
+                          contextMenu.itemId !== '';
+    const canPaste = copiedItem || cutItem;
+
+    if (isItemSelected) {
+      const isFolder = contextMenu.isFolder;
+      const targetPath = isFolder ? contextMenu.itemId : contextMenu.itemParentPath;
+
+      items.push(
+        { label: '复制', onClick: () => handleCopy(contextMenu.itemId, false) },
+        { label: '剪切', onClick: () => handleCopy(contextMenu.itemId, true) },
+        { label: '重命名', onClick: () => handleRenameItem({
+          id: contextMenu.itemId,
+          title: contextMenu.itemTitle
+        }) },
+        { label: '删除', onClick: () => handleDeleteItem(contextMenu.itemId) }
+      );
+
+      if (isFolder && canPaste) {
+        items.push({ label: '粘贴', onClick: () => handlePaste(contextMenu.itemId) });
+      }
+
+      if (isFolder) {
+        items.push(
+          { label: '新建文件', onClick: () => handleNewFile(contextMenu.itemId) },
+          { label: '新建文件夹', onClick: () => handleNewFolder(contextMenu.itemId) }
+        );
+      }
+    } else {
+      items.push(
+        { label: '新建文件', onClick: () => handleNewFile('') },
+        { label: '新建文件夹', onClick: () => handleNewFolder('') }
+      );
+      if (canPaste) {
+        items.push({ label: '粘贴', onClick: () => handlePaste('') });
+      }
+    }
+
+    return items;
+  };
 
   return (
     <div className="chapter-tree-panel-container">
@@ -398,32 +413,22 @@ function ChapterTreePanel() {
           {chapters.length === 0 ? (
             <p className="no-chapters-message">暂无文件</p>
           ) : (
-            <ChapterTreeRenderer
-              items={chapters}
-              collapsedChapters={collapsedChapters}
-              getDisplayName={getDisplayName}
-              getDisplayPrefix={getDisplayPrefix}
-              handleChapterClick={handleChapterClick}
-              handleContextMenu={handleContextMenu}
-              renderPrefixEdit={prefixEditManager.renderPrefixEdit}
-            />
+            <ul className="chapter-list">
+              {renderChapterTree(chapters)}
+            </ul>
           )}
         </div>
       </div>
 
-      {/* 右键菜单管理模块 */}
-      <ContextMenuManager
-        contextMenu={contextMenu}
-        copiedItem={getCopyCutState().copiedItem}
-        cutItem={getCopyCutState().cutItem}
-        onCloseContextMenu={handleCloseContextMenu}
-        onNewFile={handleNewFile}
-        onNewFolder={handleNewFolder}
-        onCopy={handleCopy}
-        onPaste={handlePaste}
-        onRenameItem={handleRenameItem}
-        onDeleteItem={handleDeleteItem}
-      />
+      {/* 右键菜单 */}
+      {contextMenu.show && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={getContextMenuItems()}
+          onClose={handleCloseContextMenu}
+        />
+      )}
 
       {/* 设置按钮区域 */}
       <div className="settings-button-area">
@@ -439,11 +444,11 @@ function ChapterTreePanel() {
         onRenameInputChange={handleRenameInputChange}
         onRenameModalConfirm={handleRenameModalConfirm}
         onRenameModalCancel={handleRenameModalCancel}
-        
+
         showNotificationModal={showNotificationModal}
         notificationMessage={notificationMessage}
         onNotificationClose={() => setShowNotificationModal(false)}
-        
+
         showConfirmationModal={showConfirmationModal}
         confirmationMessage={confirmationMessage}
         onConfirmCallback={onConfirmCallback}

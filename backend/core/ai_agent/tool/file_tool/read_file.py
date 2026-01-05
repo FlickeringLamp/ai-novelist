@@ -8,7 +8,7 @@ from langgraph.types import interrupt
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 from backend.config import settings
-from file.utils.path_validator import PathValidator
+from backend.core.file.file_service import normalize_path, get_full_path
 
 class ReadFileInput(BaseModel):
     """读取文件的输入参数"""
@@ -43,18 +43,11 @@ def read_file(file_path: str, start_paragraph: Optional[int] = None,
     
     if choice_action == "1":
         try:
-            # 初始化路径验证器
-            path_validator = PathValidator(settings.NOVEL_DIR)
-            
             # 规范化路径
-            clean_path = path_validator.normalize_path(file_path)
+            clean_path = normalize_path(file_path)
             
-            # 验证路径安全性
-            if not path_validator.is_safe_path(clean_path):
-                return f"【工具结果】：读取失败，不安全的文件路径: {file_path} ;**【用户信息】：{choice_data}**"
-                
             # 获取完整路径
-            full_path = path_validator.get_full_path(clean_path)
+            full_path = get_full_path(clean_path)
             
             # 读取文件内容
             with open(full_path, 'r', encoding='utf-8') as f:

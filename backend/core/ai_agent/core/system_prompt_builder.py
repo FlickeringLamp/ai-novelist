@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 import logging
 
 from backend.config import ai_settings
-from backend.core.file.utils.file_tree_builder import file_tree_builder
+from backend.core.file.file_service import get_file_tree
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ class SystemPromptBuilder:
             os.makedirs(novel_path, exist_ok=True)
             
             # 获取文件树
-            file_tree_result = await file_tree_builder.get_file_tree(novel_path)
+            file_tree_result = {"success": True, "tree": await get_file_tree()}
             
             if not file_tree_result.get("success", False):
                 logger.error(f"获取文件树失败: {file_tree_result.get('error', '未知错误')}")
@@ -208,7 +208,7 @@ class SystemPromptBuilder:
             novel_path = self.get_novel_path()
             
             # 重新获取文件树
-            file_tree_result = await file_tree_builder.get_file_tree(novel_path)
+            file_tree_result = {"success": True, "tree": await get_file_tree()}
             
             if file_tree_result.get("success", False):
                 self.file_tree_cache = file_tree_result.get("tree", [])

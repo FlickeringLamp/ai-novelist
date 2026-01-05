@@ -9,7 +9,7 @@ from langgraph.types import interrupt
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 from backend.config import settings
-from file.utils.path_validator import PathValidator
+from backend.core.file.file_service import normalize_path, get_full_path
 
 class ApplyDiffInput(BaseModel):
     """应用差异的输入参数"""
@@ -251,19 +251,11 @@ def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> s
     
     if choice_action == "1":
         try:
-            # 初始化路径验证器
-            path_validator = PathValidator(settings.NOVEL_DIR)
-            print(f"初始化路径验证{path_validator}")
             # 规范化路径
-            clean_path = path_validator.normalize_path(path)
+            clean_path = normalize_path(path)
             print(f"规范化路径{clean_path}")
-            # 验证路径安全性
-            if not path_validator.is_safe_path(clean_path):
-                print(f"")
-                return f"【工具结果】：应用差异失败，不安全的文件路径: {path} ;**【用户信息】：{choice_data}**"
-                
             # 获取完整路径
-            file_path = path_validator.get_full_path(clean_path)
+            file_path = get_full_path(clean_path)
             
             # 读取原始文件内容
             with open(file_path, 'r', encoding='utf-8') as f:
