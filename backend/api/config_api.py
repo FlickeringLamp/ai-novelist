@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Any, Dict, List
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from backend.core.ai_agent.prompts.sys_prompts import (
@@ -39,31 +39,23 @@ class UpdateModeToolConfigRequest(BaseModel):
 
 def load_store_config():
     """加载存储配置"""
-    try:
-        config_path = Path("backend/data/config/store.json")
-        if not config_path.exists():
-            logger.warning("配置文件不存在，创建默认配置")
-            default_config = {}
-            save_store_config(default_config)
-            return default_config
-        
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        logger.error(f"加载配置文件失败: {e}")
-        raise HTTPException(status_code=500, detail=f"加载配置文件失败: {str(e)}")
+    config_path = Path("backend/data/config/store.json")
+    if not config_path.exists():
+        logger.warning("配置文件不存在，创建默认配置")
+        default_config = {}
+        save_store_config(default_config)
+        return default_config
+    
+    with open(config_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 def save_store_config(config: Dict[str, Any]):
     """保存存储配置"""
-    try:
-        config_path = Path("backend/data/config/store.json")
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        logger.error(f"保存配置文件失败: {e}")
-        raise HTTPException(status_code=500, detail=f"保存配置文件失败: {str(e)}")
+    config_path = Path("backend/data/config/store.json")
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
 
 
 # ========== 通用配置API端点 ==========
@@ -75,15 +67,10 @@ async def get_store_value(key: str):
     
     - **key**: 存储键名
     """
-    try:
-        config = load_store_config()
-        value = config.get(key)
-        
-        return value
-        
-    except Exception as e:
-        logger.error(f"获取存储值失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取存储值失败: {str(e)}")
+    config = load_store_config()
+    value = config.get(key)
+    
+    return value
 
 @router.post("/store", summary="设置存储值", response_model=Any)
 async def set_store_value(request: SetStoreValueRequest):
@@ -93,16 +80,11 @@ async def set_store_value(request: SetStoreValueRequest):
     - **key**: 存储键名
     - **value**: 存储值
     """
-    try:
-        config = load_store_config()
-        config[request.key] = request.value
-        save_store_config(config)
-        
-        return request.value
-        
-    except Exception as e:
-        logger.error(f"设置存储值失败: {e}")
-        raise HTTPException(status_code=500, detail=f"设置存储值失败: {str(e)}")
+    config = load_store_config()
+    config[request.key] = request.value
+    save_store_config(config)
+    
+    return request.value
 
 
 # ========== AI配置API端点 ==========
@@ -116,23 +98,18 @@ async def get_api_key():
     Returns:
         Dict[str, str]: API密钥配置字典
     """
-    try:
-        config = load_store_config()
-        
-        # 返回所有API密钥配置
-        return {
-            "deepseekApiKey": config.get("deepseekApiKey", ""),
-            "openrouterApiKey": config.get("openrouterApiKey", ""),
-            "siliconflowApiKey": config.get("siliconflowApiKey", ""),
-            "aliyunApiKey": config.get("aliyunApiKey", ""),
-            "zhipuaiApiKey": config.get("zhipuaiApiKey", ""),
-            "kimiApiKey": config.get("kimiApiKey", ""),
-            "geminiApiKey": config.get("geminiApiKey", "")
-        }
-        
-    except Exception as e:
-        logger.error(f"获取API密钥失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取API密钥失败: {str(e)}")
+    config = load_store_config()
+    
+    # 返回所有API密钥配置
+    return {
+        "deepseekApiKey": config.get("deepseekApiKey", ""),
+        "openrouterApiKey": config.get("openrouterApiKey", ""),
+        "siliconflowApiKey": config.get("siliconflowApiKey", ""),
+        "aliyunApiKey": config.get("aliyunApiKey", ""),
+        "zhipuaiApiKey": config.get("zhipuaiApiKey", ""),
+        "kimiApiKey": config.get("kimiApiKey", ""),
+        "geminiApiKey": config.get("geminiApiKey", "")
+    }
 
 # 选中的模型相关API
 @router.get("/ai/selected-model", summary="获取选中的模型", response_model=Dict[str, str])
@@ -143,17 +120,12 @@ async def get_selected_model():
     Returns:
         Dict[str, str]: 包含 selectedModel 和 selectedProvider 的字典
     """
-    try:
-        config = load_store_config()
-        
-        return {
-            "selectedModel": config.get("selectedModel", ""),
-            "selectedProvider": config.get("selectedProvider", "")
-        }
-        
-    except Exception as e:
-        logger.error(f"获取选中模型失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取选中模型失败: {str(e)}")
+    config = load_store_config()
+    
+    return {
+        "selectedModel": config.get("selectedModel", ""),
+        "selectedProvider": config.get("selectedProvider", "")
+    }
 
 @router.post("/ai/selected-model", summary="设置选中的模型", response_model=Dict[str, str])
 async def set_selected_model(request: SetSelectedModelRequest):
@@ -166,20 +138,15 @@ async def set_selected_model(request: SetSelectedModelRequest):
     Returns:
         Dict[str, str]: 包含 selectedModel 和 selectedProvider 的字典
     """
-    try:
-        config = load_store_config()
-        config["selectedModel"] = request.selectedModel
-        config["selectedProvider"] = request.selectedProvider
-        save_store_config(config)
-        
-        return {
-            "selectedModel": request.selectedModel,
-            "selectedProvider": request.selectedProvider
-        }
-        
-    except Exception as e:
-        logger.error(f"设置选中模型失败: {e}")
-        raise HTTPException(status_code=500, detail=f"设置选中模型失败: {str(e)}")
+    config = load_store_config()
+    config["selectedModel"] = request.selectedModel
+    config["selectedProvider"] = request.selectedProvider
+    save_store_config(config)
+    
+    return {
+        "selectedModel": request.selectedModel,
+        "selectedProvider": request.selectedProvider
+    }
 
 # 提供商配置相关API
 @router.get("/ai/provider-config", summary="获取提供商配置", response_model=Dict[str, Any])
@@ -190,12 +157,7 @@ async def get_provider_config():
     Returns:
         Dict[str, Any]: 提供商配置字典
     """
-    try:
-        return load_store_config()
-        
-    except Exception as e:
-        logger.error(f"获取提供商配置失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取提供商配置失败: {str(e)}")
+    return load_store_config()
 
 @router.post("/ai/provider-config", summary="保存提供商配置", response_model=Dict[str, Any])
 async def save_provider_config(request: SaveProviderConfigRequest):
@@ -207,13 +169,8 @@ async def save_provider_config(request: SaveProviderConfigRequest):
     Returns:
         Dict[str, Any]: 保存后的配置数据
     """
-    try:
-        save_store_config(request.config_data)
-        return request.config_data
-        
-    except Exception as e:
-        logger.error(f"保存提供商配置失败: {e}")
-        raise HTTPException(status_code=500, detail=f"保存提供商配置失败: {str(e)}")
+    save_store_config(request.config_data)
+    return request.config_data
 
 # 默认提示词相关API
 @router.get("/ai/default-prompts", summary="获取默认提示词", response_model=Dict[str, str])
@@ -224,16 +181,11 @@ async def get_default_prompts():
     Returns:
         Dict[str, str]: 包含 outline、writing、adjustment 提示词的字典
     """
-    try:
-        return {
-            "outline": OUTLINE_PROMPT,
-            "writing": WRITING_PROMPT,
-            "adjustment": ADJUSTMENT_PROMPT
-        }
-        
-    except Exception as e:
-        logger.error(f"获取默认提示词失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取默认提示词失败: {str(e)}")
+    return {
+        "outline": OUTLINE_PROMPT,
+        "writing": WRITING_PROMPT,
+        "adjustment": ADJUSTMENT_PROMPT
+    }
 
 
 # ========== 工具配置API端点 ==========
@@ -241,64 +193,54 @@ async def get_default_prompts():
 @router.get("/tool/modes", summary="获取所有模式的工具配置", response_model=Dict[str, Any])
 async def get_all_modes_tool_config():
     """获取所有模式的工具配置"""
-    try:
-        # 获取所有内置模式
-        builtin_modes = tool_config_manager.get_default_mode_tools()
-        
-        # 获取所有自定义模式（从配置中）
-        config = tool_config_manager.load_config()
-        custom_modes = config.get("customModes", [])
-        
-        # 构建响应数据
-        response_data = {}
-        
-        # 添加内置模式
-        for mode_id, config in builtin_modes.items():
+    # 获取所有内置模式
+    builtin_modes = tool_config_manager.get_default_mode_tools()
+    
+    # 获取所有自定义模式（从配置中）
+    config = tool_config_manager.load_config()
+    custom_modes = config.get("customModes", [])
+    
+    # 构建响应数据
+    response_data = {}
+    
+    # 添加内置模式
+    for mode_id, config in builtin_modes.items():
+        response_data[mode_id] = {
+            "id": mode_id,
+            "name": mode_id.capitalize(),
+            "type": "builtin",
+            "enabled_tools": tool_config_manager.get_tools_for_mode(mode_id),
+            "description": config.get("description", ""),
+            "tool_categories": tool_config_manager.get_tool_categories()
+        }
+    
+    # 添加自定义模式
+    for custom_mode in custom_modes:
+        mode_id = custom_mode.get("id")
+        if mode_id:
             response_data[mode_id] = {
                 "id": mode_id,
-                "name": mode_id.capitalize(),
-                "type": "builtin",
+                "name": custom_mode.get("name", mode_id),
+                "type": "custom",
                 "enabled_tools": tool_config_manager.get_tools_for_mode(mode_id),
-                "description": config.get("description", ""),
+                "description": custom_mode.get("description", "自定义模式"),
                 "tool_categories": tool_config_manager.get_tool_categories()
             }
-        
-        # 添加自定义模式
-        for custom_mode in custom_modes:
-            mode_id = custom_mode.get("id")
-            if mode_id:
-                response_data[mode_id] = {
-                    "id": mode_id,
-                    "name": custom_mode.get("name", mode_id),
-                    "type": "custom",
-                    "enabled_tools": tool_config_manager.get_tools_for_mode(mode_id),
-                    "description": custom_mode.get("description", "自定义模式"),
-                    "tool_categories": tool_config_manager.get_tool_categories()
-                }
-        
-        return response_data
     
-    except Exception as e:
-        logger.error(f"获取模式工具配置失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取模式工具配置失败: {str(e)}")
+    return response_data
 
 @router.get("/tool/modes/{mode_id}", summary="获取指定模式的工具配置", response_model=Dict[str, Any])
 async def get_mode_tool_config(mode_id: str):
     """获取指定模式的工具配置"""
-    try:
-        tool_info = tool_config_manager.get_mode_tool_info(mode_id)
-        
-        return {
-            "mode_id": mode_id,
-            "enabled_tools": tool_info.get("enabled_tools", []),
-            "description": tool_info.get("description", ""),
-            "tool_categories": tool_config_manager.get_tool_categories(),
-            "all_available_tools": tool_config_manager.get_all_available_tools()
-        }
+    tool_info = tool_config_manager.get_mode_tool_info(mode_id)
     
-    except Exception as e:
-        logger.error(f"获取模式 '{mode_id}' 工具配置失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取模式 '{mode_id}' 工具配置失败: {str(e)}")
+    return {
+        "mode_id": mode_id,
+        "enabled_tools": tool_info.get("enabled_tools", []),
+        "description": tool_info.get("description", ""),
+        "tool_categories": tool_config_manager.get_tool_categories(),
+        "all_available_tools": tool_config_manager.get_all_available_tools()
+    }
 
 @router.put("/tool/modes/{mode_id}", summary="更新指定模式的工具配置", response_model=Dict[str, Any])
 async def update_mode_tool_config(mode_id: str, request: UpdateModeToolConfigRequest):
@@ -311,57 +253,38 @@ async def update_mode_tool_config(mode_id: str, request: UpdateModeToolConfigReq
     Returns:
         Dict[str, Any]: 包含 mode_id 和 enabled_tools 的字典
     """
-    try:
-        # 更新工具配置
-        tool_config_manager.set_tools_for_mode(mode_id, request.enabled_tools)
-        
-        return {
-            "mode_id": mode_id,
-            "enabled_tools": request.enabled_tools
-        }
+    # 更新工具配置
+    tool_config_manager.set_tools_for_mode(mode_id, request.enabled_tools)
     
-    except Exception as e:
-        logger.error(f"更新模式 '{mode_id}' 工具配置失败: {e}")
-        raise HTTPException(status_code=500, detail=f"更新模式 '{mode_id}' 工具配置失败: {str(e)}")
+    return {
+        "mode_id": mode_id,
+        "enabled_tools": request.enabled_tools
+    }
 
 @router.post("/tool/modes/{mode_id}/reset", summary="重置指定模式的工具配置", response_model=Dict[str, Any])
 async def reset_mode_tool_config(mode_id: str):
     """重置指定模式的工具配置为默认值"""
-    try:
-        tool_config_manager.reset_mode_tools(mode_id)
-        
-        # 获取重置后的配置
-        default_config = tool_config_manager.get_default_mode_tools().get(mode_id, {})
-        
-        return {
-            "mode_id": mode_id,
-            "enabled_tools": default_config.get("enabled_tools", [])
-        }
+    tool_config_manager.reset_mode_tools(mode_id)
     
-    except Exception as e:
-        logger.error(f"重置模式 '{mode_id}' 工具配置失败: {e}")
-        raise HTTPException(status_code=500, detail=f"重置模式 '{mode_id}' 工具配置失败: {str(e)}")
+    # 获取重置后的配置
+    default_config = tool_config_manager.get_default_mode_tools().get(mode_id, {})
+    
+    return {
+        "mode_id": mode_id,
+        "enabled_tools": default_config.get("enabled_tools", [])
+    }
 
 @router.get("/tool/available-tools", summary="获取所有可用的工具", response_model=Dict[str, Any])
 async def get_available_tools():
     """获取所有可用的工具"""
-    try:
-        return {
-            "all_tools": tool_config_manager.get_all_available_tools(),
-            "tool_categories": tool_config_manager.get_tool_categories()
-        }
-    except Exception as e:
-        logger.error(f"获取可用工具失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取可用工具失败: {str(e)}")
+    return {
+        "all_tools": tool_config_manager.get_all_available_tools(),
+        "tool_categories": tool_config_manager.get_tool_categories()
+    }
 
 @router.get("/tool/default-config", summary="获取默认工具配置", response_model=Dict[str, Any])
 async def get_default_tool_config():
     """获取默认工具配置"""
-    try:
-        return {
-            "default_mode_tools": tool_config_manager.get_default_mode_tools()
-        }
-    
-    except Exception as e:
-        logger.error(f"获取默认工具配置失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取默认工具配置失败: {str(e)}")
+    return {
+        "default_mode_tools": tool_config_manager.get_default_mode_tools()
+    }

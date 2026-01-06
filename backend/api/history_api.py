@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException
 from langchain_core.runnables.config import RunnableConfig
+from langchain_core.messages import HumanMessage
 
 from backend.config import State
 from backend.core.ai_agent.core.graph_builder import build_graph
@@ -52,37 +53,33 @@ def create_graph(mode: Optional[str] = None):
     Args:
         mode: 模式名称，如果提供则只加载该模式启用的工具
     """
+    # 根据模式加载工具
+    tools = import_tools_from_directory('tool', mode or "outline")
+    
+    # 构建图实例
+    # 使用全局内存存储，避免重复创建连接
+    memory = get_memory_storage(mode)
+    
+    # 使用 SystemPromptBuilder 构建完整的系统提示词
+    # 使用 nest_asyncio 来允许在已有事件循环中运行异步代码
+    import asyncio
     try:
-        # 根据模式加载工具
-        tools = import_tools_from_directory('tool', mode or "outline")
-        
-        # 构建图实例
-        # 使用全局内存存储，避免重复创建连接
-        memory = get_memory_storage(mode)
-        
-        # 使用 SystemPromptBuilder 构建完整的系统提示词
-        # 使用 nest_asyncio 来允许在已有事件循环中运行异步代码
-        import asyncio
-        try:
-            # 尝试获取当前运行的事件循环
-            loop = asyncio.get_running_loop()
-            # 如果成功获取，说明已有运行中的循环，使用 nest_asyncio
-            import nest_asyncio
-            nest_asyncio.apply()
-            current_prompt = loop.run_until_complete(
-                system_prompt_builder.build_system_prompt(mode=mode or "outline", include_persistent_memory=True)
-            )
-        except RuntimeError:
-            # 没有运行中的循环，可以安全创建新循环
-            current_prompt = asyncio.run(system_prompt_builder.build_system_prompt(mode=mode or "outline", include_persistent_memory=True))
-        
-        graph = build_graph(tools, memory, system_prompt=current_prompt, mode=mode)
-        
-        logger.info(f"Graph created successfully for mode '{mode}': {len(tools)} tools bound")
-        return graph
-    except Exception as e:
-        logger.error(f"Failed to create graph: {e}")
-        raise
+        # 尝试获取当前运行的事件循环
+        loop = asyncio.get_running_loop()
+        # 如果成功获取，说明已有运行中的循环，使用 nest_asyncio
+        import nest_asyncio
+        nest_asyncio.apply()
+        current_prompt = loop.run_until_complete(
+            system_prompt_builder.build_system_prompt(mode=mode or "outline", include_persistent_memory=True)
+        )
+    except RuntimeError:
+        # 没有运行中的循环，可以安全创建新循环
+        current_prompt = asyncio.run(system_prompt_builder.build_system_prompt(mode=mode or "outline", include_persistent_memory=True))
+    
+    graph = build_graph(tools, memory, system_prompt=current_prompt, mode=mode)
+    
+    logger.info(f"Graph created successfully for mode '{mode}': {len(tools)} tools bound")
+    return graph
 
 
 # API端点
@@ -97,51 +94,46 @@ async def get_checkpoints(request: GetCheckpointsRequest):
     """
     thread_id = request.thread_id
     mode = request.mode
-    try:
-        # 创建图实例
-        graph = create_graph(mode)
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    # 创建图实例
+    graph = create_graph(mode)
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    
+    # 获取存档点历史
+    states = list(graph.get_state_history(config))
+    
+    checkpoints = []
+    for index, state in enumerate(states):
+        # 获取检查点ID
+        checkpoint_id = state.config.get('configurable', {}).get('checkpoint_id', 'unknown')
         
-        # 获取存档点历史
-        states = list(graph.get_state_history(config))
+        # 获取最后一条消息内容
+        messages = state.values.get("messages", [])
+        last_message_type = "unknown"
+        last_message_content = ""
+        tool_calls = None
         
-        checkpoints = []
-        for index, state in enumerate(states):
-            # 获取检查点ID
-            checkpoint_id = state.config.get('configurable', {}).get('checkpoint_id', 'unknown')
+        if messages:
+            last_message = messages[-1]
+            last_message_type = last_message.type if hasattr(last_message, 'type') else 'unknown'
+            last_message_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
             
-            # 获取最后一条消息内容
-            messages = state.values.get("messages", [])
-            last_message_type = "unknown"
-            last_message_content = ""
-            tool_calls = None
-            
-            if messages:
-                last_message = messages[-1]
-                last_message_type = last_message.type if hasattr(last_message, 'type') else 'unknown'
-                last_message_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
-                
-                # 如果是工具调用，显示工具信息
-                if last_message_type == 'ai' and hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-                    tool_names = [tc.get('name', 'unknown') for tc in last_message.tool_calls]
-                    tool_calls = tool_names
-                    last_message_content = f"工具调用: {', '.join(tool_names)}"
-            
-            checkpoint_info = {
-                "checkpoint_id": checkpoint_id,
-                "index": index,
-                "next_node": state.next,
-                "last_message_type": last_message_type,
-                "last_message_content": last_message_content,
-                "tool_calls": tool_calls
-            }
-            checkpoints.append(checkpoint_info)
+            # 如果是工具调用，显示工具信息
+            if last_message_type == 'ai' and hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+                tool_names = [tc.get('name', 'unknown') for tc in last_message.tool_calls]
+                tool_calls = tool_names
+                last_message_content = f"工具调用: {', '.join(tool_names)}"
         
-        return checkpoints
-        
-    except Exception as e:
-        logger.error(f"获取存档点列表失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取存档点列表失败: {str(e)}")
+        checkpoint_info = {
+            "checkpoint_id": checkpoint_id,
+            "index": index,
+            "next_node": state.next,
+            "last_message_type": last_message_type,
+            "last_message_content": last_message_content,
+            "tool_calls": tool_calls
+        }
+        checkpoints.append(checkpoint_info)
+    
+    return checkpoints
 
 @router.post("/checkpoint/rollback", summary="回档到指定存档点", response_model=Dict[str, Any])
 async def rollback_to_checkpoint(request: RollbackCheckpointRequest):
@@ -157,55 +149,48 @@ async def rollback_to_checkpoint(request: RollbackCheckpointRequest):
     checkpoint_index = request.checkpoint_index
     new_message = request.new_message
     mode = request.mode
-    try:
-        # 创建图实例
-        graph = create_graph(mode)
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-        
-        # 获取存档点历史
-        states = list(graph.get_state_history(config))
-        
-        if checkpoint_index < 0 or checkpoint_index >= len(states):
-            raise HTTPException(status_code=400, detail="存档点索引无效")
-        
-        # 获取选中的存档点
-        selected_state = states[checkpoint_index]
-        
-        # 更新状态：获取整个消息列表，去掉最后一条用户信息，添加新的用户消息
-        current_messages = selected_state.values.get("messages", [])
-        
-        from langchain_core.messages import HumanMessage
-        
-        # 如果消息列表为空，直接添加新消息
-        if not current_messages:
-            new_messages = [HumanMessage(content=new_message)]
+    # 创建图实例
+    graph = create_graph(mode)
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    
+    # 获取存档点历史
+    states = list(graph.get_state_history(config))
+    
+    if checkpoint_index < 0 or checkpoint_index >= len(states):
+        raise HTTPException(status_code=400, detail="存档点索引无效")
+    
+    # 获取选中的存档点
+    selected_state = states[checkpoint_index]
+    
+    # 更新状态：获取整个消息列表，去掉最后一条用户信息，添加新的用户消息
+    current_messages = selected_state.values.get("messages", [])
+    
+    # 如果消息列表为空，直接添加新消息
+    if not current_messages:
+        new_messages = [HumanMessage(content=new_message)]
+    else:
+        # 检查最后一条消息是否是用户消息
+        last_message = current_messages[-1]
+        if hasattr(last_message, 'type') and last_message.type == 'human':
+            # 如果最后一条是用户消息，替换它
+            new_messages = current_messages[:-1] + [HumanMessage(content=new_message)]
         else:
-            # 检查最后一条消息是否是用户消息
-            last_message = current_messages[-1]
-            if hasattr(last_message, 'type') and last_message.type == 'human':
-                # 如果最后一条是用户消息，替换它
-                new_messages = current_messages[:-1] + [HumanMessage(content=new_message)]
-            else:
-                # 如果最后一条不是用户消息，直接添加新消息
-                new_messages = current_messages + [HumanMessage(content=new_message)]
-        
-        # 用整个新状态替换原本的旧状态
-        new_config = graph.update_state(selected_state.config, values={"messages": new_messages})
-        
-        # 触发回复
-        input_state = State(messages=new_messages)
-        
-        # 执行对话
-        result = graph.invoke(input_state, new_config)
-        
-        return {
-            "new_config": new_config,
-            "result": serialize_langchain_object(result)
-        }
-        
-    except Exception as e:
-        logger.error(f"回档操作失败: {e}")
-        raise HTTPException(status_code=500, detail=f"回档操作失败: {str(e)}")
+            # 如果最后一条不是用户消息，直接添加新消息
+            new_messages = current_messages + [HumanMessage(content=new_message)]
+    
+    # 用整个新状态替换原本的旧状态
+    new_config = graph.update_state(selected_state.config, values={"messages": new_messages})
+    
+    # 触发回复
+    input_state = State(messages=new_messages)
+    
+    # 执行对话
+    result = graph.invoke(input_state, new_config)
+    
+    return {
+        "new_config": new_config,
+        "result": serialize_langchain_object(result)
+    }
 
 @router.post("/messages", summary="获取历史消息列表", response_model=List[Dict[str, Any]])
 async def get_messages(request: GetMessagesRequest):
@@ -217,31 +202,26 @@ async def get_messages(request: GetMessagesRequest):
     """
     thread_id = request.thread_id
     mode = request.mode
-    try:
-        # 创建图实例
-        graph = create_graph(mode)
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-        
-        # 获取当前状态
-        current_state = graph.get_state(config)
-        current_messages = current_state.values.get("messages", [])
-        
-        messages = []
-        for index, msg in enumerate(current_messages):
-            message_info = {
-                "index": index,
-                "message_id": getattr(msg, 'id', f"msg_{index}") or f"msg_{index}",
-                "message_type": msg.type if hasattr(msg, 'type') else 'unknown',
-                "content": msg.content if hasattr(msg, 'content') else str(msg),
-                "tool_calls": getattr(msg, 'tool_calls', None)
-            }
-            messages.append(message_info)
-        
-        return messages
-        
-    except Exception as e:
-        logger.error(f"获取历史消息列表失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取历史消息列表失败: {str(e)}")
+    # 创建图实例
+    graph = create_graph(mode)
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    
+    # 获取当前状态
+    current_state = graph.get_state(config)
+    current_messages = current_state.values.get("messages", [])
+    
+    messages = []
+    for index, msg in enumerate(current_messages):
+        message_info = {
+            "index": index,
+            "message_id": getattr(msg, 'id', f"msg_{index}") or f"msg_{index}",
+            "message_type": msg.type if hasattr(msg, 'type') else 'unknown',
+            "content": msg.content if hasattr(msg, 'content') else str(msg),
+            "tool_calls": getattr(msg, 'tool_calls', None)
+        }
+        messages.append(message_info)
+    
+    return messages
 
 @router.post("/messages/operation", summary="操作历史消息", response_model=Dict[str, Any])
 async def operate_messages(request: OperateMessagesRequest):
@@ -259,35 +239,55 @@ async def operate_messages(request: OperateMessagesRequest):
     target_indices = request.target_indices
     target_ids = request.target_ids
     mode = request.mode
-    try:
-        # 创建图实例
-        graph = create_graph(mode)
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    # 创建图实例
+    graph = create_graph(mode)
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    
+    # 获取当前状态
+    current_state = graph.get_state(config)
+    current_messages = current_state.values.get("messages", [])
+    
+    if operation_type == 'delete_all':
+        # 删除所有消息
+        delete_instruction = HumanMessage(content="/delete all")
+        updated_messages = current_messages + [delete_instruction]
         
-        # 获取当前状态
-        current_state = graph.get_state(config)
-        current_messages = current_state.values.get("messages", [])
+        # 调用图，条件边会自动路由到自定义删除节点
+        result = graph.invoke(
+            {"messages": updated_messages},
+            config
+        )
         
-        from langchain_core.messages import HumanMessage
+        return {"result": serialize_langchain_object(result)}
         
-        if operation_type == 'delete_all':
-            # 删除所有消息
-            delete_instruction = HumanMessage(content="/delete all")
-            updated_messages = current_messages + [delete_instruction]
-            
-            # 调用图，条件边会自动路由到自定义删除节点
-            result = graph.invoke(
-                {"messages": updated_messages},
-                config
-            )
-            
-            return {"result": serialize_langchain_object(result)}
-            
-        elif operation_type == 'delete_index' and target_indices:
-            # 删除指定索引的消息
-            result = None
-            for index in target_indices:
-                if 0 <= index < len(current_messages):
+    elif operation_type == 'delete_index' and target_indices:
+        # 删除指定索引的消息
+        result = None
+        for index in target_indices:
+            if 0 <= index < len(current_messages):
+                # 使用自定义删除指令删除特定索引的消息
+                delete_instruction = HumanMessage(content=f"/delete index {index}")
+                updated_messages = current_messages + [delete_instruction]
+                
+                # 调用图，条件边会自动路由到自定义删除节点
+                result = graph.invoke(
+                    {"messages": updated_messages},
+                    config
+                )
+                current_messages = result["messages"]
+            else:
+                logger.warning(f"无效的消息索引: {index}")
+        
+        return {"result": serialize_langchain_object(result)}
+        
+    elif operation_type == 'delete_ids' and target_ids:
+        # 删除指定ID的消息
+        deleted_count = 0
+        result = None
+        for msg_id in target_ids:
+            # 查找消息索引
+            for index, msg in enumerate(current_messages):
+                if getattr(msg, 'id', None) == msg_id:
                     # 使用自定义删除指令删除特定索引的消息
                     delete_instruction = HumanMessage(content=f"/delete index {index}")
                     updated_messages = current_messages + [delete_instruction]
@@ -298,42 +298,15 @@ async def operate_messages(request: OperateMessagesRequest):
                         config
                     )
                     current_messages = result["messages"]
-                else:
-                    logger.warning(f"无效的消息索引: {index}")
-            
-            return {"result": serialize_langchain_object(result)}
-            
-        elif operation_type == 'delete_ids' and target_ids:
-            # 删除指定ID的消息
-            deleted_count = 0
-            result = None
-            for msg_id in target_ids:
-                # 查找消息索引
-                for index, msg in enumerate(current_messages):
-                    if getattr(msg, 'id', None) == msg_id:
-                        # 使用自定义删除指令删除特定索引的消息
-                        delete_instruction = HumanMessage(content=f"/delete index {index}")
-                        updated_messages = current_messages + [delete_instruction]
-                        
-                        # 调用图，条件边会自动路由到自定义删除节点
-                        result = graph.invoke(
-                            {"messages": updated_messages},
-                            config
-                        )
-                        current_messages = result["messages"]
-                        deleted_count += 1
-                        break
-            
-            if result is None:
-                result = {"messages": current_messages}
-            return {"result": serialize_langchain_object(result)}
+                    deleted_count += 1
+                    break
         
-        else:
-            raise HTTPException(status_code=400, detail="无效的操作类型或参数")
-        
-    except Exception as e:
-        logger.error(f"消息操作失败: {e}")
-        raise HTTPException(status_code=500, detail=f"消息操作失败: {str(e)}")
+        if result is None:
+            result = {"messages": current_messages}
+        return {"result": serialize_langchain_object(result)}
+    
+    else:
+        raise HTTPException(status_code=400, detail="无效的操作类型或参数")
 
 # 会话管理API端点
 @router.get("/sessions", summary="获取所有会话列表", response_model=Dict[str, Any])
@@ -343,210 +316,40 @@ async def get_all_sessions():
     
     返回所有用户的会话信息，包括会话ID、消息数量等
     """
-    try:
-        from backend.config import settings
-        db_path = settings.CHECKPOINTS_DB_PATH
-        
-        if not os.path.exists(db_path):
-            return {"sessions": []}
-        
-        # 使用全局连接，避免锁定问题
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 获取所有用户ID（会话ID）并按照最后访问时间排序
-        cursor.execute('''
-            SELECT DISTINCT thread_id,
-                   (SELECT MAX(checkpoint_id) FROM checkpoints WHERE thread_id = c.thread_id) as last_checkpoint_id
-            FROM checkpoints c
-            ORDER BY last_checkpoint_id DESC
-        ''')
-        user_ids = [row[0] for row in cursor.fetchall()]
-        
-        sessions = []
-        for user_id in user_ids:
-            # 获取该会话的检查点数量（消息数量）
-            cursor.execute('SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?', (user_id,))
-            message_count = cursor.fetchone()[0]
-            
-            # 获取创建时间和最后访问时间
-            # 由于数据库中没有created列，我们从checkpoint字段中提取时间戳
-            cursor.execute('''
-                SELECT checkpoint, checkpoint_id
-                FROM checkpoints
-                WHERE thread_id = ?
-                ORDER BY checkpoint_id ASC
-                LIMIT 1
-            ''', (user_id,))
-            first_checkpoint = cursor.fetchone()
-            created_at = None
-            
-            cursor.execute('''
-                SELECT checkpoint, checkpoint_id
-                FROM checkpoints
-                WHERE thread_id = ?
-                ORDER BY checkpoint_id DESC
-                LIMIT 1
-            ''', (user_id,))
-            last_checkpoint = cursor.fetchone()
-            last_accessed = None
-            
-            # 尝试从checkpoint数据中提取时间戳
-            if first_checkpoint and first_checkpoint[0]:
-                try:
-                    checkpoint_data = msgpack.unpackb(first_checkpoint[0])
-                    created_at = checkpoint_data.get('ts', None)
-                except:
-                    created_at = None
-            
-            if last_checkpoint and last_checkpoint[0]:
-                try:
-                    checkpoint_data = msgpack.unpackb(last_checkpoint[0])
-                    last_accessed = checkpoint_data.get('ts', None)
-                except:
-                    last_accessed = None
-            
-            # 获取最后一条消息作为预览
-            cursor.execute('''
-                SELECT checkpoint
-                FROM checkpoints
-                WHERE thread_id = ?
-                ORDER BY checkpoint_id DESC
-                LIMIT 1
-            ''', (user_id,))
-            last_checkpoint = cursor.fetchone()
-            preview = ""
-            
-            if last_checkpoint and last_checkpoint[0]:
-                try:
-                    checkpoint_data = msgpack.unpackb(last_checkpoint[0])
-                    channel_values = checkpoint_data.get('channel_values', {})
-                    messages = channel_values.get('messages', [])
-                    
-                    if messages:
-                        # 查找第一条人类消息（HumanMessage）作为标题
-                        first_human_message = None
-                        for msg in messages:
-                            # 处理ExtType格式的消息
-                            if hasattr(msg, 'code') and hasattr(msg, 'data'):
-                                try:
-                                    msg_data = msgpack.unpackb(msg.data)
-                                    if len(msg_data) > 2 and isinstance(msg_data[2], dict):
-                                        msg_content = msg_data[2]
-                                        msg_type = msg_content.get('type', '')
-                                        if msg_type == 'human':
-                                            first_human_message = msg_content
-                                            break
-                                except Exception as e:
-                                    logger.warning(f"解析ExtType消息失败: {e}")
-                                    continue
-                            elif isinstance(msg, dict):
-                                msg_type = msg.get('type', '')
-                                if msg_type == 'human':
-                                    first_human_message = msg
-                                    break
-                        
-                        if first_human_message:
-                            content = first_human_message.get('content', '')
-                            if content:
-                                # 取前7个字符作为标题
-                                preview = content[:7]
-                                if len(content) > 7:
-                                    preview += "..."
-                            else:
-                                preview = "消息内容为空"
-                        else:
-                            # 如果没有找到人类消息，使用最后一条消息
-                            last_message_data = messages[-1]
-                            if hasattr(last_message_data, 'code') and hasattr(last_message_data, 'data'):
-                                try:
-                                    msg_data = msgpack.unpackb(last_message_data.data)
-                                    if len(msg_data) > 2 and isinstance(msg_data[2], dict):
-                                        msg_content = msg_data[2]
-                                        content = msg_content.get('content', '')
-                                        if content:
-                                            preview = content[:7]
-                                            if len(content) > 7:
-                                                preview += "..."
-                                        else:
-                                            preview = "消息内容为空"
-                                    else:
-                                        preview = "消息格式不正确"
-                                except Exception as e:
-                                    logger.warning(f"解析ExtType消息失败: {e}")
-                                    preview = "无法解析消息预览"
-                            elif isinstance(last_message_data, dict):
-                                content = last_message_data.get('content', '')
-                                if content:
-                                    preview = content[:7]
-                                    if len(content) > 7:
-                                        preview += "..."
-                                else:
-                                    preview = "消息内容为空"
-                            else:
-                                preview = "消息格式无法解析"
-                    else:
-                        preview = "无消息内容"
-                except Exception as e:
-                    logger.warning(f"解析消息预览失败: {e}")
-                    preview = "无法解析消息预览"
-            
-            session_info = {
-                "session_id": user_id,
-                "message_count": message_count,
-                "created_at": created_at,
-                "last_accessed": last_accessed,
-                "preview": preview
-            }
-            sessions.append(session_info)
-        
-        # 不关闭全局连接，保持连接开放
-        # conn.close()
-        
-        return {"sessions": sessions}
-        
-    except Exception as e:
-        logger.error(f"获取会话列表失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取会话列表失败: {str(e)}")
-
-@router.get("/sessions/{session_id}", summary="获取指定会话详情", response_model=Dict[str, Any])
-async def get_session(session_id: str):
-    """
-    获取指定会话的详细信息
-
-    - **session_id**: 会话ID
-    """
-    try:
-        from backend.config import settings
-        db_path = settings.CHECKPOINTS_DB_PATH
-        
-        if not os.path.exists(db_path):
-            raise HTTPException(status_code=404, detail="数据库文件不存在")
-
-        # 使用全局连接，避免锁定问题
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 检查会话是否存在
-        cursor.execute('SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?', (session_id,))
-        session_count = cursor.fetchone()[0]
-        
-        if session_count == 0:
-            conn.close()
-            raise HTTPException(status_code=404, detail="会话不存在")
-
-        # 获取会话的基本信息
-        cursor.execute('SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?', (session_id,))
+    from backend.config import settings
+    db_path = settings.CHECKPOINTS_DB_PATH
+    
+    if not os.path.exists(db_path):
+        return {"sessions": []}
+    
+    # 使用全局连接，避免锁定问题
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 获取所有用户ID（会话ID）并按照最后访问时间排序
+    cursor.execute('''
+        SELECT DISTINCT thread_id,
+               (SELECT MAX(checkpoint_id) FROM checkpoints WHERE thread_id = c.thread_id) as last_checkpoint_id
+        FROM checkpoints c
+        ORDER BY last_checkpoint_id DESC
+    ''')
+    user_ids = [row[0] for row in cursor.fetchall()]
+    
+    sessions = []
+    for user_id in user_ids:
+        # 获取该会话的检查点数量（消息数量）
+        cursor.execute('SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?', (user_id,))
         message_count = cursor.fetchone()[0]
         
         # 获取创建时间和最后访问时间
+        # 由于数据库中没有created列，我们从checkpoint字段中提取时间戳
         cursor.execute('''
             SELECT checkpoint, checkpoint_id
             FROM checkpoints
             WHERE thread_id = ?
             ORDER BY checkpoint_id ASC
             LIMIT 1
-        ''', (session_id,))
+        ''', (user_id,))
         first_checkpoint = cursor.fetchone()
         created_at = None
         
@@ -556,7 +359,7 @@ async def get_session(session_id: str):
             WHERE thread_id = ?
             ORDER BY checkpoint_id DESC
             LIMIT 1
-        ''', (session_id,))
+        ''', (user_id,))
         last_checkpoint = cursor.fetchone()
         last_accessed = None
         
@@ -582,7 +385,7 @@ async def get_session(session_id: str):
             WHERE thread_id = ?
             ORDER BY checkpoint_id DESC
             LIMIT 1
-        ''', (session_id,))
+        ''', (user_id,))
         last_checkpoint = cursor.fetchone()
         preview = ""
         
@@ -660,22 +463,177 @@ async def get_session(session_id: str):
                 logger.warning(f"解析消息预览失败: {e}")
                 preview = "无法解析消息预览"
         
-        # 不关闭全局连接，保持连接开放
-        # conn.close()
-        
-        return {
-            "session_id": session_id,
+        session_info = {
+            "session_id": user_id,
             "message_count": message_count,
             "created_at": created_at,
             "last_accessed": last_accessed,
             "preview": preview
         }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取会话详情失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取会话详情失败: {str(e)}")
+        sessions.append(session_info)
+    
+    return {"sessions": sessions}
+
+@router.get("/sessions/{session_id}", summary="获取指定会话详情", response_model=Dict[str, Any])
+async def get_session(session_id: str):
+    """
+    获取指定会话的详细信息
+
+    - **session_id**: 会话ID
+    """
+    from backend.config import settings
+    db_path = settings.CHECKPOINTS_DB_PATH
+    
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="数据库文件不存在")
+
+    # 使用全局连接，避免锁定问题
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 检查会话是否存在
+    cursor.execute('SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?', (session_id,))
+    session_count = cursor.fetchone()[0]
+    
+    if session_count == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    # 获取会话的基本信息
+    cursor.execute('SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?', (session_id,))
+    message_count = cursor.fetchone()[0]
+    
+    # 获取创建时间和最后访问时间
+    cursor.execute('''
+        SELECT checkpoint, checkpoint_id
+        FROM checkpoints
+        WHERE thread_id = ?
+        ORDER BY checkpoint_id ASC
+        LIMIT 1
+    ''', (session_id,))
+    first_checkpoint = cursor.fetchone()
+    created_at = None
+    
+    cursor.execute('''
+        SELECT checkpoint, checkpoint_id
+        FROM checkpoints
+        WHERE thread_id = ?
+        ORDER BY checkpoint_id DESC
+        LIMIT 1
+    ''', (session_id,))
+    last_checkpoint = cursor.fetchone()
+    last_accessed = None
+    
+    # 尝试从checkpoint数据中提取时间戳
+    if first_checkpoint and first_checkpoint[0]:
+        try:
+            checkpoint_data = msgpack.unpackb(first_checkpoint[0])
+            created_at = checkpoint_data.get('ts', None)
+        except:
+            created_at = None
+    
+    if last_checkpoint and last_checkpoint[0]:
+        try:
+            checkpoint_data = msgpack.unpackb(last_checkpoint[0])
+            last_accessed = checkpoint_data.get('ts', None)
+        except:
+            last_accessed = None
+    
+    # 获取最后一条消息作为预览
+    cursor.execute('''
+        SELECT checkpoint
+        FROM checkpoints
+        WHERE thread_id = ?
+        ORDER BY checkpoint_id DESC
+        LIMIT 1
+    ''', (session_id,))
+    last_checkpoint = cursor.fetchone()
+    preview = ""
+    
+    if last_checkpoint and last_checkpoint[0]:
+        try:
+            checkpoint_data = msgpack.unpackb(last_checkpoint[0])
+            channel_values = checkpoint_data.get('channel_values', {})
+            messages = channel_values.get('messages', [])
+            
+            if messages:
+                # 查找第一条人类消息（HumanMessage）作为标题
+                first_human_message = None
+                for msg in messages:
+                    # 处理ExtType格式的消息
+                    if hasattr(msg, 'code') and hasattr(msg, 'data'):
+                        try:
+                            msg_data = msgpack.unpackb(msg.data)
+                            if len(msg_data) > 2 and isinstance(msg_data[2], dict):
+                                msg_content = msg_data[2]
+                                msg_type = msg_content.get('type', '')
+                                if msg_type == 'human':
+                                    first_human_message = msg_content
+                                    break
+                        except Exception as e:
+                            logger.warning(f"解析ExtType消息失败: {e}")
+                            continue
+                    elif isinstance(msg, dict):
+                        msg_type = msg.get('type', '')
+                        if msg_type == 'human':
+                            first_human_message = msg
+                            break
+                
+                if first_human_message:
+                    content = first_human_message.get('content', '')
+                    if content:
+                        # 取前7个字符作为标题
+                        preview = content[:7]
+                        if len(content) > 7:
+                            preview += "..."
+                    else:
+                        preview = "消息内容为空"
+                else:
+                    # 如果没有找到人类消息，使用最后一条消息
+                    last_message_data = messages[-1]
+                    if hasattr(last_message_data, 'code') and hasattr(last_message_data, 'data'):
+                        try:
+                            msg_data = msgpack.unpackb(last_message_data.data)
+                            if len(msg_data) > 2 and isinstance(msg_data[2], dict):
+                                msg_content = msg_data[2]
+                                content = msg_content.get('content', '')
+                                if content:
+                                    preview = content[:7]
+                                    if len(content) > 7:
+                                        preview += "..."
+                                else:
+                                    preview = "消息内容为空"
+                            else:
+                                preview = "消息格式不正确"
+                        except Exception as e:
+                            logger.warning(f"解析ExtType消息失败: {e}")
+                            preview = "无法解析消息预览"
+                    elif isinstance(last_message_data, dict):
+                        content = last_message_data.get('content', '')
+                        if content:
+                            preview = content[:7]
+                            if len(content) > 7:
+                                preview += "..."
+                        else:
+                            preview = "消息内容为空"
+                    else:
+                        preview = "消息格式无法解析"
+            else:
+                preview = "无消息内容"
+        except Exception as e:
+            logger.warning(f"解析消息预览失败: {e}")
+            preview = "无法解析消息预览"
+    
+    # 不关闭全局连接，保持连接开放
+    # conn.close()
+    
+    return {
+        "session_id": session_id,
+        "message_count": message_count,
+        "created_at": created_at,
+        "last_accessed": last_accessed,
+        "preview": preview
+    }
 
 @router.delete("/sessions/{session_id}", summary="删除指定会话", response_model=Dict[str, Any])
 async def delete_session(session_id: str):
@@ -684,58 +642,51 @@ async def delete_session(session_id: str):
 
     - **session_id**: 会话ID
     """
-    try:
-        from backend.config import settings
-        db_path = settings.CHECKPOINTS_DB_PATH
-        
-        if not os.path.exists(db_path):
-            raise HTTPException(status_code=404, detail="数据库文件不存在")
+    from backend.config import settings
+    db_path = settings.CHECKPOINTS_DB_PATH
+    
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="数据库文件不存在")
 
-        # 使用全局连接，避免锁定问题
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 检查会话是否存在
-        cursor.execute('SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?', (session_id,))
-        session_count = cursor.fetchone()[0]
-        
-        if session_count == 0:
-            conn.close()
-            raise HTTPException(status_code=404, detail="会话不存在")
+    # 使用全局连接，避免锁定问题
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 检查会话是否存在
+    cursor.execute('SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?', (session_id,))
+    session_count = cursor.fetchone()[0]
+    
+    if session_count == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="会话不存在")
 
-        # 删除会话数据，添加重试机制
-        max_retries = 3
-        retry_delay = 0.5  # 秒
-        checkpoints_deleted = 0
-        writes_deleted = 0
-        
-        for attempt in range(max_retries):
-            try:
-                cursor.execute('DELETE FROM checkpoints WHERE thread_id = ?', (session_id,))
-                checkpoints_deleted = cursor.rowcount
-                cursor.execute('DELETE FROM writes WHERE thread_id = ?', (session_id,))
-                writes_deleted = cursor.rowcount
-                
-                conn.commit()
-                break  # 成功则退出重试循环
-            except sqlite3.OperationalError as e:
-                if "database is locked" in str(e).lower() and attempt < max_retries - 1:
-                    logger.warning(f"数据库锁定，第 {attempt + 1} 次重试...")
-                    time.sleep(retry_delay * (2 ** attempt))  # 指数退避
-                    continue
-                else:
-                    raise  # 重试次数用完或不是锁定错误，重新抛出异常
-        
-        # 不关闭全局连接，保持连接开放
-        # conn.close()
-        
-        return {
-            "checkpoints_deleted": checkpoints_deleted,
-            "writes_deleted": writes_deleted
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"删除会话失败: {e}")
-        raise HTTPException(status_code=500, detail=f"删除会话失败: {str(e)}")
+    # 删除会话数据，添加重试机制
+    max_retries = 3
+    retry_delay = 0.5  # 秒
+    checkpoints_deleted = 0
+    writes_deleted = 0
+    
+    for attempt in range(max_retries):
+        try:
+            cursor.execute('DELETE FROM checkpoints WHERE thread_id = ?', (session_id,))
+            checkpoints_deleted = cursor.rowcount
+            cursor.execute('DELETE FROM writes WHERE thread_id = ?', (session_id,))
+            writes_deleted = cursor.rowcount
+            
+            conn.commit()
+            break  # 成功则退出重试循环
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e).lower() and attempt < max_retries - 1:
+                logger.warning(f"数据库锁定，第 {attempt + 1} 次重试...")
+                time.sleep(retry_delay * (2 ** attempt))  # 指数退避
+                continue
+            else:
+                raise  # 重试次数用完或不是锁定错误，重新抛出异常
+    
+    # 不关闭全局连接，保持连接开放
+    # conn.close()
+    
+    return {
+        "checkpoints_deleted": checkpoints_deleted,
+        "writes_deleted": writes_deleted
+    }

@@ -3,7 +3,7 @@ from typing import List, Dict
 from pydantic import BaseModel, Field
 from backend.core.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.config import ai_settings
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from backend.core.ai_agent.models.providers_list import BUILTIN_PROVIDERS
 
 logger = logging.getLogger(__name__)
@@ -59,18 +59,14 @@ def model_list(provider_id: str):
     Returns:
         模型列表
     """
-    try:
-        # 获取API密钥和base_url
-        api_key = ai_settings.get_api_key_for_provider(provider_id)
-        base_url = ai_settings.get_base_url_for_provider(provider_id)
-        
-        # 获取模型列表
-        models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
-        
-        return models
-    except Exception as e:
-        logger.error(f"获取提供商 {provider_id} 的模型列表失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    # 获取API密钥和base_url
+    api_key = ai_settings.get_api_key_for_provider(provider_id)
+    base_url = ai_settings.get_base_url_for_provider(provider_id)
+    
+    # 获取模型列表
+    models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
+    
+    return models
 
 # 常用模型相关API
 @router.get("/favorite-models", summary="获取常用模型列表", response_model=Dict[str, Dict])
@@ -78,14 +74,9 @@ async def get_favorite_models():
     """
     获取常用模型列表
     """
-    try:
-        config = ai_settings.get_all_config()
-        favorite_models = config.get("favoriteModels", {})
-        return favorite_models
-        
-    except Exception as e:
-        logger.error(f"获取常用模型列表失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取常用模型列表失败: {str(e)}")
+    config = ai_settings.get_all_config()
+    favorite_models = config.get("favoriteModels", {})
+    return favorite_models
 
 @router.post("/favorite-models", summary="添加常用模型", response_model=Dict[str, Dict])
 async def add_favorite_model(request: AddFavoriteModelRequest):
@@ -95,25 +86,20 @@ async def add_favorite_model(request: AddFavoriteModelRequest):
     - **modelId**: 模型ID
     - **provider**: 提供商
     """
-    try:
-        config = ai_settings.get_all_config()
-        
-        # 初始化favoriteModels字典（如果不存在）
-        if "favoriteModels" not in config:
-            config["favoriteModels"] = {}
-        
-        # 添加模型到常用列表
-        config["favoriteModels"][request.modelId] = {
-            "modelId": request.modelId,
-            "provider": request.provider
-        }
-        
-        ai_settings.update_config(config)
-        return config["favoriteModels"]
-        
-    except Exception as e:
-        logger.error(f"添加常用模型失败: {e}")
-        raise HTTPException(status_code=500, detail=f"添加常用模型失败: {str(e)}")
+    config = ai_settings.get_all_config()
+    
+    # 初始化favoriteModels字典（如果不存在）
+    if "favoriteModels" not in config:
+        config["favoriteModels"] = {}
+    
+    # 添加模型到常用列表
+    config["favoriteModels"][request.modelId] = {
+        "modelId": request.modelId,
+        "provider": request.provider
+    }
+    
+    ai_settings.update_config(config)
+    return config["favoriteModels"]
 
 @router.delete("/favorite-models", summary="删除常用模型", response_model=Dict[str, Dict])
 async def remove_favorite_model(model_id: str):
@@ -122,25 +108,20 @@ async def remove_favorite_model(model_id: str):
     
     - **modelId**: 模型ID（通过查询参数传递）
     """
-    try:
-        config = ai_settings.get_all_config()
+    config = ai_settings.get_all_config()
+    
+    # 初始化favoriteModels字典（如果不存在）
+    if "favoriteModels" not in config:
+        config["favoriteModels"] = {}
+    
+    # 从常用列表中删除模型
+    if model_id in config["favoriteModels"]:
+        del config["favoriteModels"][model_id]
+        ai_settings.update_config(config)
         
-        # 初始化favoriteModels字典（如果不存在）
-        if "favoriteModels" not in config:
-            config["favoriteModels"] = {}
-        
-        # 从常用列表中删除模型
-        if model_id in config["favoriteModels"]:
-            del config["favoriteModels"][model_id]
-            ai_settings.update_config(config)
-            
-            return config["favoriteModels"]
-        else:
-            return config["favoriteModels"]
-        
-    except Exception as e:
-        logger.error(f"删除常用模型失败: {e}")
-        raise HTTPException(status_code=500, detail=f"删除常用模型失败: {str(e)}")
+        return config["favoriteModels"]
+    else:
+        return config["favoriteModels"]
 
 
 @router.post("/custom-providers", summary="添加自定义提供商", response_model=List[Dict])
@@ -152,33 +133,28 @@ async def add_custom_provider(request: AddCustomProviderRequest):
     - **baseUrl**: API基础URL
     - **apiKey**: API密钥
     """
-    try:
-        config = ai_settings.get_all_config()
-        
-        # 初始化customProviders列表（如果不存在）
-        if "customProviders" not in config:
-            config["customProviders"] = []
-        
-        # 检查提供商名称是否已存在
-        existing_names = [provider.get("name") for provider in config["customProviders"]]
-        if request.name in existing_names:
-            return config["customProviders"]
-        
-        # 添加新的自定义提供商
-        new_provider = {
-            "name": request.name,
-            "baseUrl": request.baseUrl,
-            "apiKey": request.apiKey
-        }
-        
-        config["customProviders"].append(new_provider)
-        ai_settings.update_config(config)
-        
+    config = ai_settings.get_all_config()
+    
+    # 初始化customProviders列表（如果不存在）
+    if "customProviders" not in config:
+        config["customProviders"] = []
+    
+    # 检查提供商名称是否已存在
+    existing_names = [provider.get("name") for provider in config["customProviders"]]
+    if request.name in existing_names:
         return config["customProviders"]
-        
-    except Exception as e:
-        logger.error(f"添加自定义提供商失败: {e}")
-        raise HTTPException(status_code=500, detail=f"添加自定义提供商失败: {str(e)}")
+    
+    # 添加新的自定义提供商
+    new_provider = {
+        "name": request.name,
+        "baseUrl": request.baseUrl,
+        "apiKey": request.apiKey
+    }
+    
+    config["customProviders"].append(new_provider)
+    ai_settings.update_config(config)
+    
+    return config["customProviders"]
 
 @router.put("/custom-providers/{provider_id}", summary="更新自定义提供商", response_model=List[Dict])
 async def update_custom_provider(provider_id: str, request: UpdateCustomProviderRequest):
@@ -190,35 +166,30 @@ async def update_custom_provider(provider_id: str, request: UpdateCustomProvider
     - **baseUrl**: API基础URL
     - **apiKey**: API密钥
     """
-    try:
-        config = ai_settings.get_all_config()
-        
-        # 初始化customProviders列表（如果不存在）
-        if "customProviders" not in config:
-            config["customProviders"] = []
-        
-        # 查找并更新提供商
-        provider_found = False
-        for i, provider in enumerate(config["customProviders"]):
-            if provider.get("name") == provider_id:
-                config["customProviders"][i] = {
-                    "name": request.name,
-                    "baseUrl": request.baseUrl,
-                    "apiKey": request.apiKey
-                }
-                provider_found = True
-                break
-        
-        if not provider_found:
-            return config["customProviders"]
-        
-        ai_settings.update_config(config)
-        
+    config = ai_settings.get_all_config()
+    
+    # 初始化customProviders列表（如果不存在）
+    if "customProviders" not in config:
+        config["customProviders"] = []
+    
+    # 查找并更新提供商
+    provider_found = False
+    for i, provider in enumerate(config["customProviders"]):
+        if provider.get("name") == provider_id:
+            config["customProviders"][i] = {
+                "name": request.name,
+                "baseUrl": request.baseUrl,
+                "apiKey": request.apiKey
+            }
+            provider_found = True
+            break
+    
+    if not provider_found:
         return config["customProviders"]
-        
-    except Exception as e:
-        logger.error(f"更新自定义提供商失败: {e}")
-        raise HTTPException(status_code=500, detail=f"更新自定义提供商失败: {str(e)}")
+    
+    ai_settings.update_config(config)
+    
+    return config["customProviders"]
 
 @router.delete("/custom-providers/{provider_id}", summary="删除自定义提供商", response_model=List[Dict])
 async def delete_custom_provider(provider_id: str):
@@ -227,28 +198,23 @@ async def delete_custom_provider(provider_id: str):
     
     - **provider_id**: 提供商ID（路径参数）
     """
-    try:
-        config = ai_settings.get_all_config()
-        
-        # 初始化customProviders列表（如果不存在）
-        if "customProviders" not in config:
-            config["customProviders"] = []
-        
-        # 查找并删除提供商
-        provider_found = False
-        for i, provider in enumerate(config["customProviders"]):
-            if provider.get("name") == provider_id:
-                del config["customProviders"][i]
-                provider_found = True
-                break
-        
-        if not provider_found:
-            return config["customProviders"]
-        
-        ai_settings.update_config(config)
-        
+    config = ai_settings.get_all_config()
+    
+    # 初始化customProviders列表（如果不存在）
+    if "customProviders" not in config:
+        config["customProviders"] = []
+    
+    # 查找并删除提供商
+    provider_found = False
+    for i, provider in enumerate(config["customProviders"]):
+        if provider.get("name") == provider_id:
+            del config["customProviders"][i]
+            provider_found = True
+            break
+    
+    if not provider_found:
         return config["customProviders"]
-        
-    except Exception as e:
-        logger.error(f"删除自定义提供商失败: {e}")
-        raise HTTPException(status_code=500, detail=f"删除自定义提供商失败: {str(e)}")
+    
+    ai_settings.update_config(config)
+    
+    return config["customProviders"]

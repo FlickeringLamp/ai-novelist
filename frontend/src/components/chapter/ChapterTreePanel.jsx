@@ -236,11 +236,9 @@ function ChapterTreePanel() {
   };
 
   // 统一的创建项目函数
-  const handleCreateItem = async (name, isFolder, parentPath = '') => {
+  const handleCreateItem = async (isFolder, parentPath = '') => {
     try {
       await httpClient.post('/api/file/items', {
-        name,
-        content: '',
         parent_path: parentPath,
         is_folder: isFolder
       });
@@ -255,12 +253,12 @@ function ChapterTreePanel() {
 
   // 新建文件
   const handleNewFile = async (parentPath = '') => {
-    await handleCreateItem('新建文件.md', false, parentPath);
+    await handleCreateItem(false, parentPath);
   };
 
   // 新建文件夹
   const handleNewFolder = async (parentPath = '') => {
-    await handleCreateItem('新文件夹', true, parentPath);
+    await handleCreateItem(true, parentPath);
   };
 
   const handleCopy = (itemId, isCut) => {
@@ -301,8 +299,8 @@ function ChapterTreePanel() {
   // 渲染章节树
   const renderChapterTree = (items, level = 0) => {
     return items.map(item => {
-      const itemId = item.id || item.path || '';
-      const itemTitle = item.title || item.name || '';
+      const itemId = item.id || '';
+      const itemTitle = item.title || '';
       const isFolder = item.isFolder || item.type === 'folder';
       const hasChildren = item.children && item.children.length > 0;
       const displayName = getDisplayName(itemTitle, isFolder);
@@ -359,7 +357,6 @@ function ChapterTreePanel() {
 
     if (isItemSelected) {
       const isFolder = contextMenu.isFolder;
-      const targetPath = isFolder ? contextMenu.itemId : contextMenu.itemParentPath;
 
       items.push(
         { label: '复制', onClick: () => handleCopy(contextMenu.itemId, false) },

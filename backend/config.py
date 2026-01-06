@@ -4,10 +4,35 @@ import time
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, TypedDict
-
 from backend.core.ai_agent.prompts import sys_prompts
 
 logger = logging.getLogger(__name__)
+
+
+def initialize_directories_and_files():
+    """
+    初始化backend/data下的所有目录和文件
+    确保必要的目录存在，配置文件存在
+    """
+    base_dir = Path("backend/data")
+    config_dir = base_dir / "config"
+    novel_dir = base_dir / "novel"
+    lancedb_dir = base_dir / "lancedb"
+    db_dir = base_dir / "db"
+    uploads_dir = base_dir / "uploads"
+    temp_dir = base_dir / "temp"
+    config_file = config_dir / "store.json"
+    
+    # 确保所有目录存在
+    directories = [base_dir, config_dir, novel_dir, lancedb_dir, db_dir, uploads_dir, temp_dir]
+    for directory in directories:
+        os.makedirs(directory, exist_ok=True)
+    
+    # 确保配置文件存在，不存在则创建空文件
+    if not config_file.exists():
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump({}, f, ensure_ascii=False, indent=2)
+        logger.info(f"创建配置文件: {config_file}")
 
 
 class Settings:
@@ -16,35 +41,28 @@ class Settings:
     """
     
     def __init__(self):
-        self._config_file = Path("backend/data/config/store.json")
-        
         # 应用配置
-        self.APP_NAME: str = "AI Novelist Backend"
+        self.APP_NAME: str = "QingZhu Backend"
         self.DEBUG: bool = self._get_config("debug", True)
         self.HOST: str = self._get_config("host", "127.0.0.1")
         self.PORT: int = self._get_config("port", 8000)
-        
-        # 数据目录
-        base_dir = Path("backend")
-        self.DATA_DIR: str = str(base_dir / "data")
-        self.NOVEL_DIR: str = str(base_dir / "data" / "novel")
-        
-        # 向量数据库配置 (使用LanceDB)
-        self.LANCEDB_PERSIST_DIR: str = str(base_dir / "data" / "lancedb")
-        
+        # 数据总目录
+        base_dir = Path("backend/data")
+        self.DATA_DIR: str = str(base_dir)
+        # 配置文件目录
+        self._config_file = Path("backend/data/config/store.json")
+        self.CONFIG_DIR = str(self._config_file.parent)
+        # 用户文件目录
+        self.NOVEL_DIR: str = str(base_dir / "novel")
+        # 向量数据库目录
+        self.LANCEDB_PERSIST_DIR: str = str(base_dir / "lancedb")
         # SQLite数据库配置
-        self.DB_DIR: str = str(base_dir / "data" / "db")
-        self.CHECKPOINTS_DB_PATH: str = str(base_dir / "data" / "db" / "checkpoints.db")
-        
-        # 文件配置
-        self.MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
-        self.ALLOWED_EXTENSIONS: str = ".txt,.md,.pdf,.docx"
-        
-        # 确保必要的目录存在
-        os.makedirs(self.DATA_DIR, exist_ok=True)
-        os.makedirs(self.NOVEL_DIR, exist_ok=True)
-        os.makedirs(self.LANCEDB_PERSIST_DIR, exist_ok=True)
-        os.makedirs(self.DB_DIR, exist_ok=True)
+        self.DB_DIR: str = str(base_dir / "db")
+        self.CHECKPOINTS_DB_PATH: str = str(base_dir / "db" / "checkpoints.db")
+        # 上传文件目录
+        self.UPLOADS_DIR: str = str(base_dir / "uploads")
+        # 临时文件目录
+        self.TEMP_DIR: str = str(base_dir / "temp")
     
     @staticmethod
     def get_config_file_path() -> Path:
@@ -52,10 +70,7 @@ class Settings:
         return Path("backend/data/config/store.json")
     
     def _load_config(self) -> Dict[str, Any]:
-        """从 store.json 加载配置"""
-        if not self._config_file.exists():
-            return {}
-        
+        """从 store.json 加载配置"""        
         try:
             with open(self._config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -77,10 +92,6 @@ class Settings:
                 return value['value']
         
         return value
-    
-    def reload(self):
-        """重新加载配置（向后兼容）"""
-        pass  # 现在每次访问都会重新加载，这个方法保留用于向后兼容
 
 
 class AISettings:
@@ -100,18 +111,7 @@ class AISettings:
 
     # 获取配置的方法
     def get_config(self, key: str, default: Any = None) -> Any:
-        """获取配置值"""
-        if not self._config_file.exists():
-            # 如果配置文件不存在，创建默认配置文件
-            try:
-                self._config_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(self._config_file, 'w', encoding='utf-8') as f:
-                    json.dump({}, f, ensure_ascii=False, indent=2)
-                return default
-            except Exception as e:
-                logger.error(f"创建配置文件失败: {e}")
-                return default
-        
+        """获取配置值"""        
         try:
             with open(self._config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
@@ -123,17 +123,6 @@ class AISettings:
     # 获取所有配置
     def get_all_config(self) -> Dict[str, Any]:
         """获取所有配置"""
-        if not self._config_file.exists():
-            # 如果配置文件不存在，创建默认配置文件
-            try:
-                self._config_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(self._config_file, 'w', encoding='utf-8') as f:
-                    json.dump({}, f, ensure_ascii=False, indent=2)
-                return {}
-            except Exception as e:
-                logger.error(f"创建配置文件失败: {e}")
-                return {}
-        
         try:
             with open(self._config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -237,13 +226,7 @@ class AISettings:
     
     def save_config(self, key: str, value: Any) -> bool:
         """保存配置值"""
-        try:
-            # 确保配置文件存在
-            if not self._config_file.exists():
-                self._config_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(self._config_file, 'w', encoding='utf-8') as f:
-                    json.dump({}, f, ensure_ascii=False, indent=2)
-            
+        try:            
             # 读取现有配置
             with open(self._config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
@@ -263,12 +246,6 @@ class AISettings:
     def update_config(self, updates: Dict[str, Any]) -> bool:
         """批量更新配置"""
         try:
-            # 确保配置文件存在
-            if not self._config_file.exists():
-                self._config_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(self._config_file, 'w', encoding='utf-8') as f:
-                    json.dump({}, f, ensure_ascii=False, indent=2)
-            
             # 读取现有配置
             with open(self._config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
