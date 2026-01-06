@@ -18,6 +18,8 @@ from backend.api.file_api import router as file_router
 from backend.api.config_api import router as config_router
 from backend.api.embedding_api import router as embedding_router
 from backend.api.provider_api import router as model_router
+##:+1
+from backend.api.tool_config_api import router as tool_config_router
 
 from backend.core.ai_agent.utils.db_utils import close_db_connection
 
@@ -73,6 +75,8 @@ app.include_router(file_router)
 app.include_router(config_router)
 app.include_router(embedding_router)
 app.include_router(model_router)
+##:+1
+app.include_router(tool_config_router)
 
 # 健康检查端点
 @app.get("/")

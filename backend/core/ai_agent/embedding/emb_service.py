@@ -230,8 +230,38 @@ def list_available_tables(db_path, embeddings=None):
             except Exception as e:
                 print(f"- 表名: {table_name} | 文件名: 未知 | 状态: 无法访问 ({str(e)})")
         else:
-            # 如果没有提供embeddings，只显示表名
-            print(f"- 表名: {table_name} | 文件名: 需要提供embeddings参数获取详细信息")
+            ##:-2+ 如果没有提供embeddings，只显示表名
+            try:
+                import lancedb
+
+                db = lancedb.connect(db_path)
+                table = db.open_table(table_name)
+
+                try:
+                    arrow_data = table.head(1)
+                except Exception:
+                    arrow_data = table.to_arrow()
+                    try:
+                        arrow_data = arrow_data.slice(0, 1)
+                    except Exception:
+                        pass
+
+                rows = arrow_data.to_pylist() if arrow_data is not None else []
+                if rows:
+                    metadata = rows[0].get('metadata') or {}
+                    table_info.update({
+                        "original_filename": metadata.get('original_filename', '未知'),
+                        "created_at": metadata.get('created_at', '未知'),
+                        "total_chunks": metadata.get('total_chunks', '未知'),
+                        "chunk_size": metadata.get('chunk_size', 0),
+                        "chunk_overlap": metadata.get('chunk_overlap', 0),
+                        "dimensions": metadata.get('dimensions', 0)
+                    })
+                    print(f"- 表名: {table_name} | 文件名: {table_info['original_filename']} | 创建时间: {table_info['created_at']} | 片段数: {table_info['total_chunks']} | 切分长度: {table_info['chunk_size']} | 重叠长度: {table_info['chunk_overlap']}")
+                else:
+                    print(f"- 表名: {table_name} | 文件名: 未知 | 状态: 空表")
+            except Exception as e:
+                print(f"- 表名: {table_name} | 文件名: 未知 | 状态: 无法访问 ({str(e)})")
         
         result.append(table_info)
     

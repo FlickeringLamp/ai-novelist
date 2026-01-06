@@ -1,5 +1,6 @@
 import logging
-from typing import List, Dict
+##:+ import Any
+from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 from backend.core.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.config import ai_settings
@@ -47,8 +48,8 @@ def providers_list():
     return all_providers
 
 
-
-@router.get("/{provider_id}/models", summary="获取指定模型提供商的模型列表", response_model=List[str])
+##:-1+1
+@router.get("/{provider_id}/models", summary="获取指定模型提供商的模型列表", response_model=List[Dict[str, Any]])
 def model_list(provider_id: str):
     """
     获取指定模型提供商的模型列表

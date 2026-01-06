@@ -52,6 +52,9 @@ async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
             parts = provider_model_id.split("/", 1)
             model_id = parts[1]
             print(f"整理后的模型名{model_id}")
+        ##:+ else
+        else:
+            model_id = provider_model_id
         # 检查是否为内置提供商
         if provider in BUILTIN_PROVIDERS:
             # 内置提供商直接使用默认URL
@@ -167,6 +170,11 @@ def get_emb_model_key_url_dimensions():
     provider = embedding_model_config.get("provider","")
     model_id = embedding_model_config.get("modelId", "")
     dimensions = embedding_model_config.get("dimensions","")
+
+    if isinstance(model_id, str):
+        model_id = model_id.strip()
+        if provider and model_id.startswith(f"{provider}/"):
+            model_id = model_id[len(provider) + 1:]
     
     
     # 确定嵌入URL和api_key
@@ -238,11 +246,13 @@ async def save_rag_chunk_settings(request: SaveRagChunkSettingsRequest):
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
             
-        print(f"已保存RAG分块设置: chunkSize={chunkSize}, chunkOverlap={chunkOverlap}")
+        ##:-1+1
+        print(f"已保存RAG分块设置: chunkSize={request.chunkSize}, chunkOverlap={request.chunkOverlap}")
         
         return {
-            "chunkSize": chunkSize,
-            "chunkOverlap": chunkOverlap
+            ##:-2+2
+            "chunkSize": request.chunkSize,
+            "chunkOverlap": request.chunkOverlap
         }
         
     except Exception as e:
@@ -261,19 +271,25 @@ async def list_knowledge_base_files():
         知识库文件列表响应
     """
     try:        
-        # 确定嵌入URL和api_key
-        provider, embedding_model, embedding_url, api_key, dimensions = get_emb_model_key_url_dimensions()
-        
         db_path = os.path.join(os.path.dirname(__file__), "..", "data", "lancedb")
+        ##:-2+12
+
+        provider = ""
+        embedding_model = ""
+        embedding_url = ""
+        api_key = ""
+        dimensions = ""
+
+        # 确定嵌入URL和api_key（如果未配置，允许只展示基础表信息）
+        try:
+            provider, embedding_model, embedding_url, api_key, dimensions = get_emb_model_key_url_dimensions()
+        except HTTPException as e:
+            if e.status_code != 400:
+                raise
         
         # 如果有嵌入模型，准备嵌入实例以获取详细信息
         embeddings = None
-        if embedding_model:
-            print(f"准备读取文件的嵌入模型：{embedding_model}")
-            try:
-                embeddings = prepare_emb(provider, embedding_model, embedding_url, api_key)
-            except Exception as e:
-                print(f"准备嵌入模型失败，将只显示基本表信息: {e}")
+        ##:- if embedding_model
         
         # 获取可用表列表
         tables = list_available_tables(db_path, embeddings)
@@ -293,7 +309,10 @@ async def list_knowledge_base_files():
             })
         
         return files
-        
+
+    ##:+2
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,

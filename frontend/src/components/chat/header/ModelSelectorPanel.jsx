@@ -38,9 +38,14 @@ const ModelSelectorPanel = () => {
     try {
       setLoading(true);
       const result = await httpClient.get('/api/provider/favorite-models');
-      
-      if (result.success) {
-        const models = convertBackendModels(result.data);
+
+      //:-2+6
+      const backendModels = result && typeof result === 'object' && 'success' in result
+        ? (result.data || {})
+        : result;
+
+      if (backendModels && typeof backendModels === 'object') {
+        const models = convertBackendModels(backendModels);
         const filteredModels = models.filter(model => !isEmbeddingModel(model.id));
         setAvailableModels(filteredModels);
         console.log('ModelSelectorPanel: 从后端获取到模型数据:', {
@@ -48,7 +53,8 @@ const ModelSelectorPanel = () => {
           availableModels: filteredModels
         });
       } else {
-        console.error('获取模型列表失败:', result.error);
+        //:-1+1
+        console.error('获取模型列表失败:', result && typeof result === 'object' ? result.error : undefined);
       }
     } catch (error) {
       console.error('加载模型列表失败:', error);
@@ -60,8 +66,12 @@ const ModelSelectorPanel = () => {
   // 加载选中的模型
   const loadSelectedModel = async () => {
     try {
-      const response = await httpClient.get('/api/ai-config/selected-model');
-      setSelectedModel(response.selectedModel || '');
+      //:-2+5
+      const response = await httpClient.get('/api/config/ai/selected-model');
+      const payload = response && typeof response === 'object' && 'success' in response
+        ? (response.data || response)
+        : response;
+      setSelectedModel(payload?.selectedModel || '');
     } catch (error) {
       console.error('加载选中模型失败:', error);
     }
@@ -85,7 +95,8 @@ const ModelSelectorPanel = () => {
       const selectedModelInfo = availableModels.find(model => model.id === modelId);
       const provider = selectedModelInfo?.provider || '';
       
-      await httpClient.post('/api/ai-config/selected-model', {
+      //:-1+1
+      await httpClient.post('/api/config/ai/selected-model', {
         selectedModel: modelId,
         selectedProvider: provider
       });

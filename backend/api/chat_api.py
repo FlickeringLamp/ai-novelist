@@ -344,7 +344,7 @@ async def summarize_conversation():
         # 创建输入状态
         input_state = State(messages=updated_messages)
         
-        # 调用图处理总结指令,后续可能使用result=graph.invoke()来获取更新后的消息
+        # 调用图处理总结指令
         graph.invoke(input_state, config)
         
         # 获取更新后的消息
@@ -357,6 +357,14 @@ async def summarize_conversation():
             last_message = updated_messages_after[-1]
             if hasattr(last_message, 'content'):
                 updated_summary = last_message.content
+
+        ##:+ try
+        # 恢复总结前的消息，避免总结内容污染后续对话
+        try:
+            if hasattr(current_state, 'config') and current_state.config:
+                graph.update_state(current_state.config, values={"messages": current_messages})
+        except Exception as restore_err:
+            logger.warning(f"恢复总结前消息失败: {restore_err}")
         
         # 打印总结后的完整消息内容
         logger.info(f"对话总结完成，总结长度: {len(updated_summary)}")

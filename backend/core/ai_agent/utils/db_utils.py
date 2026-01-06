@@ -8,6 +8,24 @@ logger = logging.getLogger(__name__)
 _db_connection = None
 _memory_storage = {}
 _is_shutting_down = False
+##：+ _db_schema_initialized + def _ensure_db_schema_initialized
+_db_schema_initialized = False
+
+
+def _ensure_db_schema_initialized(conn: sqlite3.Connection) -> None:
+    """确保 LangGraph SqliteSaver 所需表已创建"""
+    global _db_schema_initialized
+    if _db_schema_initialized:
+        return
+    try:
+        from langgraph.checkpoint.sqlite import SqliteSaver
+        saver = SqliteSaver(conn)
+        saver.setup()
+        _db_schema_initialized = True
+        logger.info("检查点数据库表已初始化")
+    except Exception as e:
+        logger.error(f"初始化检查点数据库表失败: {e}")
+        raise
 
 def get_db_connection():
     """获取全局数据库连接，避免多连接导致的锁定问题"""
@@ -27,6 +45,8 @@ def get_db_connection():
         # 设置同步模式为NORMAL，在性能和安全性之间取得平衡
         _db_connection.execute("PRAGMA synchronous = NORMAL")
         logger.info(f"数据库连接已建立: {settings.CHECKPOINTS_DB_PATH}")
+        ##:+1
+        _ensure_db_schema_initialized(_db_connection)
     
     # 检查连接是否已关闭
     try:
@@ -39,6 +59,11 @@ def get_db_connection():
             _db_connection.execute("PRAGMA busy_timeout = 30000")  # 30秒超时
             _db_connection.execute("PRAGMA journal_mode=WAL")
             _db_connection.execute("PRAGMA synchronous = NORMAL")
+            ##:+#+3
+            # 连接重建后需要重新初始化schema
+            global _db_schema_initialized
+            _db_schema_initialized = False
+            _ensure_db_schema_initialized(_db_connection)
         else:
             raise
     return _db_connection

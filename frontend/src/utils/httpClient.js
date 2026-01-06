@@ -31,15 +31,22 @@ const api = {
   get: async (url) => {
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      //:TODO: 添加认证信息
+      headers: {}
     });
     return await api.parseResponse(response);
   },
   
   // POST 请求
   post: async (url, data) => {
+    //:+ if
+    if (data instanceof FormData) {
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        method: 'POST',
+        body: data
+      });
+      return await api.parseResponse(response);
+    }
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'POST',
       headers: {
@@ -52,6 +59,14 @@ const api = {
   
   // PUT 请求
   put: async (url, data) => {
+    //:+ if
+    if (data instanceof FormData) {
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        method: 'PUT',
+        body: data
+      });
+      return await api.parseResponse(response);
+    }
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'PUT',
       headers: {
@@ -63,8 +78,7 @@ const api = {
   },
   
   // DELETE 请求
-  delete: async (url) => {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+  delete: async (url) => {    const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'
@@ -81,6 +95,34 @@ const api = {
       body: formData
     });
     return await api.parseResponse(response);
+  },
+
+  //:+ streamRequest
+  streamRequest: async (url, options = {}) => {
+    const method = options.method || 'GET';
+    const headers = {
+      ...(options.headers || {})
+    };
+
+    let body = options.body;
+    if (body !== undefined && body !== null && typeof body === 'object' && !(body instanceof FormData)) {
+      if (!('Content-Type' in headers) && !('content-type' in headers)) {
+        headers['Content-Type'] = 'application/json';
+      }
+      body = JSON.stringify(body);
+    }
+
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method,
+      headers,
+      body
+    });
+
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+
+    return response;
   }
 };
 

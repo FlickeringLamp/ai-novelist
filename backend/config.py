@@ -173,7 +173,8 @@ class AISettings:
     def get_base_url_for_provider(self, provider: str) -> Optional[str]:
         """根据提供商获取对应的base_url"""
         # 先检查内置提供商
-        from backend.core.ai_agent import BUILTIN_PROVIDERS
+        ##:-1+1
+        from backend.core.ai_agent.models.providers_list import BUILTIN_PROVIDERS
         
         if provider in BUILTIN_PROVIDERS:
             return BUILTIN_PROVIDERS[provider]

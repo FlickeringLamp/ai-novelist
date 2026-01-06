@@ -45,9 +45,13 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
   const fetchDefaultPrompts = async () => {
     setIsLoadingPrompts(true);
     try {
-      const response = await httpClient.get('/api/ai-config/default-prompts');
-      if (response) {
-        setDefaultPrompts(response);
+      //:-3+6
+      const response = await httpClient.get('/api/config/ai/default-prompts');
+      const payload = response && typeof response === 'object' && 'success' in response
+        ? (response.data || {})
+        : (response || {});
+      if (payload && typeof payload === 'object' && Object.keys(payload).length > 0) {
+        setDefaultPrompts(payload);
       } else {
         // 如果后端获取失败，使用内置默认值作为fallback
         const defaultPrompts = await modeManager.getAllDefaultPrompts();
@@ -66,10 +70,12 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
   // 加载模式配置
   const loadModeConfig = async () => {
     try {
+      //:+1-3+3
+      const unwrap = (value) => (value && typeof value === 'object' && 'success' in value ? value.data : value);
       const [customPromptsData, additionalInfoData, aiParametersData] = await Promise.all([
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('customPrompts')}`).then(r => r.data),
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('additionalInfo')}`).then(r => r.data),
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('aiParameters')}`).then(r => r.data)
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('customPrompts')}`).then(unwrap),
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('additionalInfo')}`).then(unwrap),
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('aiParameters')}`).then(unwrap)
       ]);
       
       setCustomPrompts(customPromptsData || {});

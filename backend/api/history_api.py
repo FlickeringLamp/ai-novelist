@@ -217,26 +217,64 @@ async def get_messages(request: GetMessagesRequest):
     """
     thread_id = request.thread_id
     mode = request.mode
+    ##:重写try
     try:
-        # 创建图实例
-        graph = create_graph(mode)
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         
-        # 获取当前状态
-        current_state = graph.get_state(config)
-        current_messages = current_state.values.get("messages", [])
-        
-        messages = []
-        for index, msg in enumerate(current_messages):
-            message_info = {
+        # 直接从检查点数据库读取最新 checkpoint，避免读取历史消息时触发LLM初始化
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT checkpoint
+            FROM checkpoints
+            WHERE thread_id = ?
+            ORDER BY checkpoint_id DESC
+            LIMIT 1
+            """,
+            (thread_id,)
+        )
+        row = cursor.fetchone()
+        if not row or not row[0]:
+            return []
+
+        checkpoint_data = msgpack.unpackb(row[0])
+        channel_values = checkpoint_data.get('channel_values', {})
+        checkpoint_messages = channel_values.get('messages', [])
+
+        def _coerce_message_payload(raw_msg: Any) -> Dict[str, Any]:
+            # messages 里可能是 dict 或 msgpack.ExtType
+            if hasattr(raw_msg, 'code') and hasattr(raw_msg, 'data'):
+                try:
+                    msg_data = msgpack.unpackb(raw_msg.data)
+                    if len(msg_data) > 2 and isinstance(msg_data[2], dict):
+                        return msg_data[2]
+                except Exception:
+                    return {"type": "unknown", "content": ""}
+                return {"type": "unknown", "content": ""}
+            if isinstance(raw_msg, dict):
+                return raw_msg
+            return {"type": "unknown", "content": str(raw_msg)}
+
+        messages: List[Dict[str, Any]] = []
+        for index, raw_msg in enumerate(checkpoint_messages):
+            payload = _coerce_message_payload(raw_msg)
+            msg_type = payload.get('type', 'unknown')
+            content = payload.get('content', '')
+            message_id = payload.get('id') or f"msg_{index}"
+
+            tool_calls = payload.get('tool_calls')
+            if tool_calls is None and isinstance(payload.get('additional_kwargs'), dict):
+                tool_calls = payload.get('additional_kwargs', {}).get('tool_calls')
+
+            messages.append({
                 "index": index,
-                "message_id": getattr(msg, 'id', f"msg_{index}") or f"msg_{index}",
-                "message_type": msg.type if hasattr(msg, 'type') else 'unknown',
-                "content": msg.content if hasattr(msg, 'content') else str(msg),
-                "tool_calls": getattr(msg, 'tool_calls', None)
-            }
-            messages.append(message_info)
-        
+                "message_id": message_id,
+                "message_type": msg_type,
+                "content": content,
+                "tool_calls": tool_calls,
+            })
+
         return messages
         
     except Exception as e:

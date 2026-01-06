@@ -17,11 +17,18 @@ const FileSelector = ({ onFileContentAdd }) => {
     setIsLoading(true);
     try {
       const result = await httpClient.get('/api/file/tree');
-      if (result.success) {
-        setFiles(result.data || []);
-        setFilteredFiles(result.data || []);
+      //:-4+n
+      const filesPayload = Array.isArray(result)
+        ? result
+        : (result && typeof result === 'object' && 'success' in result
+          ? (result.data || [])
+          : (result || []));
+
+      if (Array.isArray(filesPayload)) {
+        setFiles(filesPayload);
+        setFilteredFiles(filesPayload);
       } else {
-        console.error('获取文件列表失败:', result.error);
+        console.error('获取文件列表失败:', result && typeof result === 'object' ? (result.error || result.detail) : undefined);
       }
     } catch (error) {
       console.error('获取文件列表出错:', error);
@@ -88,7 +95,12 @@ const FileSelector = ({ onFileContentAdd }) => {
     }
     try {
       const response = await httpClient.get(`/api/file/read/${encodeURIComponent(file.id)}`);
-      onFileContentAdd(response);
+      //:-1+5
+      const payload = response && typeof response === 'object' && 'success' in response
+        ? (response.data || response)
+        : response;
+      const content = payload && typeof payload === 'object' && 'content' in payload ? payload.content : payload;
+      onFileContentAdd({ path: file.id, content });
     } catch (error) {
       console.error('读取文件内容出错:', error);
     }

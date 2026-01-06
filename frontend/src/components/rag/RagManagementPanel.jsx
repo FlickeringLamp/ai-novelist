@@ -21,13 +21,29 @@ const RagSettingsPanel = () =>{
 
   useEffect(()=>{
     const initializeData = async() => {
-      const [providersResult, chunkSettingsResult] = await Promise.all([
+      //:-1+1
+      const [providersResult, chunkSettingsResult, embeddingModelsResult] = await Promise.all([
         httpClient.get('/api/provider/providers'),
         httpClient.get('/api/embedding/rag/chunk-settings'),
+        //:+1
+        httpClient.get('/api/config/store?key=embeddingModels'),
       ]);
       setProviders(providersResult || []);
       setChunkSize(chunkSettingsResult.chunkSize || "");
       setChunkOverlap(chunkSettingsResult.chunkOverlap || "")
+
+      //:+ if
+      if (embeddingModelsResult && typeof embeddingModelsResult === 'object') {
+        if (embeddingModelsResult.provider) {
+          setSelectedProviderId(embeddingModelsResult.provider);
+        }
+        if (embeddingModelsResult.modelId) {
+          setSelectedEmbeddingModelId(embeddingModelsResult.modelId);
+        }
+        if (embeddingModelsResult.dimensions !== undefined && embeddingModelsResult.dimensions !== null) {
+          setEmbeddingDimensions(embeddingModelsResult.dimensions);
+        }
+      }
     };
       initializeData();
   },[]);
@@ -36,7 +52,18 @@ const RagSettingsPanel = () =>{
     const fetchEmbeddingModels = async() => {
       if (selectedProviderId) {
         const response = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
-        const embeddingList = filterEmbeddingModels(response.models || []);
+        //:TODO: 处理响应格式不一致的问题
+        const modelsPayload = Array.isArray(response)
+          ? response
+          : (response && typeof response === 'object' && 'success' in response
+            ? (response.data || [])
+            : (response?.models || response || []));
+
+        const normalizedModels = Array.isArray(modelsPayload)
+          ? modelsPayload.map(m => (typeof m === 'string' ? { id: m } : m)).filter(Boolean)
+          : [];
+
+        const embeddingList = filterEmbeddingModels(normalizedModels);
         setEmbeddingModels(embeddingList);
       }
     };
@@ -46,26 +73,80 @@ const RagSettingsPanel = () =>{
   useEffect(()=>{
     const fetchKnowledgeBaseFiles = async() => {
       const response = await httpClient.get('/api/embedding/rag/files');
-      setRagFile(response.files || []);
+      //:-1+4
+      const filesPayload = Array.isArray(response)
+        ? response
+        : (response && typeof response === 'object' ? (response.files || []) : []);
+      setRagFile(filesPayload);
     };
+    //:+ if
+    if (activeTab !== 'knowledge') return;
     fetchKnowledgeBaseFiles();
-  },[])
+    //:+ useEffect
+  },[activeTab])
 
   const handleProviderClick = (providerId) => {
     setSelectedProviderId(providerId);
+
+    //:+ httpClient
+    httpClient.post('/api/config/store', {
+      key: 'embeddingModels',
+      value: {
+        provider: providerId,
+        modelId: selectedEmbeddingModelId || '',
+        dimensions: embeddingDimensions || ''
+      }
+    }).catch(() => {});
   };
 
   const handleEmbeddingModelClick = async (modelId) => {
     setSelectedEmbeddingModelId(modelId);
+
+    //:+ if
+    if (selectedProviderId) {
+      httpClient.post('/api/config/store', {
+        key: 'embeddingModels',
+        value: {
+          provider: selectedProviderId,
+          modelId,
+          dimensions: embeddingDimensions || ''
+        }
+      }).catch(() => {});
+    }
+
     try {
       const modelInfo = `${selectedProviderId}:${modelId}`;
       const response = await httpClient.post('/api/embedding/dimensions', {
         model_info: modelInfo
       });
       setEmbeddingDimensions(response.dimensions || "");
+
+      //:+ if
+      if (selectedProviderId) {
+        httpClient.post('/api/config/store', {
+          key: 'embeddingModels',
+          value: {
+            provider: selectedProviderId,
+            modelId,
+            dimensions: response.dimensions || ""
+          }
+        }).catch(() => {});
+      }
     } catch (error) {
       console.error('获取嵌入维度失败:', error);
       setEmbeddingDimensions("");
+
+      //:+ if
+      if (selectedProviderId) {
+        httpClient.post('/api/config/store', {
+          key: 'embeddingModels',
+          value: {
+            provider: selectedProviderId,
+            modelId,
+            dimensions: ""
+          }
+        }).catch(() => {});
+      }
     }
   };
 
@@ -83,6 +164,11 @@ const RagSettingsPanel = () =>{
   }
 
   const handleFileSelect = () => {
+    //:+ if
+    if (!fileInputRef.current) {
+      setUploadStatus('文件选择器未初始化，请刷新页面后重试')
+      return
+    }
     fileInputRef.current.click()
   }
 
@@ -95,11 +181,16 @@ const RagSettingsPanel = () =>{
     try {
       const formData = new FormData();
       formData.append('file', file);
-      await httpClient.post('/api/embedding/rag/files', formData);
+      //:-1+1
+      await httpClient.upload('/api/embedding/rag/files', formData);
       
       setUploadStatus(`文件 "${file.name}" 上传成功！`)
       const fileListResult = await httpClient.get('/api/embedding/rag/files');
-      setRagFile(fileListResult.files || [])
+      //:-1+4
+      const filesPayload = Array.isArray(fileListResult)
+        ? fileListResult
+        : (fileListResult && typeof fileListResult === 'object' ? (fileListResult.files || []) : []);
+      setRagFile(filesPayload)
     } catch (error) {
       console.error('文件上传过程中发生错误:', error)
       setUploadStatus(`文件上传失败: ${error.message}`)
@@ -118,7 +209,11 @@ const RagSettingsPanel = () =>{
       
       console.log('文件删除成功');
       const fileListResult = await httpClient.get('/api/embedding/rag/files');
-      setRagFile(fileListResult.files || []);
+      //:-1+4
+      const filesPayload = Array.isArray(fileListResult)
+        ? fileListResult
+        : (fileListResult && typeof fileListResult === 'object' ? (fileListResult.files || []) : []);
+      setRagFile(filesPayload);
     } catch (error) {
       console.error('文件删除过程中发生错误:', error);
     }
@@ -131,13 +226,18 @@ const RagSettingsPanel = () =>{
     }
 
     try {
-      await httpClient.put(`/api/embedding/rag/files/${fileId}/rename`, null, {
-        params: { new_name: newFileName }
+      //:-2+2
+      await httpClient.put(`/api/embedding/rag/files/${fileId}/rename`, {
+        new_name: newFileName
       });
       
       console.log('文件重命名成功');
       const fileListResult = await httpClient.get('/api/embedding/rag/files');
-      setRagFile(fileListResult.files || []);
+      //:-1+4
+      const filesPayload = Array.isArray(fileListResult)
+        ? fileListResult
+        : (fileListResult && typeof fileListResult === 'object' ? (fileListResult.files || []) : []);
+      setRagFile(filesPayload);
       setRenamingFileId(null);
       setNewFileName('');
     } catch (error) {

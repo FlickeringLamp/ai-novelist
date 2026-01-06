@@ -34,6 +34,9 @@ export const useModeManager = () => {
   const [customModes, setCustomModes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  //:+1
+  const unwrap = (value) => (value && typeof value === 'object' && 'success' in value ? value.data : value);
+
   /**
    * 初始化模式管理器
    */
@@ -41,7 +44,8 @@ export const useModeManager = () => {
     setIsLoading(true);
     try {
       const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customModes')}`);
-      const storedCustomModes = response || [];
+      //:-1+1
+      const storedCustomModes = unwrap(response) || [];
       setCustomModes(storedCustomModes);
       console.log('[ModeManager] 初始化完成，自定义模式:', storedCustomModes);
     } catch (error) {
@@ -132,10 +136,11 @@ export const useModeManager = () => {
     try {
       // 获取当前设置
       const [customPrompts, additionalInfo, aiParameters, ragSettings] = await Promise.all([
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('customPrompts')}`).then(r => r.data || {}),
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('additionalInfo')}`).then(r => r.data || {}),
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('aiParameters')}`).then(r => r.data || {}),
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('ragSettings')}`).then(r => r.data || {})
+        //:-4+4
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('customPrompts')}`).then(r => unwrap(r) || {}),
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('additionalInfo')}`).then(r => unwrap(r) || {}),
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('aiParameters')}`).then(r => unwrap(r) || {}),
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('ragSettings')}`).then(r => unwrap(r) || {})
       ]);
       
       // 删除相关的设置数据
@@ -295,8 +300,10 @@ export const useModeManager = () => {
    */
   const getAllDefaultPrompts = async () => {
     try {
-      const response = await httpClient.get('/api/ai-config/default-prompts');
-      return response || {};
+      //:-2+3
+      const response = await httpClient.get('/api/config/ai/default-prompts');
+      const payload = unwrap(response) || {};
+      return payload;
     } catch (error) {
       console.error('获取默认提示词失败:', error);
       return {};

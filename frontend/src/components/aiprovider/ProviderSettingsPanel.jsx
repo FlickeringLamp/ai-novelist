@@ -29,8 +29,14 @@ const ProviderSettingsPanel = () => {
   useEffect(() => {
     const fetchProviders = async () => {
       const result = await httpClient.get('/api/provider/providers');
-      if (result.success) {
-        setProviders(result.data || []);
+      //:-2+7
+      const providersPayload = Array.isArray(result)
+        ? result
+        : (result && typeof result === 'object' && 'success' in result
+          ? (result.data || [])
+          : (result || []));
+      if (Array.isArray(providersPayload)) {
+        setProviders(providersPayload);
       }
     };
     fetchProviders();
@@ -40,8 +46,12 @@ const ProviderSettingsPanel = () => {
   useEffect(() => {
     const loadFavoriteModels = async () => {
       const result = await httpClient.get('/api/provider/favorite-models');
-      if (result.success) {
-        setFavoriteModels(result.data || {});
+      //:-2+5
+      const favoritePayload = result && typeof result === 'object' && 'success' in result
+        ? (result.data || {})
+        : (result || {});
+      if (favoritePayload && typeof favoritePayload === 'object') {
+        setFavoriteModels(favoritePayload);
       }
     };
     loadFavoriteModels();
@@ -60,12 +70,20 @@ const ProviderSettingsPanel = () => {
     setModelError(''); // 清除之前的错误
     try {
       const result = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
-      if (result.success) {
-        setProviderModels(result.data.models || []);
+      //:-2+8
+      const modelsPayload = Array.isArray(result)
+        ? result
+        : (result && typeof result === 'object' && 'success' in result
+          ? (result.data?.models || result.data || [])
+          : (result?.models || result?.data || []));
+
+      if (Array.isArray(modelsPayload)) {
+        setProviderModels(modelsPayload.map(m => (typeof m === 'string' ? { id: m } : m)));
         setModelError('');
       } else {
         setProviderModels([]);
-        setModelError(result.error || '获取模型列表失败');
+        //:-1+1
+        setModelError(result && typeof result === 'object' ? (result.error || '获取模型列表失败') : '获取模型列表失败');
       }
     } catch (error) {
       setProviderModels([]);
@@ -83,18 +101,34 @@ const ProviderSettingsPanel = () => {
     try {
       // 检查是否是自定义提供商
       const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-      const customProviders = providersresponse || [];
+      //:-1+5
+      const customProviders = Array.isArray(providersResponse)
+        ? providersResponse
+        : (providersResponse && typeof providersResponse === 'object' && 'success' in providersResponse
+          ? (providersResponse.data || [])
+          : (providersResponse || []));
       const isCustomProvider = customProviders.some(provider => provider.name === providerToDelete);
       
       if (isCustomProvider) {
         // 删除自定义提供商
         const result = await httpClient.delete(`/api/provider/custom-providers/${providerToDelete}`);
-        
-        if (result.success) {
+
+        //:-1+5
+        const deleteOk = (result && typeof result === 'object' && 'success' in result)
+          ? result.success
+          : Array.isArray(result);
+
+        if (deleteOk) {
           // 刷新提供商列表
           const providersResult = await httpClient.get('/api/provider/providers');
-          if (providersResult.success) {
-            setProviders(providersResult.data || []);
+          //:-2+7
+          const providersPayload = Array.isArray(providersResult)
+            ? providersResult
+            : (providersResult && typeof providersResult === 'object' && 'success' in providersResult
+              ? (providersResult.data || [])
+              : (providersResult || []));
+          if (Array.isArray(providersPayload)) {
+            setProviders(providersPayload);
           }
           
           // 如果删除的是当前选中的提供商，清空选中状态
@@ -143,11 +177,13 @@ const ProviderSettingsPanel = () => {
     
     if (isFavorite) {
       // 从常用列表中移除
-      const result = await httpClient.delete('/api/provider/favorite-models', {
-        params: { modelId }
-      });
-      if (result.success) {
-        setFavoriteModels(result.data || {});
+      //:-5+6
+      const result = await httpClient.delete(`/api/provider/favorite-models?model_id=${encodeURIComponent(modelId)}`);
+      const payload = result && typeof result === 'object' && 'success' in result
+        ? (result.data || {})
+        : (result || {});
+      if (payload && typeof payload === 'object') {
+        setFavoriteModels(payload);
       }
     } else {
       // 添加到常用列表
@@ -155,8 +191,12 @@ const ProviderSettingsPanel = () => {
         modelId,
         provider
       });
-      if (result.success) {
-        setFavoriteModels(result.data || {});
+      //:-2+5
+      const payload = result && typeof result === 'object' && 'success' in result
+        ? (result.data || {})
+        : (result || {});
+      if (payload && typeof payload === 'object') {
+        setFavoriteModels(payload);
       }
     }
   }
@@ -170,7 +210,12 @@ const ProviderSettingsPanel = () => {
       if (!isBuiltinProvider) {
         // 对于自定义提供商，使用customProviders数组
         const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-        let customProviders = providersresponse || [];
+        //:-1+5
+        let customProviders = Array.isArray(providersResponse)
+          ? providersResponse
+          : (providersResponse && typeof providersResponse === 'object' && 'success' in providersResponse
+            ? (providersResponse.data || [])
+            : (providersResponse || []));
         const existingProviderIndex = customProviders.findIndex(provider => provider.name === selectedProviderId);
         
         if (existingProviderIndex !== -1) {
@@ -233,12 +278,23 @@ const ProviderSettingsPanel = () => {
         baseUrl: '',
         apiKey: ''
       });
-      
-      if (result.success) {
+
+      //:-1+5
+      const addOk = (result && typeof result === 'object' && 'success' in result)
+        ? result.success
+        : Array.isArray(result);
+
+      if (addOk) {
         // 刷新提供商列表
         const providersResult = await httpClient.get('/api/provider/providers');
-        if (providersResult.success) {
-          setProviders(providersResult.data || []);
+        //:-2+7
+        const providersPayload = Array.isArray(providersResult)
+          ? providersResult
+          : (providersResult && typeof providersResult === 'object' && 'success' in providersResult
+            ? (providersResult.data || [])
+            : (providersResult || []));
+        if (Array.isArray(providersPayload)) {
+          setProviders(providersPayload);
         }
         
         // 重置表单并关闭模态框
@@ -249,7 +305,8 @@ const ProviderSettingsPanel = () => {
         setNotificationMessage('自定义提供商添加成功');
         setShowNotification(true);
       } else {
-        setNotificationMessage(`添加失败: ${result.error}`);
+        //:-1+1
+        setNotificationMessage(`添加失败: ${result && typeof result === 'object' ? result.error : undefined}`);
         setShowNotification(true);
       }
     } catch (error) {
@@ -269,7 +326,12 @@ const ProviderSettingsPanel = () => {
       try {
         // 检查是否是自定义提供商
         const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-        const customProviders = providersresponse || [];
+        //:-1+5
+        const customProviders = Array.isArray(providersResponse)
+          ? providersResponse
+          : (providersResponse && typeof providersResponse === 'object' && 'success' in providersResponse
+            ? (providersResponse.data || [])
+            : (providersResponse || []));
         const customProvider = customProviders.find(provider => provider.name === selectedProviderId);
         
         if (customProvider) {
@@ -287,14 +349,16 @@ const ProviderSettingsPanel = () => {
           ]);
           
           // 检查返回结果结构
-          if (apiKeyresponse) {
-            setApiKey(apiKeyresponse);
+          //:-2+2+else
+          if (apiKeyResponse) {
+            setApiKey(apiKeyResponse);
           } else {
             setApiKey('');
           }
           
-          if (baseUrlresponse) {
-            setBaseUrl(baseUrlresponse);
+          //:-2+2+else
+          if (baseUrlResponse) {
+            setBaseUrl(baseUrlResponse);
           } else {
             // 如果没有自定义URL，对于内置提供商，使用默认URL
             if (selectedProviderId === 'deepseek') {

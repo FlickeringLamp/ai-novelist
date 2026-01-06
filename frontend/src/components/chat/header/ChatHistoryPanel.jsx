@@ -27,15 +27,19 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
             setLoading(true);
             console.log('正在加载会话历史...');
             const response = await httpClient.get('/api/history/sessions');
-            
-            if (!response.success || !response.sessions) {
-                console.error('加载会话历史失败:', response.error);
+
+            const sessionsPayload = response && typeof response === 'object' && 'success' in response
+                ? (response.sessions || response.data?.sessions || [])
+                : (response?.sessions || []);
+
+            if (!Array.isArray(sessionsPayload)) {
+                console.error('加载会话历史失败:', response && typeof response === 'object' ? response.error : undefined);
                 setHistory([]);
                 return;
             }
-            
+
             // 转换会话数据格式
-            const sessions = response.sessions.map(session => ({
+            const sessions = sessionsPayload.map(session => ({
                 session_id: session.session_id,
                 title: session.preview || `会话: ${session.session_id}`,
                 created_at: session.created_at || new Date().toISOString(),
@@ -86,9 +90,15 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                 thread_id: sessionId,
                 mode: 'outline'
             });
-            
-            if (messagesResult.success) {
-                const messages = messagesResult.data || [];
+
+            const messagesPayload = Array.isArray(messagesResult)
+                ? messagesResult
+                : (messagesResult && typeof messagesResult === 'object' && 'success' in messagesResult
+                    ? (messagesResult.data || [])
+                    : (messagesResult?.data || []));
+
+            if (Array.isArray(messagesPayload)) {
+                const messages = messagesPayload;
                 // 更新store.json中的thread_id
                 try {
                     await httpClient.post('/api/config/store', {
@@ -121,8 +131,8 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                 });
                 
                 // 检查最后一条消息是否是包含工具调用的AI消息
-                const lastMessage = messages[messages.length - 1];
-                let finalMessages = messages;
+                const lastMessage = formattedMessages[formattedMessages.length - 1];
+                let finalMessages = formattedMessages;
                 
                 if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
                     // 如果最后一条消息是包含工具调用的AI消息，需要将其转换为工具请求状态
@@ -141,7 +151,7 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                     };
                     
                     // 3. 替换最后一条消息并添加工具请求消息
-                    finalMessages = [...messages.slice(0, -1), aiMessage, toolRequestMessage];
+                    finalMessages = [...formattedMessages.slice(0, -1), aiMessage, toolRequestMessage];
                 }
                 
                 if (handleRestoreMessages) handleRestoreMessages(formattedMessages);
@@ -163,11 +173,17 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
             setShowConfirmationModal(false);
             try {
                 const result = await httpClient.delete(`/api/history/sessions/${sessionId}`);
-                if (result.success) {
+
+                if (result && typeof result === 'object' && 'success' in result) {
+                    if (result.success) {
+                        // 重新加载历史记录
+                        await loadSessionHistory();
+                    } else {
+                        console.error('删除会话失败:', result.error);
+                    }
+                } else {
                     // 重新加载历史记录
                     await loadSessionHistory();
-                } else {
-                    console.error('删除会话失败:', result.error);
                 }
             } catch (error) {
                 console.error('Error deleting conversation:', error);
@@ -193,9 +209,15 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                 thread_id: sessionId,
                 mode: 'outline'
             });
-            
-            if (result.success && result.data) {
-                setCheckpoints(result.data);
+
+            const checkpointsPayload = Array.isArray(result)
+                ? result
+                : (result && typeof result === 'object' && 'success' in result
+                    ? (result.data || [])
+                    : (result?.data || []));
+
+            if (Array.isArray(checkpointsPayload)) {
+                setCheckpoints(checkpointsPayload);
                 setShowRollbackModal(true);
             } else {
                 console.error('获取存档点失败:', result.error);
@@ -230,74 +252,81 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                 new_message: rollbackMessage.trim(),
                 mode: 'outline'
             });
-            
-            if (result.success) {
-                console.log('回档成功:', result);
-                alert('回档成功！');
-                setShowRollbackModal(false);
-                
-                // 如果回档的是当前会话，刷新消息
-                const threadResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('thread_id')}`);
-                const currentThreadId = threadresponse;
-                if (currentThreadId === rollbackSessionId) {
-                    // 重新加载当前会话的消息
-                    const messagesResult = await httpClient.post('/api/history/messages', {
-                        thread_id: currentThreadId,
-                        mode: 'outline'
-                    });
-                    
-                    if (messagesResult.success && messagesResult.data) {
-                        const messages = messagesResult.data;
-                        // 将消息转换为前端期望的格式
-                        const formattedMessages = messages.map(msg => {
-                            let role;
-                            if (msg.message_type === 'human') {
-                                role = 'user';
-                            } else if (msg.message_type === 'ai') {
-                                role = 'assistant';
-                            } else {
-                                role = msg.message_type;
-                            }
-                            
-                            return {
-                                id: msg.message_id || `msg_${msg.index}`,
-                                role: role,
-                                content: msg.content,
-                                tool_calls: msg.tool_calls
-                            };
-                        });
-                        
-                        // 检查最后一条消息是否是包含工具调用的AI消息
-                        const lastMessage = messages[messages.length - 1];
-                        let finalMessages = messages;
-                        
-                        if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
-                            // 如果最后一条消息是包含工具调用的AI消息，需要将其转换为工具请求状态
-                            // 1. 将AI消息的内容和工具调用分开
-                            const aiMessage = {
-                                ...lastMessage,
-                                tool_calls: [] // AI消息本身不包含工具调用
-                            };
-                            
-                            // 2. 创建工具请求消息
-                            const toolRequestMessage = {
-                                id: `rollback_tool_${Date.now()}`, // 创建一个唯一ID
-                                role: 'tool_request',
-                                content: '',
-                                tool_calls: lastMessage.tool_calls
-                            };
-                            
-                            // 3. 替换最后一条消息并添加工具请求消息
-                            finalMessages = [...messages.slice(0, -1), aiMessage, toolRequestMessage];
-                        }
-                        
-                        if (handleRestoreMessages) handleRestoreMessages(finalMessages);
-                        console.log(`已重新加载 ${finalMessages.length} 条消息`);
-                    }
-                }
-            } else {
+
+            if (result && typeof result === 'object' && 'success' in result && !result.success) {
                 console.error('回档失败:', result.error);
                 alert('回档失败: ' + result.error);
+                return;
+            }
+
+            console.log('回档成功:', result);
+            alert('回档成功！');
+            setShowRollbackModal(false);
+            
+            // 如果回档的是当前会话，刷新消息
+            const threadResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('thread_id')}`);
+            const currentThreadId = threadResponse;
+            if (currentThreadId === rollbackSessionId) {
+                // 重新加载当前会话的消息
+                const messagesResult = await httpClient.post('/api/history/messages', {
+                    thread_id: currentThreadId,
+                    mode: 'outline'
+                });
+
+                const messagesPayload = Array.isArray(messagesResult)
+                    ? messagesResult
+                    : (messagesResult && typeof messagesResult === 'object' && 'success' in messagesResult
+                        ? (messagesResult.data || [])
+                        : (messagesResult?.data || []));
+
+                if (Array.isArray(messagesPayload) && messagesPayload.length > 0) {
+                    const messages = messagesPayload;
+                    // 将消息转换为前端期望的格式
+                    const formattedMessages = messages.map(msg => {
+                        let role;
+                        if (msg.message_type === 'human') {
+                            role = 'user';
+                        } else if (msg.message_type === 'ai') {
+                            role = 'assistant';
+                        } else {
+                            role = msg.message_type;
+                        }
+                        
+                        return {
+                            id: msg.message_id || `msg_${msg.index}`,
+                            role: role,
+                            content: msg.content,
+                            tool_calls: msg.tool_calls
+                        };
+                    });
+                    
+                    // 检查最后一条消息是否是包含工具调用的AI消息
+                    const lastMessage = formattedMessages[formattedMessages.length - 1];
+                    let finalMessages = formattedMessages;
+                    
+                    if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+                        // 如果最后一条消息是包含工具调用的AI消息，需要将其转换为工具请求状态
+                        // 1. 将AI消息的内容和工具调用分开
+                        const aiMessage = {
+                            ...lastMessage,
+                            tool_calls: [] // AI消息本身不包含工具调用
+                        };
+                        
+                        // 2. 创建工具请求消息
+                        const toolRequestMessage = {
+                            id: `rollback_tool_${Date.now()}`, // 创建一个唯一ID
+                            role: 'tool_request',
+                            content: '',
+                            tool_calls: lastMessage.tool_calls
+                        };
+                        
+                        // 3. 替换最后一条消息并添加工具请求消息
+                        finalMessages = [...formattedMessages.slice(0, -1), aiMessage, toolRequestMessage];
+                    }
+                    
+                    if (handleRestoreMessages) handleRestoreMessages(finalMessages);
+                    console.log(`已重新加载 ${finalMessages.length} 条消息`);
+                }
             }
         } catch (error) {
             console.error('回档异常:', error);
@@ -471,3 +500,4 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
 });
 
 export default ChatHistoryPanel;
+//:- if*4

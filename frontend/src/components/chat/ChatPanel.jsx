@@ -112,17 +112,27 @@ const ChatPanel = () => {
     const loadCurrentThreadMessages = async () => {
       try {
         const threadResponse = await httpClient.get('/api/chat/current-thread');
-        if (threadResponse.success && threadResponse.thread_id) {
-          const threadId = threadResponse.thread_id;
+        //:-2+ threadResponse
+        const threadId = typeof threadResponse === 'string'
+          ? threadResponse
+          : (threadResponse?.thread_id || threadResponse?.data?.thread_id || '');
+        if (threadId) {
           console.log('加载当前thread_id的历史消息:', threadId);
           // 获取该thread_id的历史消息
           const messagesResult = await httpClient.post('/api/history/messages', {
             thread_id: threadId,
             mode: 'outline'
           });
-          
-          if (messagesResult.success && messagesResult.data && messagesResult.data.length > 0) {
-            const messages = messagesResult.data;
+          //:-3+ messagesResult
+
+          const messagesPayload = Array.isArray(messagesResult)
+            ? messagesResult
+            : (messagesResult && typeof messagesResult === 'object' && 'success' in messagesResult
+              ? (messagesResult.data || [])
+              : (messagesResult?.data || []));
+
+          if (Array.isArray(messagesPayload) && messagesPayload.length > 0) {
+            const messages = messagesPayload;
             // 将消息转换为前端期望的格式
             const formattedMessages = messages.map(msg => {
               // 将后端消息类型转换为前端角色
@@ -706,26 +716,36 @@ const ChatPanel = () => {
       setIsLoading(true);
       
       const response = await httpClient.post('/api/chat/summarize');
-      
-      if (response.success && response.summary) {
+
+      //:-1+7
+      const summaryText = typeof response === 'string'
+        ? response
+        : (response && typeof response === 'object'
+          ? (response.summary || response.data?.summary || response.data || '')
+          : '');
+
+      if (summaryText) {
         // 创建总结消息
         const summaryMessage = {
           id: generateMessageId(),
           role: 'summary',
-          content: response.summary,
+          //:-1+1
+          content: summaryText,
           isCollapsible: true // 标记为可折叠的消息
         };
         
         // 添加总结消息到消息列表
         setMessages(prev => [...prev, summaryMessage]);
         
-        console.log('对话总结成功:', response.summary);
+        //:-1+1
+        console.log('对话总结成功:', summaryText);
       } else {
         // 添加错误消息
         const errorMessage = {
           id: generateMessageId(),
           role: 'assistant',
-          content: response.message || '总结失败，请稍后再试。'
+          //:-1+1
+          content: (response && typeof response === 'object' && response.message) ? response.message : '总结失败，请稍后再试。'
         };
         setMessages(prev => [...prev, errorMessage]);
       }
