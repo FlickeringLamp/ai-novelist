@@ -5,8 +5,14 @@ from langchain_core.messages.utils import (
     trim_messages,
     count_tokens_approximately
 )
-from backend.config import ai_settings, State
+from typing import TypedDict
+from backend.config import settings
 from backend.core.ai_agent.models.multi_model_adapter import MultiModelAdapter
+
+
+class State(TypedDict):
+    """包含消息的状态"""
+    messages: list
 def build_graph(tool_dict, memory, system_prompt=None, mode=None):
     """构建并返回图实例
     
@@ -17,8 +23,8 @@ def build_graph(tool_dict, memory, system_prompt=None, mode=None):
         mode: 模式名称，用于工具过滤
     """
     # 从配置中获取当前选择的模型和提供商
-    selected_model = ai_settings.default_model
-    selected_provider = ai_settings.get_config("selectedProvider", "deepseek")
+    selected_model = settings.get_config("selectedModel", "deepseek-chat")
+    selected_provider = settings.get_config("selectedProvider", "deepseek")
     
     # 如果模型ID包含提供商信息（如 "zhipuai/glm-4-plus"），则解析提供商和模型名称
     if "/" in selected_model:
@@ -33,9 +39,9 @@ def build_graph(tool_dict, memory, system_prompt=None, mode=None):
     llm = MultiModelAdapter.create_model(
         model=selected_model,
         provider=selected_provider,
-        temperature=ai_settings.temperature,
-        max_tokens=ai_settings.max_tokens,
-        timeout=ai_settings.timeout,
+        temperature=settings.temperature, # 这里要重构，不应在config里写死0.7，而是从配置文件获取
+        max_tokens=settings.max_tokens, # 同样要重构
+        timeout=300,
     )
     
     # 绑定工具到模型
@@ -50,9 +56,9 @@ def build_graph(tool_dict, memory, system_prompt=None, mode=None):
     llm_summarization = MultiModelAdapter.create_model(
         model=selected_model,
         provider=selected_provider,
-        temperature=ai_settings.temperature,
+        temperature=settings.temperature, # 同
         max_tokens=4096,  # 限制token数
-        timeout=ai_settings.timeout,
+        timeout=300,
     )
     # 不绑定工具，确保AI不会尝试调用工具
     summarization_model = llm_summarization
@@ -64,7 +70,9 @@ def build_graph(tool_dict, memory, system_prompt=None, mode=None):
         print(f"当前消息列表{current_messages}")
         
         # 获取模式特定的最大token数
-        mode_max_tokens = ai_settings.get_max_tokens_for_mode(mode)
+        ai_parameters = settings.get_config("aiParameters", {})
+        mode_parameters = ai_parameters.get(mode, {})
+        mode_max_tokens = mode_parameters.get("max_tokens", 4096)
         print(f"最大tokens数被设置为{mode_max_tokens}")
         # 修剪消息历史，避免超出上下文限制，不填 include_system默认裁掉系统提示词
         current_messages = trim_messages(

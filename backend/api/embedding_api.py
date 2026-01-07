@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, UploadFile, File
 
 from backend.core.ai_agent.embedding.emb_service import prepare_emb, load_config, list_available_tables, delete_table, update_table_metadata, prepare_doc, create_db
-from backend.config import ai_settings, settings
+from backend.config import settings
 from backend.core.ai_agent.models.providers_list import BUILTIN_PROVIDERS
 
 # 请求模型
@@ -57,7 +57,8 @@ async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
         embedding_url = BUILTIN_PROVIDERS[provider]
     else:
         # 自定义提供商从配置文件获取URL
-        embedding_url = ai_settings.get_base_url_for_provider(provider)
+        provider_config = settings.get_config(provider, {})
+        embedding_url = provider_config.get("url", "")
         if not embedding_url:
             raise HTTPException(
                 status_code=400,
@@ -68,7 +69,8 @@ async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
     if provider == "ollama":
         api_key = ""
     else:
-        api_key = ai_settings.get_api_key_for_provider(provider)
+        provider_config = settings.get_config(provider, {})
+        api_key = provider_config.get("key", "")
     
     print(f"提供商: {provider}, 模型ID: {model_id}")
     print(f"URL: {embedding_url}")
@@ -157,7 +159,8 @@ def get_emb_model_key_url_dimensions():
     if provider in BUILTIN_PROVIDERS:
         embedding_url = BUILTIN_PROVIDERS[provider]
     else:
-        embedding_url = ai_settings.get_base_url_for_provider(provider)
+        provider_config = settings.get_config(provider, {})
+        embedding_url = provider_config.get("url", "")
         if not embedding_url:
             raise HTTPException(
                 status_code=400,
@@ -167,7 +170,8 @@ def get_emb_model_key_url_dimensions():
     if provider == "ollama":
         api_key = ""
     else:
-        api_key = ai_settings.get_api_key_for_provider(provider)
+        provider_config = settings.get_config(provider, {})
+        api_key = provider_config.get("key", "")
     return provider, model_id, embedding_url, api_key, dimensions
 
 # RAG分块设置相关API

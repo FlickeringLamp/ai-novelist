@@ -11,8 +11,17 @@ from backend.config import settings, initialize_directories_and_files
 initialize_directories_and_files()
 
 # 配置日志（在导入其他模块之前，确保所有日志都能被正确捕获）
+log_level_map = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL
+}
+log_level = log_level_map.get(settings.LOG_LEVEL.upper(), logging.INFO)
+
 logging.basicConfig(
-    level=logging.INFO if settings.DEBUG else logging.WARNING,
+    level=log_level,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('app.log'),

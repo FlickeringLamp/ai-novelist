@@ -12,7 +12,7 @@ import requests
 import logging
 # 添加父目录到路径，确保可以导入ai_agent模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from backend.config import ai_settings
+from backend.config import settings
 from langchain_community.chat_models import ChatZhipuAI
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class MultiModelAdapter:
         base_url: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
-        timeout: int = 30,
+        timeout: int = 30, # 秒
         **kwargs
     ):
         """
@@ -53,11 +53,13 @@ class MultiModelAdapter:
         """
         # 获取API密钥
         if api_key is None:
-            api_key = ai_settings.get_api_key_for_provider(provider)
+            provider_config = settings.get_config(provider, {})
+            api_key = provider_config.get("key", "")
         
         # 获取base_url
         if base_url is None:
-            base_url = ai_settings.get_base_url_for_provider(provider)
+            provider_config = settings.get_config(provider, {})
+            base_url = provider_config.get("url", "")
         
         print(f"初始化模型: {model}, 提供商: {provider}, base_url: {base_url}")
         # 根据提供商类型选择初始化方式
@@ -84,7 +86,7 @@ class MultiModelAdapter:
                 api_key=api_key,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                timeout=timeout,
+                timeout=timeout, # 函数签名/文档里没讲，估计也是秒为单位
                 **kwargs
             )
         else :

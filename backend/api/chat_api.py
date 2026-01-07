@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from backend.config import State
-from backend.config import ai_settings
+from backend.config import settings
 from backend.core.ai_agent.core.graph_builder import build_graph
 from backend.core.ai_agent.core.tool_load import import_tools_from_directory
 from backend.core.ai_agent.core.system_prompt_builder import system_prompt_builder
@@ -76,8 +76,8 @@ async def send_chat_message(request: ChatMessageRequest):
     """
     message = request.message
     # 从配置文件获取当前模式和thread_id
-    current_mode = ai_settings.current_mode
-    thread_id = ai_settings.get_thread_id()
+    current_mode = settings.get_config("currentMode", "outline")
+    thread_id = settings.get_config("thread_id")
     logger.info(f"使用的模式配置: {current_mode}, thread_id: {thread_id}")
     
     # 每次请求都创建新的graph实例，确保使用最新的模型配置和工具
@@ -175,12 +175,12 @@ async def send_interrupt_response(request: InterruptResponseRequest):
     choice = request.choice
     additional_data = request.additional_data
     # 从配置文件获取thread_id
-    thread_id = ai_settings.get_thread_id()
+    thread_id = settings.get_config("thread_id")
     logger.info(f"收到中断响应: interrupt_id={interrupt_id}, choice={choice}, thread_id: {thread_id}")
     
     # 每次请求都创建新的graph实例，确保使用最新的模型配置和工具
     # 从配置文件读取当前模式
-    current_mode = ai_settings.current_mode
+    current_mode = settings.get_config("currentMode", "outline")
     logger.info(f"中断响应使用的模式配置: {current_mode}")
     graph = create_graph(current_mode)
     
@@ -262,7 +262,7 @@ async def create_new_thread():
     new_thread_id = f"thread_{int(time.time() * 1000)}"
     
     # 保存到配置文件
-    ai_settings.save_config("thread_id", new_thread_id)
+    settings.update_config({"thread_id": new_thread_id})
     
     logger.info(f"创建新的thread_id: {new_thread_id}")
     
@@ -277,7 +277,7 @@ async def get_current_thread():
     - 当前的thread_id
     """
     # 从配置文件获取当前的thread_id
-    current_thread_id = ai_settings.get_thread_id()
+    current_thread_id = settings.get_config("thread_id")
     
     logger.info(f"获取当前thread_id: {current_thread_id}")
     
@@ -292,8 +292,8 @@ async def summarize_conversation():
     - 对话总结内容
     """
     # 从配置文件获取当前模式和thread_id
-    current_mode = ai_settings.current_mode
-    thread_id = ai_settings.get_thread_id()
+    current_mode = settings.get_config("currentMode", "outline")
+    thread_id = settings.get_config("thread_id")
     logger.info(f"总结对话使用的模式配置: {current_mode}, thread_id: {thread_id}")
     
     # 创建图实例

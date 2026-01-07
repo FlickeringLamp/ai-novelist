@@ -2,7 +2,7 @@ import logging
 from typing import List, Dict
 from pydantic import BaseModel, Field
 from backend.core.ai_agent.models.multi_model_adapter import MultiModelAdapter
-from backend.config import ai_settings
+from backend.config import settings
 from fastapi import APIRouter
 from backend.core.ai_agent.models.providers_list import BUILTIN_PROVIDERS
 
@@ -37,7 +37,7 @@ def providers_list():
     """获取所有提供商列表（包括内置和自定义）"""
     
     # 获取自定义提供商
-    custom_providers = ai_settings.get_config("customProviders", [])
+    custom_providers = settings.get_config("customProviders", [])
     custom_provider_names = [provider.get("name") for provider in custom_providers if provider.get("name")]
     
     # 合并内置提供商和自定义提供商
@@ -60,8 +60,9 @@ def model_list(provider_id: str):
         模型列表
     """
     # 获取API密钥和base_url
-    api_key = ai_settings.get_api_key_for_provider(provider_id)
-    base_url = ai_settings.get_base_url_for_provider(provider_id)
+    provider_config = settings.get_config(provider_id, {})
+    api_key = provider_config.get("key", "")
+    base_url = provider_config.get("url", "")
     
     # 获取模型列表
     models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
@@ -74,7 +75,7 @@ async def get_favorite_models():
     """
     获取常用模型列表
     """
-    config = ai_settings.get_all_config()
+    config = settings.load_config()
     favorite_models = config.get("favoriteModels", {})
     return favorite_models
 
@@ -86,7 +87,7 @@ async def add_favorite_model(request: AddFavoriteModelRequest):
     - **modelId**: 模型ID
     - **provider**: 提供商
     """
-    config = ai_settings.get_all_config()
+    config = settings.load_config()
     
     # 初始化favoriteModels字典（如果不存在）
     if "favoriteModels" not in config:
@@ -98,7 +99,7 @@ async def add_favorite_model(request: AddFavoriteModelRequest):
         "provider": request.provider
     }
     
-    ai_settings.update_config(config)
+    settings.update_config(config)
     return config["favoriteModels"]
 
 @router.delete("/favorite-models", summary="删除常用模型", response_model=Dict[str, Dict])
@@ -108,7 +109,7 @@ async def remove_favorite_model(model_id: str):
     
     - **modelId**: 模型ID（通过查询参数传递）
     """
-    config = ai_settings.get_all_config()
+    config = settings.load_config()
     
     # 初始化favoriteModels字典（如果不存在）
     if "favoriteModels" not in config:
@@ -117,7 +118,7 @@ async def remove_favorite_model(model_id: str):
     # 从常用列表中删除模型
     if model_id in config["favoriteModels"]:
         del config["favoriteModels"][model_id]
-        ai_settings.update_config(config)
+        settings.update_config(config)
         
         return config["favoriteModels"]
     else:
@@ -133,7 +134,7 @@ async def add_custom_provider(request: AddCustomProviderRequest):
     - **baseUrl**: API基础URL
     - **apiKey**: API密钥
     """
-    config = ai_settings.get_all_config()
+    config = settings.load_config()
     
     # 初始化customProviders列表（如果不存在）
     if "customProviders" not in config:
@@ -152,7 +153,7 @@ async def add_custom_provider(request: AddCustomProviderRequest):
     }
     
     config["customProviders"].append(new_provider)
-    ai_settings.update_config(config)
+    settings.update_config(config)
     
     return config["customProviders"]
 
@@ -166,7 +167,7 @@ async def update_custom_provider(provider_id: str, request: UpdateCustomProvider
     - **baseUrl**: API基础URL
     - **apiKey**: API密钥
     """
-    config = ai_settings.get_all_config()
+    config = settings.load_config()
     
     # 初始化customProviders列表（如果不存在）
     if "customProviders" not in config:
@@ -187,7 +188,7 @@ async def update_custom_provider(provider_id: str, request: UpdateCustomProvider
     if not provider_found:
         return config["customProviders"]
     
-    ai_settings.update_config(config)
+    settings.update_config(config)
     
     return config["customProviders"]
 
@@ -198,7 +199,7 @@ async def delete_custom_provider(provider_id: str):
     
     - **provider_id**: 提供商ID（路径参数）
     """
-    config = ai_settings.get_all_config()
+    config = settings.load_config()
     
     # 初始化customProviders列表（如果不存在）
     if "customProviders" not in config:
@@ -215,6 +216,6 @@ async def delete_custom_provider(provider_id: str):
     if not provider_found:
         return config["customProviders"]
     
-    ai_settings.update_config(config)
+    settings.update_config(config)
     
     return config["customProviders"]

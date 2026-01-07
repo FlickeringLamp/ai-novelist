@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import httpClient from '../../../utils/httpClient.js';
 import SliderComponent from '../common/SliderComponent';
 import InputComponent from '../common/InputComponent';
 import SettingGroup from '../common/SettingGroup';
 import './ChatParameters.css';
 
 /**
- * 高级设置组件 - 合并AI参数和上下文限制设置
- * 统一管理temperature、top_p、n等参数和上下文限制
+ * 高级设置组件 - 管理AI参数
+ * 统一管理temperature、top_p、n、max_tokens等参数
  */
 const AdvancedSettings = ({
   aiParameters = {},
@@ -16,18 +15,6 @@ const AdvancedSettings = ({
 }) => {
   // 本地状态管理
   const [localParameters, setLocalParameters] = useState({});
-  const [localContextSettings, setLocalContextSettings] = useState({});
-  const [contextLimitSettings, setContextLimitSettings] = useState({});
-
-  // 加载上下文限制设置
-  const loadContextLimitSettings = async () => {
-    try {
-      const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent('contextLimitSettings')}`);
-      setContextLimitSettings(response || {});
-    } catch (error) {
-      console.error('加载上下文限制设置失败:', error);
-    }
-  };
 
   // 初始化AI参数
   useEffect(() => {
@@ -47,41 +34,7 @@ const AdvancedSettings = ({
     }
     
     setLocalParameters(modeParameters);
-    
-    // 同时初始化上下文限制设置
-    if (modeParameters.max_tokens) {
-      console.log(`[AdvancedSettings] 设置max_tokens为: ${modeParameters.max_tokens}`);
-      setLocalContextSettings({
-        max_tokens: modeParameters.max_tokens
-      });
-    } else {
-      // 如果没有max_tokens，设置默认值4000
-      console.log(`[AdvancedSettings] 没有找到max_tokens，使用默认值4000`);
-      setLocalContextSettings({
-        max_tokens: 4000
-      });
-    }
   }, [aiParameters, mode]);
-
-  // 初始化上下文限制设置
-  useEffect(() => {
-    loadContextLimitSettings();
-  }, []);
-
-  useEffect(() => {
-    if (contextLimitSettings?.modes?.[mode]) {
-      setLocalContextSettings(contextLimitSettings.modes[mode]);
-    } else {
-      const defaultSettings = {
-        outline: { max_tokens: 4000 },
-        writing: { max_tokens: 8000 },
-        adjustment: { max_tokens: 2000 }
-      };
-      setLocalContextSettings(defaultSettings[mode] || {
-        max_tokens: 4000
-      });
-    }
-  }, [contextLimitSettings, mode]);
 
   // 处理AI参数变化
   const handleParameterChange = (parameter, value) => {
@@ -97,50 +50,8 @@ const AdvancedSettings = ({
     }
   };
 
-  // 处理上下文限制设置变化
-  const handleMaxTokensChange = async (value) => {
-    const newSettings = {
-      ...localContextSettings,
-      max_tokens: value
-    };
-    
-    setLocalContextSettings(newSettings);
-    
-    // 更新上下文限制设置
-    try {
-      const updatedContextLimitSettings = {
-        ...contextLimitSettings,
-        modes: {
-          ...contextLimitSettings.modes,
-          [mode]: newSettings
-        }
-      };
-      
-      await httpClient.post('/api/config/store', {
-        key: 'contextLimitSettings',
-        value: updatedContextLimitSettings
-      });
-      setContextLimitSettings(updatedContextLimitSettings);
-    } catch (error) {
-      console.error('保存上下文限制设置失败:', error);
-    }
-    
-    // 更新AI参数中的max_tokens
-    const newParameters = {
-      ...localParameters,
-      max_tokens: value
-    };
-    
-    setLocalParameters(newParameters);
-    
-    // 通知父组件参数已变化
-    if (onParametersChange) {
-      onParametersChange(mode, newParameters);
-    }
-  };
-
   // 重置参数为默认值
-  const handleReset = async () => {
+  const handleReset = () => {
     const defaultParameters = {
       temperature: 0.7,
       top_p: 0.7,
@@ -149,25 +60,6 @@ const AdvancedSettings = ({
     };
     
     setLocalParameters(defaultParameters);
-    
-    // 重置上下文限制设置
-    try {
-      const updatedContextLimitSettings = {
-        ...contextLimitSettings,
-        modes: {
-          ...contextLimitSettings.modes,
-          [mode]: { max_tokens: defaultParameters.max_tokens }
-        }
-      };
-      
-      await httpClient.post('/api/config/store', {
-        key: 'contextLimitSettings',
-        value: updatedContextLimitSettings
-      });
-      setContextLimitSettings(updatedContextLimitSettings);
-    } catch (error) {
-      console.error('重置上下文限制设置失败:', error);
-    }
     
     // 通知父组件参数已重置
     if (onParametersChange) {
@@ -244,6 +136,16 @@ const AdvancedSettings = ({
           type="parameter"
         />
 
+        <InputComponent
+          label="最大上下文长度"
+          value={localParameters.max_tokens || 4000}
+          onChange={(value) => handleParameterChange('max_tokens', value)}
+          description="控制对话历史的最大token数，默认4000 tokens。若要自行配置，请不要超过模型本身最大上下文！"
+          type="number"
+          placeholder="4000"
+          min={1000}
+        />
+
         <div className="parameter-actions">
           <button
             className="reset-button"
@@ -252,22 +154,6 @@ const AdvancedSettings = ({
             重置默认值
           </button>
         </div>
-      </SettingGroup>
-
-      {/* 上下文限制设置 */}
-      <SettingGroup
-        title="上下文限制设置"
-        description="控制AI可以访问的对话历史长度，影响模型的理解能力"
-      >
-        <InputComponent
-          label="最大上下文长度"
-          value={localParameters.max_tokens || 4000}
-          onChange={handleMaxTokensChange}
-          description="控制对话历史的最大token数，默认4000 tokens。若要自行配置，请不要超过模型本身最大上下文！"
-          type="number"
-          placeholder="4000"
-          min={1000}
-        />
       </SettingGroup>
     </div>
   );

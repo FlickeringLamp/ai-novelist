@@ -9,7 +9,7 @@ from pathlib import Path
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_ollama import OllamaEmbeddings
-from backend.config import Settings
+from backend.config import settings
 
 def load_config():
     """
@@ -19,15 +19,7 @@ def load_config():
         dict: 配置字典
     """
     try:
-        config_file = Settings.get_config_file_path()
-        
-        # 如果配置文件不存在，创建空配置文件
-        if not config_file.exists():
-            config_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(config_file, 'w', encoding='utf-8') as f:
-                json.dump({}, f, ensure_ascii=False, indent=2)
-            print(f"已创建新配置文件: {config_file}")
-            return {}
+        config_file = settings.config_file
         
         # 加载现有配置文件
         with open(config_file, 'r', encoding='utf-8') as f:
