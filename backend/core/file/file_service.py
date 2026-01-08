@@ -51,7 +51,6 @@ async def read_directory_recursive(dir_path: str, base_dir_path: str) -> List[Di
 
 async def get_file_tree() -> List[Dict]:
     """获取文件树结构"""
-    os.makedirs(settings.NOVEL_DIR, exist_ok=True)
     tree = await read_directory_recursive(settings.NOVEL_DIR, settings.NOVEL_DIR)
     return tree
 
@@ -143,8 +142,8 @@ async def rename_file(old_path: str, new_name: str):
 
 async def move_file(source_path: str, target_path: str):
     """移动文件或文件夹"""
-    full_source = Path(source_path)
-    full_target = Path(target_path)
+    full_source = Path(settings.NOVEL_DIR) / source_path
+    full_target = Path(settings.NOVEL_DIR) / target_path
     
     if os.path.isdir(full_target):
         target_path = os.path.join(full_target, os.path.basename(full_source))
@@ -154,8 +153,8 @@ async def move_file(source_path: str, target_path: str):
 
 async def copy_file(source_path: str, target_path: str):
     """复制文件或文件夹，如果目标已存在则失败"""
-    full_source = Path(source_path) # 原路径
-    full_target_dir = Path(target_path) # 目标目录
+    full_source = Path(settings.NOVEL_DIR) / source_path # 原路径
+    full_target_dir = Path(settings.NOVEL_DIR) / target_path # 目标目录
     source_name = os.path.basename(full_source)
     full_target_path = os.path.join(full_target_dir, source_name) # 最终形成的新路径（目标目录+文件名/文件夹名）
 

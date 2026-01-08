@@ -5,9 +5,6 @@
 }
 
 .tool-config-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
   border-bottom: 1px solid var(--border-color);
@@ -18,35 +15,6 @@
   color: var(--text-color-primary);
   font-size: 18px;
   font-weight: 600;
-}
-
-.tool-config-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.reset-tools-btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background-color: var(--divider-color);
-  color: var(--text-color-primary);
-}
-
-.reset-tools-btn:hover:not(:disabled) {
-  background-color: var(--border-color);
-}
-
-.reset-tools-btn:disabled {
-  background-color: var(--divider-color);
-  cursor: not-allowed;
-  opacity: 0.6;
 }
 
 .tool-config-description {
@@ -242,17 +210,6 @@
 @media (max-width: 768px) {
   .tool-config-tab {
     padding: 15px;
-  }
-  
-  .tool-config-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  .tool-config-actions {
-    width: 100%;
-    justify-content: flex-end;
   }
   
   .tool-item {

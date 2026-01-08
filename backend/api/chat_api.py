@@ -7,8 +7,7 @@ import nest_asyncio
 from pydantic import BaseModel, Field
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from backend.config import State
-from backend.config import settings
+from backend.config import settings, State
 from backend.core.ai_agent.core.graph_builder import build_graph
 from backend.core.ai_agent.core.tool_load import import_tools_from_directory
 from backend.core.ai_agent.core.system_prompt_builder import system_prompt_builder
@@ -33,7 +32,7 @@ class InterruptResponseRequest(BaseModel):
 logger = logging.getLogger(__name__)
 
 
-router = APIRouter(prefix="/api/chat", tags=["AI Chat"])
+router = APIRouter(prefix="/api/chat", tags=["Chat"])
 
 
 def create_graph(mode: str = None):
@@ -76,7 +75,7 @@ async def send_chat_message(request: ChatMessageRequest):
     """
     message = request.message
     # 从配置文件获取当前模式和thread_id
-    current_mode = settings.get_config("currentMode", "outline")
+    current_mode = settings.get_config("currentMode", default="outline")
     thread_id = settings.get_config("thread_id")
     logger.info(f"使用的模式配置: {current_mode}, thread_id: {thread_id}")
     
@@ -180,7 +179,7 @@ async def send_interrupt_response(request: InterruptResponseRequest):
     
     # 每次请求都创建新的graph实例，确保使用最新的模型配置和工具
     # 从配置文件读取当前模式
-    current_mode = settings.get_config("currentMode", "outline")
+    current_mode = settings.get_config("currentMode", default="outline")
     logger.info(f"中断响应使用的模式配置: {current_mode}")
     graph = create_graph(current_mode)
     
@@ -292,7 +291,7 @@ async def summarize_conversation():
     - 对话总结内容
     """
     # 从配置文件获取当前模式和thread_id
-    current_mode = settings.get_config("currentMode", "outline")
+    current_mode = settings.get_config("currentMode", default="outline")
     thread_id = settings.get_config("thread_id")
     logger.info(f"总结对话使用的模式配置: {current_mode}, thread_id: {thread_id}")
     

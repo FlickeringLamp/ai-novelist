@@ -1,9 +1,5 @@
-import os
 import sys
 import logging
-
-# 添加ai-novelist根目录到Python路径
-sys.path.insert(0, os.path.abspath(os.getcwd()))
 
 from backend.config import settings, initialize_directories_and_files
 
@@ -114,7 +110,7 @@ async def health_check():
 
 # 全局异常处理
 @app.exception_handler(Exception)
-async def global_exception_handler(exc):
+async def global_exception_handler(request, exc):
     """全局异常处理器"""
     return JSONResponse(
         status_code=500,
@@ -122,7 +118,7 @@ async def global_exception_handler(exc):
     )
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(exc):
+async def http_exception_handler(request, exc):
     """HTTP异常处理器"""
     return JSONResponse(
         status_code=exc.status_code,

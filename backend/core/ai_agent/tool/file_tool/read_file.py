@@ -1,14 +1,9 @@
-import os
+from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Optional
 from langchain.tools import tool
 from langgraph.types import interrupt
 
-# 导入配置和路径验证器
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from backend.config import settings
-from backend.core.file.file_service import normalize_path, get_full_path
 
 class ReadFileInput(BaseModel):
     """读取文件的输入参数"""
@@ -43,14 +38,10 @@ def read_file(file_path: str, start_paragraph: Optional[int] = None,
     
     if choice_action == "1":
         try:
-            # 规范化路径
-            clean_path = normalize_path(file_path)
-            
-            # 获取完整路径
-            full_path = get_full_path(clean_path)
+            path = Path(file_path)
             
             # 读取文件内容
-            with open(full_path, 'r', encoding='utf-8') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
             # 按段落分割并添加行号

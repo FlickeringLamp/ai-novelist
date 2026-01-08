@@ -280,6 +280,16 @@
     outline: none;
 }
 
+.setting-item input[type="text"]::selection {
+    background-color: #4caf50; /* 绿色背景 */
+    color: white;
+}
+
+.setting-item input[type="text"]::-moz-selection {
+    background-color: #4caf50; /* 绿色背景 */
+    color: white;
+}
+
 .modal-actions {
     display: flex;
     justify-content: flex-end;

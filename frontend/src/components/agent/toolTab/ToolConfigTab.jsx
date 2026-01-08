@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUndo } from '@fortawesome/free-solid-svg-icons';
 import httpClient from '../../../utils/httpClient.js';
 import './ToolConfigTab.css';
 
@@ -38,19 +36,6 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
   const notifyConfigChange = (newConfig) => {
     if (onToolConfigChange) {
       onToolConfigChange(mode, newConfig);
-    }
-  };
-
-  // 重置工具配置
-  const resetToolConfig = async () => {
-    try {
-      const response = await httpClient.post(`/api/tool-config/modes/${mode}/reset`);
-      setToolConfig(response);
-      setOriginalConfig(response);
-      setHasChanges(false);
-      console.log('工具配置重置成功');
-    } catch (error) {
-      console.error('调用重置工具配置API失败:', error);
     }
   };
 
@@ -148,15 +133,6 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
     <div className="tool-config-tab">
       <div className="tool-config-header">
         <h4>工具配置</h4>
-        <div className="tool-config-actions">
-          <button
-            className="reset-tools-btn"
-            onClick={resetToolConfig}
-            disabled={!hasChanges && originalConfig}
-          >
-            <FontAwesomeIcon icon={faUndo} /> 重置
-          </button>
-        </div>
       </div>
 
       <div className="tool-config-description">

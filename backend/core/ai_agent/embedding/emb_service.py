@@ -2,7 +2,6 @@ from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import LanceDB
 import os
-import json
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -10,23 +9,6 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from backend.config import settings
-
-def load_config():
-    """
-    加载配置文件
-    
-    Returns:
-        dict: 配置字典
-    """
-    try:
-        config_file = settings.config_file
-        
-        # 加载现有配置文件
-        with open(config_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"加载配置文件失败: {e}")
-        return {}
 
 
 def prepare_doc(orgfile_path,chunk_size,chunk_overlap):
@@ -39,9 +21,7 @@ def prepare_doc(orgfile_path,chunk_size,chunk_overlap):
     original_filename = os.path.basename(orgfile_path)
     
     # 获取维度
-    config = load_config()
-    embedding_model_config = config.get("embeddingModels", {})
-    embedding_dimensions = embedding_model_config.get("dimensions", 0)
+    embedding_dimensions = settings.get_config("embeddingModels", "dimensions", default=0)
     
     # 使用配置的分块参数进行文档切分
     text_splitter = RecursiveCharacterTextSplitter(

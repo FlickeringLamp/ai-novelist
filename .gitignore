@@ -32,6 +32,7 @@ develop_note/
 启动说明.txt
 backend/data
 *.bat
+test_files/
 
 # Lock files
 mcp-filesystem-server.lock
@@ -44,9 +45,6 @@ python_portable/
 
 # Database files
 db/
-
-# Static assets (unless they are source files)
-# public/ - Removed to allow frontend public directory to be tracked
 
 # Build outputs and temporary files
 *.tmp
@@ -70,8 +68,6 @@ Thumbs.db
 *.swo
 *~
 
-# Configuration files (user-specific)
-backend/data/config/store.json
 
 # Node-gyp cache directory
 .node-gyp-cache/
@@ -81,7 +77,6 @@ backend/data/config/store.json
 test-additional-info.js
 
 # Batch files (if not needed for deployment)
-# *.bat
 *~
 
 # Portable Git (for distribution, not version control)

@@ -1,17 +1,8 @@
-"""
-多模型适配器
-统一处理不同模型提供商的初始化，支持init_chat_model原生模型和OpenAI兼容模型
-"""
-
 from typing import Optional, Dict, Any, List
 from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI
-import sys
-import os
 import requests
 import logging
-# 添加父目录到路径，确保可以导入ai_agent模块
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from backend.config import settings
 from langchain_community.chat_models import ChatZhipuAI
 
@@ -53,13 +44,11 @@ class MultiModelAdapter:
         """
         # 获取API密钥
         if api_key is None:
-            provider_config = settings.get_config(provider, {})
-            api_key = provider_config.get("key", "")
+            api_key = settings.get_config("provider", provider, "key", default="")
         
         # 获取base_url
         if base_url is None:
-            provider_config = settings.get_config(provider, {})
-            base_url = provider_config.get("url", "")
+            base_url = settings.get_config("provider", provider, "url", default="")
         
         print(f"初始化模型: {model}, 提供商: {provider}, base_url: {base_url}")
         # 根据提供商类型选择初始化方式
@@ -140,8 +129,7 @@ class MultiModelAdapter:
                     models.append({
                         "id": f"ollama/{model_name}",
                         "name": f"Ollama {model_name}",
-                        "provider": "ollama",
-                        "description": f"本地Ollama模型: {model_name}"
+                        "provider": "ollama"
                     })
                 return models
             else:
@@ -166,8 +154,7 @@ class MultiModelAdapter:
                     models.append({
                         "id": f"{provider}/{model_id}",
                         "name": f"{provider.title()} {model_id}",
-                        "provider": provider,
-                        "description": f"{provider.title()} 模型: {model_id}"
+                        "provider": provider
                     })
                 
                 # 添加嵌入模型列表
@@ -176,26 +163,22 @@ class MultiModelAdapter:
                         {
                             "id": "aliyun/text-embedding-v4",
                             "name": "阿里云 text-embedding-v4",
-                            "provider": "aliyun",
-                            "description": "阿里云文本嵌入模型v4，支持多种向量维度"
+                            "provider": "aliyun"
                         },
                         {
                             "id": "aliyun/text-embedding-v3",
                             "name": "阿里云 text-embedding-v3",
-                            "provider": "aliyun",
-                            "description": "阿里云文本嵌入模型v3，支持多种向量维度"
+                            "provider": "aliyun"
                         },
                         {
                             "id": "aliyun/text-embedding-v2",
                             "name": "阿里云 text-embedding-v2",
-                            "provider": "aliyun",
-                            "description": "阿里云文本嵌入模型v2，向量维度1536"
+                            "provider": "aliyun"
                         },
                         {
                             "id": "aliyun/text-embedding-v1",
                             "name": "阿里云 text-embedding-v1",
-                            "provider": "aliyun",
-                            "description": "阿里云文本嵌入模型v1"
+                            "provider": "aliyun"
                         }
                     ]
                     models.extend(embedding_models)
@@ -204,14 +187,12 @@ class MultiModelAdapter:
                         {
                             "id": "zhipuai/embedding-3",
                             "name": "智谱 Embedding-3",
-                            "provider": "zhipuai",
-                            "description": "智谱向量模型V3，上下文8K"
+                            "provider": "zhipuai"
                         },
                         {
                             "id": "zhipuai/embedding-2",
                             "name": "智谱 Embedding-2",
-                            "provider": "zhipuai",
-                            "description": "智谱向量模型V2，上下文8K"
+                            "provider": "zhipuai"
                         }
                     ]
                     models.extend(embedding_models)
@@ -220,8 +201,7 @@ class MultiModelAdapter:
                         {
                             "id": "openrouter/qwen/qwen3-embedding-4b",
                             "name": "OpenRouter 千问 text-embedding-v4",
-                            "provider": "openrouter",
-                            "description": "OpenRouter 代理的阿里云文本嵌入模型v4，支持多种向量维度"
+                            "provider": "openrouter"
                         }
                     ]
                     models.extend(embedding_models)

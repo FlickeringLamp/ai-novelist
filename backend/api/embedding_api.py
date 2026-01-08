@@ -1,13 +1,10 @@
 import os
-import json
 from typing import List, Dict, Any
-from pathlib import Path
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, UploadFile, File
 
-from backend.core.ai_agent.embedding.emb_service import prepare_emb, load_config, list_available_tables, delete_table, update_table_metadata, prepare_doc, create_db
-from backend.config import settings
-from backend.core.ai_agent.models.providers_list import BUILTIN_PROVIDERS
+from backend.core.ai_agent.embedding.emb_service import prepare_emb, list_available_tables, delete_table, update_table_metadata, prepare_doc, create_db
+from backend.config import BUILTIN_PROVIDERS, settings
 
 # 请求模型
 class GetEmbeddingDimensionsRequest(BaseModel):
@@ -24,7 +21,7 @@ class RenameKnowledgeBaseFileRequest(BaseModel):
     new_name: str = Field(..., description="新的文件名")
 
 # 创建路由器
-router = APIRouter(prefix="/api/embedding", tags=["embedding"])
+router = APIRouter(prefix="/api/embedding", tags=["Embedding"])
 
 @router.post("/dimensions", response_model=Dict[str, Any])
 async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
@@ -57,8 +54,7 @@ async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
         embedding_url = BUILTIN_PROVIDERS[provider]
     else:
         # 自定义提供商从配置文件获取URL
-        provider_config = settings.get_config(provider, {})
-        embedding_url = provider_config.get("url", "")
+        embedding_url = settings.get_config(provider, "url", default="")
         if not embedding_url:
             raise HTTPException(
                 status_code=400,
@@ -69,8 +65,7 @@ async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
     if provider == "ollama":
         api_key = ""
     else:
-        provider_config = settings.get_config(provider, {})
-        api_key = provider_config.get("key", "")
+        api_key = settings.get_config(provider, "key", default="")
     
     print(f"提供商: {provider}, 模型ID: {model_id}")
     print(f"URL: {embedding_url}")
@@ -124,54 +119,34 @@ async def save_embedding_dimensions_to_config(provider: str, model_id: str, dime
         model_id: 模型ID
         dimensions: 维度值
     """
-    # 加载当前配置
-    config = load_config()
-    # 确保config是一个字典
-    if not isinstance(config, dict):
-        config = {}
-
-    # 每次保存时先清空现有数据，只保留当前模型的信息
-    config["embeddingModels"] = {
+    # 保存嵌入模型配置
+    settings.update_config({
         "provider": provider,
         "modelId": model_id,
         "dimensions": dimensions
-    }    
-    # 保存到文件
-    config_file = Path(__file__).parent.parent /"data"/ "config" / "store.json"
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
+    }, "embeddingModels")
     print(f"已保存提供商 {provider} 的模型 {model_id} 的维度 {dimensions} 到配置文件")
 
 
 
 # 从已有配置里读取嵌入模型信息
 def get_emb_model_key_url_dimensions():
-    # 加载配置
-    config = load_config()
     # 从embeddingModels获取modelId并解析provider和embedding_model
-    embedding_model_config = config.get("embeddingModels", {})
-    provider = embedding_model_config.get("provider","")
-    model_id = embedding_model_config.get("modelId", "")
-    dimensions = embedding_model_config.get("dimensions","")
+    provider = settings.get_config("embeddingModels", "provider", default="")
+    model_id = settings.get_config("embeddingModels", "modelId", default="")
+    dimensions = settings.get_config("embeddingModels", "dimensions", default=0)
     
     
     # 确定嵌入URL和api_key
     if provider in BUILTIN_PROVIDERS:
         embedding_url = BUILTIN_PROVIDERS[provider]
     else:
-        provider_config = settings.get_config(provider, {})
-        embedding_url = provider_config.get("url", "")
-        if not embedding_url:
-            raise HTTPException(
-                status_code=400,
-                detail=f"未找到提供商{provider}的URL配置"
-            )
+        embedding_url = settings.get_config("provider", provider, "url", default="")
     
     if provider == "ollama":
         api_key = ""
     else:
-        provider_config = settings.get_config(provider, {})
-        api_key = provider_config.get("key", "")
+        api_key = settings.get_config("provider", provider, "key", default="")
     return provider, model_id, embedding_url, api_key, dimensions
 
 # RAG分块设置相关API
@@ -183,12 +158,9 @@ async def get_rag_chunk_settings():
     Returns:
         RAG分块设置响应
     """
-    # 加载配置
-    config = load_config()
-    
     # 获取分块设置
-    chunk_size = config.get("ragChunkSize", 200)
-    chunk_overlap = config.get("ragChunkOverlap", 50)
+    chunk_size = settings.get_config("ragChunkSize", default=200)
+    chunk_overlap = settings.get_config("ragChunkOverlap", default=50)
     
     return {
         "chunkSize": chunk_size,
@@ -206,17 +178,9 @@ async def save_rag_chunk_settings(request: SaveRagChunkSettingsRequest):
     Returns:
         RAG分块设置响应
     """
-    # 加载当前配置
-    config = load_config()
-    
     # 更新分块设置
-    config["ragChunkSize"] = request.chunkSize
-    config["ragChunkOverlap"] = request.chunkOverlap
-    
-    # 保存到文件
-    config_file = Path(__file__).parent.parent /"data"/ "config" / "store.json"
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
+    settings.update_config(request.chunkSize, "ragChunkSize")
+    settings.update_config(request.chunkOverlap, "ragChunkOverlap")
         
     print(f"已保存RAG分块设置: chunkSize={request.chunkSize}, chunkOverlap={request.chunkOverlap}")
     
@@ -346,9 +310,6 @@ async def add_file_to_knowledge_base(file: UploadFile = File(...)):
     Returns:
         添加结果响应
     """
-    # 加载配置
-    config = load_config()
-    
     provider, embedding_model, embedding_url, api_key, dimensions = get_emb_model_key_url_dimensions()
     
     db_path = settings.LANCEDB_PERSIST_DIR
@@ -364,8 +325,8 @@ async def add_file_to_knowledge_base(file: UploadFile = File(...)):
         embeddings = prepare_emb(provider, embedding_model, embedding_url, api_key)
         
         # 获取RAG分块设置
-        chunk_size = config.get("ragChunkSize", 200)
-        chunk_overlap = config.get("ragChunkOverlap", 50)
+        chunk_size = settings.get_config("ragChunkSize", default=200)
+        chunk_overlap = settings.get_config("ragChunkOverlap", default=50)
         
         # 准备文档
         documents = prepare_doc(temp_file_path, chunk_size, chunk_overlap)

@@ -1,7 +1,8 @@
 import sqlite3
 import logging
 from typing import Optional
-
+from backend.config import settings
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 logger = logging.getLogger(__name__)
 # 全局数据库连接和内存存储，避免重复创建连接
@@ -18,7 +19,6 @@ def get_db_connection():
     
     if _db_connection is None:
         # 确保数据库目录存在
-        from backend.config import settings
         _db_connection = sqlite3.connect(settings.CHECKPOINTS_DB_PATH, check_same_thread=False)
         # 设置更长的超时时间，默认5秒可能不够
         _db_connection.execute("PRAGMA busy_timeout = 30000")  # 30秒超时
@@ -34,7 +34,6 @@ def get_db_connection():
     except sqlite3.ProgrammingError as e:
         if "Cannot operate on a closed database" in str(e):
             logger.warning("数据库连接已关闭，重新创建连接")
-            from backend.config import settings
             _db_connection = sqlite3.connect(settings.CHECKPOINTS_DB_PATH, check_same_thread=False)
             _db_connection.execute("PRAGMA busy_timeout = 30000")  # 30秒超时
             _db_connection.execute("PRAGMA journal_mode=WAL")
@@ -65,9 +64,7 @@ def close_db_connection():
             logger.error(f"关闭数据库连接时发生错误: {e}")
 
 def get_memory_storage(mode: Optional[str] = None):
-    """获取或创建内存存储，避免重复创建"""
-    from langgraph.checkpoint.sqlite import SqliteSaver
-    
+    """获取或创建内存存储，避免重复创建"""    
     if mode not in _memory_storage:
         conn = get_db_connection()
         try:

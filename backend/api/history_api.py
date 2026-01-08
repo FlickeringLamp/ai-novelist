@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import HumanMessage
 
-from backend.config import State
+from backend.config import State, settings
 from backend.core.ai_agent.core.graph_builder import build_graph
 from backend.core.ai_agent.core.tool_load import import_tools_from_directory
 from backend.core.ai_agent.core.system_prompt_builder import system_prompt_builder
@@ -17,6 +17,7 @@ from backend.core.ai_agent.utils.db_utils import get_db_connection,get_memory_st
 import time
 
 logger = logging.getLogger(__name__)
+db_path = settings.CHECKPOINTS_DB_PATH
 
 # 请求模型
 class GetCheckpointsRequest(BaseModel):
@@ -45,7 +46,7 @@ class OperateMessagesRequest(BaseModel):
     mode: str = Field(default="outline", description="对话模式")
 
 # 创建API路由器
-router = APIRouter(prefix="/api/history", tags=["History Management"])
+router = APIRouter(prefix="/api/history", tags=["History"])
 
 def create_graph(mode: Optional[str] = None):
     """创建新的图实例
@@ -316,8 +317,6 @@ async def get_all_sessions():
     
     返回所有用户的会话信息，包括会话ID、消息数量等
     """
-    from backend.config import settings
-    db_path = settings.CHECKPOINTS_DB_PATH
     
     if not os.path.exists(db_path):
         return {"sessions": []}
@@ -481,8 +480,6 @@ async def get_session(session_id: str):
 
     - **session_id**: 会话ID
     """
-    from backend.config import settings
-    db_path = settings.CHECKPOINTS_DB_PATH
     
     if not os.path.exists(db_path):
         raise HTTPException(status_code=404, detail="数据库文件不存在")
@@ -642,9 +639,7 @@ async def delete_session(session_id: str):
 
     - **session_id**: 会话ID
     """
-    from backend.config import settings
-    db_path = settings.CHECKPOINTS_DB_PATH
-    
+        
     if not os.path.exists(db_path):
         raise HTTPException(status_code=404, detail="数据库文件不存在")
 

@@ -1,11 +1,7 @@
-import os
+from pathlib import Path
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langgraph.types import interrupt
-# 导入配置和路径验证器
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from backend.core.file.file_service import normalize_path, get_full_path
 
 class WriteFileInput(BaseModel):
     """写入文件的输入参数"""
@@ -36,19 +32,15 @@ def write_file(path: str, content: str) -> str:
     
     if choice_action == "1":
         try:
-            # 规范化路径
-            clean_path = normalize_path(path)
-            
-            # 获取完整路径
-            full_path = get_full_path(clean_path)
+            path = Path(path)
             
             # 确保目录存在
-            full_path.parent.mkdir(parents=True, exist_ok=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
         
-            with open(full_path, 'w', encoding='utf-8') as f:
+            with open(path, 'w', encoding='utf-8') as f:
                 f.write(content)
         
-            return f"【工具结果】：文件 '{path}' 写入成功，内容长度: {len(content)} 字符 ;**【用户信息】：{choice_data}**"
+            return f"【工具结果】：文件 '{str(path)}' 写入成功，内容长度: {len(content)} 字符 ;**【用户信息】：{choice_data}**"
         
         except Exception as e:
             return f"【工具结果】：写入文件失败: {str(e)} ;**【用户信息】：{choice_data}**"

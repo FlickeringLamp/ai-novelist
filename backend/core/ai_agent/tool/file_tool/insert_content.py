@@ -1,13 +1,7 @@
-import os
+from pathlib import Path
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langgraph.types import interrupt
-
-# 导入配置和路径验证器
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from backend.config import settings
-from backend.core.file.file_service import normalize_path, get_full_path
 
 class InsertContentInput(BaseModel):
     """插入内容的输入参数"""
@@ -41,11 +35,7 @@ def insert_content(path: str, paragraph: int, content: str) -> str:
     
     if choice_action == "1":
         try:
-            # 规范化路径
-            clean_path = normalize_path(path)
-            
-            # 获取完整路径
-            file_path = get_full_path(clean_path)
+            file_path = Path(path)
             
             with open(file_path, 'r', encoding='utf-8') as f:
                 existing_content = f.read()

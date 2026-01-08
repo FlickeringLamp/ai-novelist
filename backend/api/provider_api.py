@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 from backend.core.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.config import settings
 from fastapi import APIRouter
-from backend.core.ai_agent.models.providers_list import BUILTIN_PROVIDERS
 
 logger = logging.getLogger(__name__)
 
@@ -14,37 +13,23 @@ class AddFavoriteModelRequest(BaseModel):
     modelId: str = Field(..., description="模型ID")
     provider: str = Field(..., description="提供商")
 
-class AddCustomProviderRequest(BaseModel):
-    """添加自定义提供商请求"""
+class AddProviderRequest(BaseModel):
+    """添加提供商请求"""
     name: str = Field(..., description="提供商名称")
-    baseUrl: str = Field(..., description="API基础URL")
-    apiKey: str = Field(default="", description="API密钥")
-
-class UpdateCustomProviderRequest(BaseModel):
-    """更新自定义提供商请求"""
-    name: str = Field(..., description="提供商名称")
-    baseUrl: str = Field(..., description="API基础URL")
-    apiKey: str = Field(default="", description="API密钥")
+    url: str = Field(..., description="API基础URL")
+    key: str = Field(..., description="API密钥")
 
 # 创建API路由器
-router = APIRouter(prefix="/api/provider")
+router = APIRouter(prefix="/api/provider", tags=["Provider"])
 
 # API端点
 
 # 所有提供商列表
 @router.get("/providers", summary="获取提供商列表", response_model=List[str])
 def providers_list():
-    """获取所有提供商列表（包括内置和自定义）"""
-    
-    # 获取自定义提供商
-    custom_providers = settings.get_config("customProviders", [])
-    custom_provider_names = [provider.get("name") for provider in custom_providers if provider.get("name")]
-    
-    # 合并内置提供商和自定义提供商
-    builtin_provider_names = list(BUILTIN_PROVIDERS.keys())
-    all_providers = builtin_provider_names + custom_provider_names
-    
-    return all_providers
+    """获取所有提供商列表"""
+    provider_config = settings.get_config("provider", default={})
+    return list(provider_config.keys())
 
 
 
@@ -60,9 +45,8 @@ def model_list(provider_id: str):
         模型列表
     """
     # 获取API密钥和base_url
-    provider_config = settings.get_config(provider_id, {})
-    api_key = provider_config.get("key", "")
-    base_url = provider_config.get("url", "")
+    api_key = settings.get_config("provider", provider_id, "key", default="")
+    base_url = settings.get_config("provider", provider_id, "url", default="")
     
     # 获取模型列表
     models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
@@ -75,8 +59,7 @@ async def get_favorite_models():
     """
     获取常用模型列表
     """
-    config = settings.load_config()
-    favorite_models = config.get("favoriteModels", {})
+    favorite_models = settings.get_config("favoriteModels", default={})
     return favorite_models
 
 @router.post("/favorite-models", summary="添加常用模型", response_model=Dict[str, Dict])
@@ -87,20 +70,13 @@ async def add_favorite_model(request: AddFavoriteModelRequest):
     - **modelId**: 模型ID
     - **provider**: 提供商
     """
-    config = settings.load_config()
-    
-    # 初始化favoriteModels字典（如果不存在）
-    if "favoriteModels" not in config:
-        config["favoriteModels"] = {}
-    
     # 添加模型到常用列表
-    config["favoriteModels"][request.modelId] = {
+    settings.update_config({
         "modelId": request.modelId,
         "provider": request.provider
-    }
+    }, "favoriteModels", request.modelId)
     
-    settings.update_config(config)
-    return config["favoriteModels"]
+    return settings.get_config("favoriteModels", default={})
 
 @router.delete("/favorite-models", summary="删除常用模型", response_model=Dict[str, Dict])
 async def remove_favorite_model(model_id: str):
@@ -109,24 +85,14 @@ async def remove_favorite_model(model_id: str):
     
     - **modelId**: 模型ID（通过查询参数传递）
     """
-    config = settings.load_config()
-    
-    # 初始化favoriteModels字典（如果不存在）
-    if "favoriteModels" not in config:
-        config["favoriteModels"] = {}
-    
     # 从常用列表中删除模型
-    if model_id in config["favoriteModels"]:
-        del config["favoriteModels"][model_id]
-        settings.update_config(config)
-        
-        return config["favoriteModels"]
-    else:
-        return config["favoriteModels"]
+    settings.delete_config("favoriteModels", model_id)
+    
+    return settings.get_config("favoriteModels", default={})
 
 
-@router.post("/custom-providers", summary="添加自定义提供商", response_model=List[Dict])
-async def add_custom_provider(request: AddCustomProviderRequest):
+@router.post("/custom-providers", summary="添加自定义提供商", response_model=Dict[str, Dict])
+async def add_custom_provider(request: AddProviderRequest):
     """
     添加自定义提供商
     
@@ -134,31 +100,20 @@ async def add_custom_provider(request: AddCustomProviderRequest):
     - **baseUrl**: API基础URL
     - **apiKey**: API密钥
     """
-    config = settings.load_config()
+    provider_config = settings.get_config("provider", default={})
+    # 检查名称是否已存在
+    if request.name in provider_config:
+        return {"error": "名称已被使用"}
+    # 添加新的提供商
+    settings.update_config({
+        "url": request.url,
+        "key": request.key
+    }, "provider", request.name)
     
-    # 初始化customProviders列表（如果不存在）
-    if "customProviders" not in config:
-        config["customProviders"] = []
-    
-    # 检查提供商名称是否已存在
-    existing_names = [provider.get("name") for provider in config["customProviders"]]
-    if request.name in existing_names:
-        return config["customProviders"]
-    
-    # 添加新的自定义提供商
-    new_provider = {
-        "name": request.name,
-        "baseUrl": request.baseUrl,
-        "apiKey": request.apiKey
-    }
-    
-    config["customProviders"].append(new_provider)
-    settings.update_config(config)
-    
-    return config["customProviders"]
+    return settings.get_config("provider", default={})
 
-@router.put("/custom-providers/{provider_id}", summary="更新自定义提供商", response_model=List[Dict])
-async def update_custom_provider(provider_id: str, request: UpdateCustomProviderRequest):
+@router.put("/custom-providers/{provider_id}", summary="更新自定义提供商", response_model=Dict[str, Dict])
+async def update_custom_provider(provider_id: str, request: AddProviderRequest):
     """
     更新自定义提供商
     
@@ -167,55 +122,32 @@ async def update_custom_provider(provider_id: str, request: UpdateCustomProvider
     - **baseUrl**: API基础URL
     - **apiKey**: API密钥
     """
-    config = settings.load_config()
+    provider_config = settings.get_config("provider", default={})
     
-    # 初始化customProviders列表（如果不存在）
-    if "customProviders" not in config:
-        config["customProviders"] = []
+    # 如果名称改变，检查新名称是否已存在
+    if request.name != provider_id and request.name in provider_config:
+        return {"error": "新名称已被使用"}
     
-    # 查找并更新提供商
-    provider_found = False
-    for i, provider in enumerate(config["customProviders"]):
-        if provider.get("name") == provider_id:
-            config["customProviders"][i] = {
-                "name": request.name,
-                "baseUrl": request.baseUrl,
-                "apiKey": request.apiKey
-            }
-            provider_found = True
-            break
+    # 删除旧的提供商（如果名称改变）
+    if request.name != provider_id:
+        settings.delete_config("provider", provider_id)
     
-    if not provider_found:
-        return config["customProviders"]
+    # 更新提供商
+    settings.update_config({
+        "url": request.url,
+        "key": request.key
+    }, "provider", request.name)
     
-    settings.update_config(config)
-    
-    return config["customProviders"]
+    return settings.get_config("provider", default={})
 
-@router.delete("/custom-providers/{provider_id}", summary="删除自定义提供商", response_model=List[Dict])
+@router.delete("/custom-providers/{provider_id}", summary="删除自定义提供商", response_model=Dict[str, Dict])
 async def delete_custom_provider(provider_id: str):
     """
     删除自定义提供商
     
     - **provider_id**: 提供商ID（路径参数）
     """
-    config = settings.load_config()
+    # 删除提供商
+    settings.delete_config("provider", provider_id)
     
-    # 初始化customProviders列表（如果不存在）
-    if "customProviders" not in config:
-        config["customProviders"] = []
-    
-    # 查找并删除提供商
-    provider_found = False
-    for i, provider in enumerate(config["customProviders"]):
-        if provider.get("name") == provider_id:
-            del config["customProviders"][i]
-            provider_found = True
-            break
-    
-    if not provider_found:
-        return config["customProviders"]
-    
-    settings.update_config(config)
-    
-    return config["customProviders"]
+    return settings.get_config("provider", default={})

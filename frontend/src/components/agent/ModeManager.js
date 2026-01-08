@@ -277,26 +277,6 @@ export const useModeManager = () => {
     return Object.values(BUILTIN_MODES);
   };
 
-  /**
-   * 获取默认提示词
-   */
-  const getDefaultPrompt = (modeId) => {
-    return '';
-  };
-
-  /**
-   * 获取所有内置模式的默认提示词
-   */
-  const getAllDefaultPrompts = async () => {
-    try {
-      const response = await httpClient.get('/api/ai-config/default-prompts');
-      return response || {};
-    } catch (error) {
-      console.error('获取默认提示词失败:', error);
-      return {};
-    }
-  };
-
   // 组件挂载时初始化
   useEffect(() => {
     initialize();
@@ -327,9 +307,7 @@ export const useModeManager = () => {
     // 内置模式相关
     BUILTIN_MODES,
     getBuiltinMode,
-    getBuiltinModes,
-    getDefaultPrompt,
-    getAllDefaultPrompts
+    getBuiltinModes
   };
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faTimes, faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -16,8 +16,6 @@ import './AgentPanel.css';
  */
 const AgentPanel = ({ isOpen = true, onClose }) => {
   // UI状态 - 专注于展示和交互
-  const [defaultPrompts, setDefaultPrompts] = useState({});
-  const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
   const [selectedMode, setSelectedMode] = useState('outline');
   const [searchText, setSearchText] = useState('');
   const [showCustomModeForm, setShowCustomModeForm] = useState(false);
@@ -40,28 +38,6 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
 
   // 使用模式管理模块 - 单一数据源
   const modeManager = useModeManager();
-
-  // 从后端获取默认提示词
-  const fetchDefaultPrompts = async () => {
-    setIsLoadingPrompts(true);
-    try {
-      const response = await httpClient.get('/api/ai-config/default-prompts');
-      if (response) {
-        setDefaultPrompts(response);
-      } else {
-        // 如果后端获取失败，使用内置默认值作为fallback
-        const defaultPrompts = await modeManager.getAllDefaultPrompts();
-        setDefaultPrompts(defaultPrompts);
-      }
-    } catch (error) {
-      console.error('调用获取默认提示词API失败:', error);
-      // 如果API调用失败，使用内置默认值
-      const defaultPrompts = await modeManager.getAllDefaultPrompts();
-      setDefaultPrompts(defaultPrompts);
-    } finally {
-      setIsLoadingPrompts(false);
-    }
-  };
 
   // 加载模式配置
   const loadModeConfig = async () => {
@@ -88,21 +64,14 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
   // 统一数据初始化
   const initializeData = async () => {
     try {
-      setIsLoadingPrompts(true);
-      
-      // 并行加载所有必要数据
-      await Promise.all([
-        fetchDefaultPrompts(),
-        loadModeConfig()
-      ]);
+      // 加载模式配置
+      await loadModeConfig();
       
       // 加载所有模式列表
       loadAllModes();
       
     } catch (error) {
       console.error('[AgentPanel] 数据初始化失败:', error);
-    } finally {
-      setIsLoadingPrompts(false);
     }
   };
 
@@ -235,7 +204,6 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
   // 获取当前选中的模式详情 - 使用本地状态
   const selectedModeDetail = {
     name: getModeDisplayName(selectedMode),
-    defaultPrompt: defaultPrompts[selectedMode] || '',
     customPrompt: customPrompts[selectedMode] || '',
     additionalInfo: (additionalInfo && additionalInfo[selectedMode]) ? additionalInfo[selectedMode] : {},
     aiParameters: (aiParameters && aiParameters[selectedMode]) ? aiParameters[selectedMode] : {
@@ -377,7 +345,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
               <textarea
                 value={selectedModeDetail.customPrompt}
                 onChange={(e) => handlePromptChange(selectedMode, e.target.value)}
-                placeholder={selectedModeDetail.type === 'builtin' ? selectedModeDetail.defaultPrompt : `输入${selectedModeDetail.name}模式的自定义提示词...`}
+                placeholder={`输入${selectedModeDetail.name}模式的自定义提示词...`}
                 rows={4}
               />
             </div>
@@ -501,15 +469,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
         {/* 右侧设置面板 */}
         <Panel minSize={0} maxSize={100} className="mode-settings-panel">
           <div className="mode-settings-container">
-            {isLoadingPrompts ? (
-              <div className="loading-prompts">
-                <p>正在加载默认提示词...</p>
-              </div>
-            ) : Object.keys(defaultPrompts).length === 0 ? (
-              <div className="no-prompts">
-                <p>无法加载默认提示词</p>
-              </div>
-            ) : showCustomModeForm ? (
+            {showCustomModeForm ? (
               <div className="custom-mode-form-container">
                 <div className="custom-mode-form-header">
                   <h3>{editingMode ? '编辑自定义模式' : '添加自定义模式'}</h3>

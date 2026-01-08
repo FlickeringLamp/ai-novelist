@@ -11,7 +11,6 @@ import logging
 
 from backend.config import settings
 from backend.core.file.file_service import get_file_tree
-from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -173,12 +172,9 @@ class SystemPromptBuilder:
             完整的系统提示词
         """
         try:
-            # 获取基础系统提示词
-            prompt_configs = settings.get_config("customPrompts", "")
-            base_prompt = prompt_configs.get(mode, "你是一个AI助手，负责为用户解决各种需求。")
-            
+            prompt_configs = settings.get_config("mode", mode, "prompt", default="你是一个AI助手，负责为用户解决各种需求。")
             # 构建完整提示词
-            prompt_parts = [base_prompt]
+            prompt_parts = [prompt_configs]
             
             # 添加文件树结构
             if include_file_tree:
@@ -199,9 +195,8 @@ class SystemPromptBuilder:
             
         except Exception as e:
             logger.error(f"构建系统提示词时出错: {e}")
-            # 出错时返回基础提示词
-            prompt_configs = settings.get_config("customPrompts", {})
-            return prompt_configs.get(mode or "你是一个AI助手，负责为用户解决各种需求。")
+            prompt_configs = settings.get_config("mode", mode, "prompt", default="你是一个AI助手，负责为用户解决各种需求。")
+            return prompt_configs
     
     async def refresh_file_tree_cache(self):
         """刷新文件树缓存"""

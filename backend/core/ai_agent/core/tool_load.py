@@ -1,7 +1,6 @@
 import os
 import importlib.util
-from typing import Dict, List
-from .tool_config_manager import tool_config_manager
+from backend.config import settings
 
 
 # 动态导入工具文件夹下的所有工具
@@ -22,7 +21,7 @@ def import_tools_from_directory(tool_dir: str, mode: str = None):
     # 获取模式启用的工具列表
     enabled_tools = []
     if mode:
-        enabled_tools = tool_config_manager.get_tools_for_mode(mode)
+        enabled_tools = settings.get_config("mode", mode, "tools", default=[])
         print(f"[INFO] 模式 '{mode}' 启用的工具: {enabled_tools}")
     
     # 递归搜索所有子目录中的Python文件

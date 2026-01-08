@@ -19,7 +19,7 @@ from backend.core.file.file_service import (
 logger = logging.getLogger(__name__)
 
 # 创建API路由器
-router = APIRouter(prefix="/api/file", tags=["File Management"])
+router = APIRouter(prefix="/api/file", tags=["File"])
 
 
 class CreateItemRequest(BaseModel):

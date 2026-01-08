@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './ChapterTreePanel.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGear, faFolder, faFile, faRotate, faPlus, faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
+import { faGear, faFolder, faFile, faPlus, faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
 import CombinedIcon from '../others/CombinedIcon';
 import ContextMenu from '../others/ContextMenu';
 import ModalManager from '../others/ModalManager';
@@ -10,7 +10,6 @@ import tabStateService from '../../services/tabStateService';
 
 function ChapterTreePanel() {
   const [chapters, setChapters] = useState([]);
-  const [refreshCounter, setRefreshCounter] = useState(tabStateService.getRefreshCounter());
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [currentRenameItemId, setCurrentRenameItemId] = useState(null);
   const [currentRenameItemTitle, setCurrentRenameItemTitle] = useState('');
@@ -64,24 +63,6 @@ function ChapterTreePanel() {
   useEffect(() => {
     fetchChapters();
   }, []);
-
-  // 监听 refreshCounter 变化
-  useEffect(() => {
-    const handleStateChange = (event) => {
-      setRefreshCounter(event.detail.refreshCounter);
-    };
-
-    tabStateService.addEventListener('stateChanged', handleStateChange);
-
-    return () => {
-      tabStateService.removeEventListener('stateChanged', handleStateChange);
-    };
-  }, []);
-
-  useEffect(() => {
-    console.log('[ChapterTreePanel] refreshCounter 变化，触发 fetchChapters()');
-    fetchChapters();
-  }, [refreshCounter]);
 
   // 章节点击处理
   const handleChapterClick = async (item) => {
@@ -399,9 +380,6 @@ function ChapterTreePanel() {
         </button>
         <button className="new-folder-button" onClick={() => handleNewFolder()} title="新建文件夹">
           <CombinedIcon baseIcon={faFolder} overlayIcon={faPlus} size="sm" />
-        </button>
-        <button className="refresh-button" onClick={fetchChapters} title="刷新章节列表">
-          <FontAwesomeIcon icon={faRotate} />
         </button>
       </div>
 

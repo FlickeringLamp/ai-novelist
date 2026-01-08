@@ -1,15 +1,9 @@
-import os
 import re
+from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Optional
 from langchain.tools import tool, ToolRuntime
 from langgraph.types import interrupt
-
-# 导入配置和路径验证器
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from backend.config import settings
-from backend.core.file.file_service import normalize_path, get_full_path
 
 
 class SearchAndReplaceInput(BaseModel):
@@ -53,11 +47,7 @@ def search_and_replace(path: str, search: str, replace: str,
     
     if choice_action == "1":
         try:
-            # 规范化路径
-            clean_path = normalize_path(path)
-            
-            # 获取完整路径
-            full_path = get_full_path(clean_path)
+            full_path = Path(path)
             
             # 检查文件是否存在
             if not full_path.exists():
