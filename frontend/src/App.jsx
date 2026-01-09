@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 import LayoutComponent from './components/LayoutComponent';
-import EditorPanel from './components/editor/EditorPanel';
+import EditorPanel from './components/editor/MonacoEditor';
 import ChatPanel from './components/chat/ChatPanel';
 import ChapterTreePanel from './components/chapter/ChapterTreePanel';
 import tabStateService from './services/tabStateService';

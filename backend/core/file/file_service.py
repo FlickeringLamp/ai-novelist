@@ -21,7 +21,7 @@ def sort_items(items: List[Dict]) -> List[Dict]:
     return folders + files
 
 
-async def read_directory_recursive(dir_path: str, base_dir_path: str) -> List[Dict]:
+async def get_file_tree(dir_path: str, base_dir_path: str) -> List[Dict]:
     """递归读取目录结构"""
     entries = os.listdir(dir_path)
     result = []
@@ -31,7 +31,7 @@ async def read_directory_recursive(dir_path: str, base_dir_path: str) -> List[Di
         relative_path = os.path.relpath(full_path, base_dir_path)
 
         if os.path.isdir(full_path):
-            children = await read_directory_recursive(full_path, base_dir_path)
+            children = await get_file_tree(full_path, base_dir_path)
             result.append({
                 "id": relative_path.replace("\\", "/"),
                 "title": entry_name,
@@ -47,12 +47,6 @@ async def read_directory_recursive(dir_path: str, base_dir_path: str) -> List[Di
 
     sorted_result = sort_items(result)
     return sorted_result
-
-
-async def get_file_tree() -> List[Dict]:
-    """获取文件树结构"""
-    tree = await read_directory_recursive(settings.NOVEL_DIR, settings.NOVEL_DIR)
-    return tree
 
 
 async def generate_unique_name(target_dir: str, is_folder: bool = False) -> str:

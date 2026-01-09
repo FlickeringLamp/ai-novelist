@@ -8,8 +8,6 @@ import './ChatHistoryPanel.css';
 const ChatHistoryPanel = memo(({ onLoadHistory }) => {
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [confirmationMessage, setConfirmationMessage] = useState('');
-    const [onConfirmCallback, setOnConfirmCallback] = useState(null);
-    const [onCancelCallback, setOnCancelCallback] = useState(null);
     const [sessionIdToDelete, setSessionIdToDelete] = useState(null);
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -156,27 +154,35 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
         }
     }, [handleRestoreMessages, handleClosePanel]);
 
+    // 确认删除会话
+    const handleConfirmDelete = useCallback(async () => {
+        if (!sessionIdToDelete) return;
+        
+        setShowConfirmationModal(false);
+        try {
+            const result = await httpClient.delete(`/api/history/sessions/${sessionIdToDelete}`);
+            if (result.success) {
+                // 重新加载历史记录
+                await loadSessionHistory();
+            } else {
+                console.error('删除会话失败:', result.error);
+            }
+        } catch (error) {
+            console.error('Error deleting conversation:', error);
+        } finally {
+            setSessionIdToDelete(null);
+        }
+    }, [sessionIdToDelete, loadSessionHistory]);
+
+    // 取消删除会话
+    const handleCancelDelete = useCallback(() => {
+        setShowConfirmationModal(false);
+        setSessionIdToDelete(null);
+    }, []);
+
     const handleDeleteConversation = useCallback(async (sessionId) => {
         setSessionIdToDelete(sessionId);
         setConfirmationMessage('确定要删除此对话吗？');
-        setOnConfirmCallback(() => async () => {
-            setShowConfirmationModal(false);
-            try {
-                const result = await httpClient.delete(`/api/history/sessions/${sessionId}`);
-                if (result.success) {
-                    // 重新加载历史记录
-                    await loadSessionHistory();
-                } else {
-                    console.error('删除会话失败:', result.error);
-                }
-            } catch (error) {
-                console.error('Error deleting conversation:', error);
-            }
-        });
-        setOnCancelCallback(() => () => {
-            setShowConfirmationModal(false);
-            setSessionIdToDelete(null);
-        });
         setShowConfirmationModal(true);
     }, []);
 
@@ -387,8 +393,8 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
             {showConfirmationModal && (
                 <ConfirmationModal
                     message={confirmationMessage}
-                    onConfirm={onConfirmCallback}
-                    onCancel={onCancelCallback}
+                    onConfirm={handleConfirmDelete}
+                    onCancel={handleCancelDelete}
                 />
             )}
                 </div>

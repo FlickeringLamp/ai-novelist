@@ -7,12 +7,6 @@ class TabStateService extends EventTarget {
       activeTabId: null,
       chapters: [],
       refreshCounter: 0,
-      splitView: {
-        enabled: false,
-        layout: 'horizontal',
-        leftTabId: null,
-        rightTabId: null,
-      },
     };
   }
 
@@ -52,11 +46,6 @@ class TabStateService extends EventTarget {
   // 获取刷新计数器
   getRefreshCounter() {
     return this.state.refreshCounter;
-  }
-
-  // 获取分屏状态
-  getSplitView() {
-    return { ...this.state.splitView };
   }
 
   // 设置激活的标签页
@@ -219,6 +208,7 @@ class TabStateService extends EventTarget {
       if (this.state.activeTabId === cleanOldPath) {
         this.state.activeTabId = cleanNewPath;
       }
+      this.state.refreshCounter += 1;
       this.dispatchEvent(new CustomEvent('stateChanged', { detail: this.state }));
     }
   }
@@ -229,36 +219,6 @@ class TabStateService extends EventTarget {
 
     const [movedTab] = this.state.openTabs.splice(fromIndex, 1);
     this.state.openTabs.splice(toIndex, 0, movedTab);
-    this.dispatchEvent(new CustomEvent('stateChanged', { detail: this.state }));
-  }
-
-  // 启用分屏
-  enableSplitView(leftTabId, rightTabId, layout = 'horizontal') {
-    this.state.splitView.enabled = true;
-    this.state.splitView.leftTabId = leftTabId;
-    this.state.splitView.rightTabId = rightTabId;
-    this.state.splitView.layout = layout;
-    this.dispatchEvent(new CustomEvent('stateChanged', { detail: this.state }));
-  }
-
-  // 禁用分屏
-  disableSplitView() {
-    this.state.splitView.enabled = false;
-    this.state.splitView.leftTabId = null;
-    this.state.splitView.rightTabId = null;
-    this.dispatchEvent(new CustomEvent('stateChanged', { detail: this.state }));
-  }
-
-  // 设置分屏布局
-  setSplitViewLayout(layout) {
-    this.state.splitView.layout = layout;
-    this.dispatchEvent(new CustomEvent('stateChanged', { detail: this.state }));
-  }
-
-  // 设置分屏标签页
-  setSplitViewTabs(leftTabId, rightTabId) {
-    this.state.splitView.leftTabId = leftTabId;
-    this.state.splitView.rightTabId = rightTabId;
     this.dispatchEvent(new CustomEvent('stateChanged', { detail: this.state }));
   }
 

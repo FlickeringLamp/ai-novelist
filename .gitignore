@@ -33,6 +33,7 @@ develop_note/
 backend/data
 *.bat
 test_files/
+archive/
 
 # Lock files
 mcp-filesystem-server.lock
