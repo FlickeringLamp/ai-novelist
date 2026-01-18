@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import './ChapterTreePanel.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGear, faFolder, faFile, faPlus } from '@fortawesome/free-solid-svg-icons';
 import CombinedIcon from '../others/CombinedIcon';
@@ -73,7 +72,7 @@ function ChapterTreePanel() {
   // 确认删除
   const handleConfirmDelete = async () => {
     if (!contextMenu.itemId) return;
-    
+
     setModal({ show: false, message: '' });
     try {
       await httpClient.delete(`/api/file/delete/${contextMenu.itemId}`);
@@ -109,7 +108,7 @@ function ChapterTreePanel() {
 
   const handlePaste = async (targetFolderId) => {
     if (!operateState) return;
-    
+
     try {
       if (operateState === 'cutting') {
         await httpClient.post('/api/file/move', {
@@ -138,7 +137,7 @@ function ChapterTreePanel() {
       const newPath = contextMenu.itemParentPath
         ? `${contextMenu.itemParentPath}/${newItemName}`
         : newItemName;
-      
+
       httpClient.post('/api/file/move', {
         source_path: oldPath,
         target_path: newPath
@@ -160,22 +159,22 @@ function ChapterTreePanel() {
 
 
   return (
-    <div className="chapter-tree-panel-container">
-      <div className="chapter-tree-panel-header">
-        <button className="new-file-button" onClick={() => handleCreateItem(false)} title="新建文件">
+    <div className="bg-theme-black text-theme-gray flex flex-col border-r border-theme-gray h-full">
+      <div className="flex justify-end gap-2.5 border-b border-theme-gray h-[5%] flex-shrink-0 items-center bg-theme-gray w-full">
+        <button className="bg-theme-gray text-theme-gray border border-theme-gray p-1 rounded-small cursor-pointer text-sm flex items-center gap-1 hover:bg-theme-gray hover:border-theme-green hover:text-theme-green" onClick={() => handleCreateItem(false)} title="新建文件">
           <CombinedIcon baseIcon={faFile} overlayIcon={faPlus} size="sm" />
         </button>
-        <button className="new-folder-button" onClick={() => handleCreateItem(true)} title="新建文件夹">
+        <button className="bg-theme-gray text-theme-gray border border-theme-gray p-1 rounded-small cursor-pointer text-sm flex items-center gap-1 hover:bg-theme-gray hover:border-theme-green hover:text-theme-green" onClick={() => handleCreateItem(true)} title="新建文件夹">
           <CombinedIcon baseIcon={faFolder} overlayIcon={faPlus} size="sm" />
         </button>
       </div>
 
-      <div className="main-chapter-area">
-        <div className="chapter-tree-panel-content" onContextMenu={(e) => handleContextMenu(e, null, false, null, '')}>
+      <div className="flex flex-col h-[85%] flex-shrink-0 bg-theme-gray w-full">
+        <div className="flex-grow overflow-y-auto p-2.5" onContextMenu={(e) => handleContextMenu(e, null, false, null, '')}>
           {chapters.length === 0 ? (
-            <p className="no-chapters-message">暂无文件</p>
+            <p className="p-2.5 text-center text-theme-green">暂无文件</p>
           ) : (
-            <ul className="chapter-list">
+            <ul className="list-none p-0 m-0">
               {renderChapterTree(chapters, 0, {
                 handleContextMenu,
                 handleChapterClick,
@@ -199,8 +198,8 @@ function ChapterTreePanel() {
       />
 
       {/* 设置按钮区域 */}
-      <div className="settings-button-area">
-        <button className="settings-button" title="设置">
+      <div className="h-[10%] flex-shrink-0 flex justify-end items-end p-2.5 bg-theme-gray w-full">
+        <button className="bg-transparent text-theme-gray border-none p-0 rounded-0 text-lg cursor-pointer flex items-center justify-center transition-colors hover:bg-transparent hover:border-transparent hover:text-theme-green" title="设置">
           <FontAwesomeIcon icon={faGear} />
         </button>
       </div>

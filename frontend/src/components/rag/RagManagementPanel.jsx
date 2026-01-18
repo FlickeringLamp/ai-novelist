@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import httpClient from '../../utils/httpClient';
 import { filterEmbeddingModels } from '../../utils/embeddingModelUtils';
-import './RagManagementPanel.css';
 
 const RagSettingsPanel = () =>{
   const [activeTab, setActiveTab] = useState('embedding'); // 默认显示嵌入配置标签
@@ -91,12 +90,12 @@ const RagSettingsPanel = () =>{
     if (!file) return
 
     setUploadStatus('正在上传文件...')
-    
+
     try {
       const formData = new FormData();
       formData.append('file', file);
       await httpClient.post('/api/embedding/rag/files', formData);
-      
+
       setUploadStatus(`文件 "${file.name}" 上传成功！`)
       const fileListResult = await httpClient.get('/api/embedding/rag/files');
       setRagFile(fileListResult.files || [])
@@ -106,7 +105,7 @@ const RagSettingsPanel = () =>{
     }
 
     event.target.value = ''
-    
+
     setTimeout(() => {
       setUploadStatus('')
     }, 3000)
@@ -115,7 +114,7 @@ const RagSettingsPanel = () =>{
   const handleDeleteFile = async (fileId) => {
     try {
       await httpClient.delete(`/api/embedding/rag/files/${fileId}`);
-      
+
       console.log('文件删除成功');
       const fileListResult = await httpClient.get('/api/embedding/rag/files');
       setRagFile(fileListResult.files || []);
@@ -134,7 +133,7 @@ const RagSettingsPanel = () =>{
       await httpClient.put(`/api/embedding/rag/files/${fileId}/rename`, null, {
         params: { new_name: newFileName }
       });
-      
+
       console.log('文件重命名成功');
       const fileListResult = await httpClient.get('/api/embedding/rag/files');
       setRagFile(fileListResult.files || []);
@@ -156,33 +155,33 @@ const RagSettingsPanel = () =>{
   }
 
   return(
-    <div className='rag-management-panel'>
-      <div className='rag-tab-headers'>
+    <div className='w-full h-[932px] p-2.5'>
+      <div className='flex border-b border-theme-gray'>
         <button
-          className={`rag-tab-button ${activeTab === 'embedding' ? 'active' : ''}`}
+          className={`px-4 py-2 border border-theme-gray bg-theme-gray text-theme-gray cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'embedding' ? 'bg-theme-green text-white' : ''}`}
           onClick={() => setActiveTab('embedding')}
         >
           嵌入配置
         </button>
         <button
-          className={`rag-tab-button ${activeTab === 'knowledge' ? 'active' : ''}`}
+          className={`px-4 py-2 border border-theme-gray bg-theme-gray text-theme-gray cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'knowledge' ? 'bg-theme-green text-white' : ''}`}
           onClick={() => setActiveTab('knowledge')}
         >
           RAG知识库
         </button>
       </div>
-      
-      <div className='tab-content'>
+
+      <div className='p-2.5'>
         {activeTab === 'embedding' && (
-          <div className='embedding-model-tab'>
-            <PanelGroup direction="horizontal" className="embedding-panel-group">
+          <div className='flex flex-col'>
+            <PanelGroup direction="horizontal" className="h-[85%]">
               {/* 左侧提供商列表面板 */}
-              <Panel defaultSize={25} minSize={20} maxSize={40} className="provider-list-panel">
-                <div className="provider-list">
+              <Panel defaultSize={25} minSize={20} maxSize={40} className="border border-theme-gray flex flex-col">
+                <div className="overflow-y-auto flex-1 p-1.25">
                   {providers.map((provider, index) => (
                     <div
                       key={index}
-                      className={`provider-item ${selectedProviderId === provider ? "selected":""}`}
+                      className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray ${selectedProviderId === provider ? "border border-theme-green text-theme-green":""}`}
                       onClick={() => handleProviderClick(provider)}
                     >
                       {provider}
@@ -190,22 +189,22 @@ const RagSettingsPanel = () =>{
                   ))}
                 </div>
               </Panel>
-              <PanelResizeHandle className="embedding-panel-resize-handle" />
+              <PanelResizeHandle className="w-1.25 bg-theme-gray cursor-col-resize relative transition-colors hover:bg-theme-gray after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-0.5 after:h-5 after:bg-theme-gray after:rounded-[1px]" />
               {/* 右侧模型列表面板 */}
-              <Panel className='emb-model-list-panel'>
-                <div className="model-list-header">
+              <Panel className='border border-theme-gray flex flex-col'>
+                <div className="p-2.5 border-b border-theme-gray">
                   <h3>模型列表</h3>
                 </div>
-                <div className='embedding-model-list'>
+                <div className='overflow-y-auto flex-1 p-1.25'>
                   {embeddingModels.length === 0 ? (
-                    <div className='empty-models-message'>
+                    <div className='text-theme-gray text-center'>
                       未找到此提供商的嵌入模型
                     </div>
                   ) : (
                     embeddingModels.map((embeddingModel,index)=>(
                       <div
                         key={index}
-                        className={`embedding-model-item ${selectedEmbeddingModelId === embeddingModel.id?'selected':''}`}
+                        className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray ${selectedEmbeddingModelId === embeddingModel.id?'border border-theme-green text-theme-green':''}`}
                         onClick={()=> handleEmbeddingModelClick(embeddingModel.id)}
                       >
                         {embeddingModel.id}
@@ -213,17 +212,17 @@ const RagSettingsPanel = () =>{
                     ))
                   )}
                 </div>
-                
+
                 {/* 嵌入维度显示框 */}
-                <div className="embedding-dimensions-container">
-                  <div className="dimensions-header">
+                <div className="border border-theme-gray rounded-small m-2.5 p-2.5">
+                  <div className="p-2.5 border-b border-theme-gray mb-2.5">
                     <h3>嵌入维度</h3>
                   </div>
-                  <div className="dimensions-display">
+                  <div className="p-2.5 text-center rounded-small bg-theme-gray">
                     {embeddingDimensions ? (
-                      <div className="dimensions-value">{embeddingDimensions}</div>
+                      <div className="text-theme-green text-xl">{embeddingDimensions}</div>
                     ) : (
-                      <div className="dimensions-placeholder">请选择模型</div>
+                      <div className="text-theme-gray">请选择模型</div>
                     )}
                   </div>
                 </div>
@@ -231,36 +230,36 @@ const RagSettingsPanel = () =>{
             </PanelGroup>
           </div>
         )}
-        
+
         {activeTab === 'knowledge' && (
-          <div className='rag-knowledgebase-tab'>
-            <div className='rag-chunk-settings'>
-              <h3>切分设置</h3>
+          <div className='flex flex-col'>
+            <div className='border border-theme-gray rounded-small p-2.5 mb-2.5'>
+              <h3 className="m-0 mb-2.5">切分设置</h3>
               <form onSubmit={handleSubmit}>
-                <label htmlFor='chunk_size'>切分长度:</label>
+                <label htmlFor='chunk_size' className="block m-2.5">切分长度:</label>
                 <input
                   type='text'
                   id='chunk_size'
-                  className='chunk_size_input'
+                  className='block m-2.5 p-2 border border-theme-gray rounded-small bg-theme-gray text-theme-gray'
                   value={chunkSize}
                   onChange={(e) => setChunkSize(e.target.value)}
                   placeholder='请输入切分长度'
                 />
-                <label htmlFor='chunk_overlap'>重叠长度:</label>
+                <label htmlFor='chunk_overlap' className="block m-2.5">重叠长度:</label>
                 <input
                   type='text'
                   id='chunk_overlap'
-                  className='chunk_overlap_input'
+                  className='block m-2.5 p-2 border border-theme-gray rounded-small bg-theme-gray text-theme-gray'
                   value={chunkOverlap}
                   onChange={(e) => setChunkOverlap(e.target.value)}
                   placeholder='请输入重叠长度'
                 />
-                <button type='submit' className='chunk-submit-btn'>确定</button>
+                <button type='submit' className='block m-2.5 px-4 py-2 bg-theme-green text-white border-none rounded-small cursor-pointer'>确定</button>
               </form>
             </div>
-            
-            <div className='file-upload-section'>
-              <h3>文件上传</h3>
+
+            <div className='border border-theme-gray rounded-small p-2.5 mb-2.5'>
+              <h3 className="m-0 mb-2.5">文件上传</h3>
               <input
                 type='file'
                 ref={fileInputRef}
@@ -269,26 +268,26 @@ const RagSettingsPanel = () =>{
                 accept='.txt,.md,.pdf,.doc,.docx'
               />
               <button
-                className='add-file-btn'
+                className='block m-2.5 px-4 py-2 bg-theme-green text-white border-none rounded-small cursor-pointer'
                 onClick={handleFileSelect}
               >
                 添加文件到知识库
               </button>
               {uploadStatus && (
-                <div className='upload-status'>
+                <div className='m-2.5 p-2 rounded-small text-center text-sm'>
                   {uploadStatus}
                 </div>
               )}
             </div>
-            
-            <div className='rag-file-list'>
-              <h3>文件列表</h3>
+
+            <div className='border border-theme-gray rounded-small p-2.5'>
+              <h3 className="m-0 mb-2.5">文件列表</h3>
               {ragFile.map((file,index)=>(
                 <div
                   key={index}
-                  className='rag-file-item'
+                  className='border border-theme-gray rounded-small p-2.5 mb-2.5 flex justify-between items-center'
                 >
-                  <div className='file-info'>
+                  <div className='flex flex-col gap-1'>
                     {renamingFileId === file.id ? (
                       <div>
                         <input
@@ -296,9 +295,10 @@ const RagSettingsPanel = () =>{
                           value={newFileName}
                           onChange={(e) => setNewFileName(e.target.value)}
                           placeholder="输入新文件名"
+                          className="p-2 border border-theme-gray rounded-small bg-theme-gray text-theme-gray"
                         />
-                        <button className="confirm-rename-btn" onClick={() => handleRenameFile(file.id)}>确认</button>
-                        <button className="cancel-rename-btn" onClick={cancelRenameFile}>取消</button>
+                        <button className="m-2.5 px-3 py-1 bg-theme-green text-white border-none rounded-small cursor-pointer" onClick={() => handleRenameFile(file.id)}>确认</button>
+                        <button className="m-2.5 px-3 py-1 bg-gray-600 text-white border-none rounded-small cursor-pointer" onClick={cancelRenameFile}>取消</button>
                       </div>
                     ) : (
                       <div>文件名: {file.name}</div>
@@ -310,7 +310,7 @@ const RagSettingsPanel = () =>{
                   </div>
                   <div>
                     <button
-                      className='rename-file-btn'
+                      className='m-2.5 px-3 py-1 bg-theme-green text-white border-none rounded-small cursor-pointer'
                       onClick={() => startRenameFile(file)}
                       title='重命名文件'
                       disabled={renamingFileId !== null}
@@ -318,7 +318,7 @@ const RagSettingsPanel = () =>{
                       重命名
                     </button>
                     <button
-                      className='delete-file-btn'
+                      className='m-2.5 px-3 py-1 bg-red-500 text-white border-none rounded-small cursor-pointer'
                       onClick={() => handleDeleteFile(file.id)}
                       title='删除文件'
                     >

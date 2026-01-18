@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import SliderComponent from '../common/SliderComponent';
 import InputComponent from '../common/InputComponent';
 import SettingGroup from '../common/SettingGroup';
-import './ChatParameters.css';
 
 /**
  * 高级设置组件 - 管理AI参数
@@ -19,7 +18,7 @@ const AdvancedSettings = ({
   // 初始化AI参数
   useEffect(() => {
     console.log(`[AdvancedSettings] 初始化模式 ${mode} 的参数:`, aiParameters);
-    
+
     let modeParameters;
     if (aiParameters && aiParameters[mode]) {
       modeParameters = aiParameters[mode];
@@ -32,7 +31,7 @@ const AdvancedSettings = ({
         max_tokens: 4000
       };
     }
-    
+
     setLocalParameters(modeParameters);
   }, [aiParameters, mode]);
 
@@ -43,7 +42,7 @@ const AdvancedSettings = ({
       [parameter]: value
     };
     setLocalParameters(newParameters);
-    
+
     // 通知父组件参数已变化
     if (onParametersChange) {
       onParametersChange(mode, newParameters);
@@ -58,9 +57,9 @@ const AdvancedSettings = ({
       n: 1,
       max_tokens: mode === 'outline' ? 4000 : mode === 'writing' ? 8000 : 2000
     };
-    
+
     setLocalParameters(defaultParameters);
-    
+
     // 通知父组件参数已重置
     if (onParametersChange) {
       onParametersChange(mode, defaultParameters);
@@ -97,7 +96,7 @@ const AdvancedSettings = ({
   }, [localParameters]);
 
   return (
-    <div className="advanced-settings">
+    <div className="p-5 bg-theme-black text-theme-white">
       {/* AI参数设置 */}
       <SettingGroup
         title="AI参数设置"
@@ -146,9 +145,9 @@ const AdvancedSettings = ({
           min={1000}
         />
 
-        <div className="parameter-actions">
+        <div className="mt-5 flex gap-2.5">
           <button
-            className="reset-button"
+            className="px-4 py-2 bg-theme-gray text-theme-green border border-theme-green rounded-small cursor-pointer text-sm transition-all hover:bg-theme-green hover:text-theme-black disabled:bg-theme-gray/50 disabled:text-theme-gray disabled:border-theme-gray disabled:cursor-not-allowed"
             onClick={handleReset}
           >
             重置默认值

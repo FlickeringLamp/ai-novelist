@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import './MessageInput.css';
+import { useState, useRef, useEffect } from 'react';
 import FileListPopup from './FileListPopup.jsx';
 import httpClient from '../../../utils/httpClient.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -242,18 +241,18 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
   const displayInfo = interruptInfo ? formatInterruptDisplay() : null;
 
   return (
-    <div className="message-input-container" ref={containerRef}>
+    <div className="flex flex-col w-full h-full flex-1" ref={containerRef}>
       
       {/* 工具调用请求区域 */}
       {interruptInfo && (
-        <div className="tool-request-card">
+        <div className="bg-theme-gray rounded-medium shadow-light">
           {/* 只有非简化中断信息才显示工具描述 */}
           {!interruptInfo.isSimpleInterrupt && (
-            <div className="tool-call-info">
-              <span className="tool-description">{displayInfo.displayText}</span>
+            <div className="bg-theme-black">
+              <span className="text-theme-green text-[15px] leading-[1.4]">{displayInfo.displayText}</span>
               {autoApproveSettings.enabled && (
-                <div className="auto-approve-notice">
-                  <span className="notice-text">
+                <div className="mt-2 px-2.5 py-1.5 rounded-small border border-theme-green">
+                  <span className="text-theme-white text-[11px] flex items-center gap-1">
                     ⚡ 自动批准已启用 (1秒延迟)
                   </span>
                 </div>
@@ -261,15 +260,15 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
             </div>
           )}
           
-          <div className="tool-action-buttons">
+          <div className="flex gap-0 mt-0">
             <button
-              className="approve-button"
+              className="bg-theme-green text-theme-white border-none text-[13px] font-medium cursor-pointer transition-all flex-1 text-center"
               onClick={handleApprove}
             >
               批准
             </button>
             <button
-              className="reject-button"
+              className="bg-red-500 text-white border-none text-[13px] font-medium cursor-pointer transition-all flex-1 text-center"
               onClick={handleReject}
             >
               拒绝
@@ -278,10 +277,10 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
         </div>
       )}
       
-      <form onSubmit={handleSubmit} className="message-form">
+      <form onSubmit={handleSubmit} className="flex w-full flex-1 relative overflow-visible">
         <textarea
           ref={textareaRef}
-          className="message-textarea"
+          className="bg-theme-black text-theme-white border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 focus:outline-none"
           value={message}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
@@ -298,7 +297,7 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
         )}
         <button
           type="submit"
-          className="send-button"
+          className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-gray disabled:text-theme-gray disabled:cursor-not-allowed"
           disabled={!message.trim() || disabled}
         >
           <FontAwesomeIcon icon={faPaperPlane} />

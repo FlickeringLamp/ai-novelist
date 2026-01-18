@@ -2,7 +2,7 @@ import { DiffEditor } from '@monaco-editor/react';
 // Diff 查看器组件
 const MonacoDiffViewer = ({ originalContent, currentContent }) => {
   return (
-    <div className="diff-viewer-container">
+    <div className="w-full h-full">
       <DiffEditor
         height="100%"
         language="markdown"

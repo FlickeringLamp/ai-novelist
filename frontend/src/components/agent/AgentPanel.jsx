@@ -8,7 +8,6 @@ import UnifiedModal from '../others/UnifiedModal.jsx';
 import ChatParameters from '././parameterTab/ChatParameters';
 import FileSelector from './FileSelector';
 import ToolConfigTab from './toolTab/ToolConfigTab';
-import './AgentPanel.css';
 
 /**
  * 统一的Agent面板组件 - 整合了原来的三个GeneralSettings文件的功能
@@ -316,7 +315,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
     switch (activeTab) {
       case 'ai':
         return (
-          <div className="tab-content">
+          <div className="flex-1 overflow-y-auto p-3">
             <ChatParameters
               aiParameters={aiParameters}
               onParametersChange={handleAiParametersChange}
@@ -326,7 +325,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
         );
       case 'tools':
         return (
-          <div className="tab-content">
+          <div className="flex-1 overflow-y-auto p-3">
             <ToolConfigTab
               mode={selectedMode}
               modeType={selectedModeDetail.type}
@@ -337,22 +336,23 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
       case 'prompt':
       default:
         return (
-          <div className="prompt-sections">
+          <div className="flex flex-col gap-4 p-3">
             {/* 自定义提示词 */}
-            <div className="custom-prompt">
-              <h4>自定义提示词:</h4>
+            <div className="flex flex-col gap-2">
+              <h4 className="text-theme-white text-[14px] font-medium">自定义提示词:</h4>
               <textarea
                 value={selectedModeDetail.customPrompt}
                 onChange={(e) => handlePromptChange(selectedMode, e.target.value)}
                 placeholder={`输入${selectedModeDetail.name}模式的自定义提示词...`}
                 rows={4}
+                className="w-full p-2.5 bg-theme-gray border border-theme-gray rounded-small text-theme-white text-[14px] outline-none resize-none placeholder:text-theme-gray"
               />
             </div>
 
             {/* 附加文件框 */}
-            <div className="additional-files-section">
-              <h4>附加文件:</h4>
-              <div className="additional-files-container">
+            <div className="flex flex-col gap-2">
+              <h4 className="text-theme-white text-[14px] font-medium">附加文件:</h4>
+              <div className="flex flex-col gap-2">
                 <FileSelector
                   onFileContentAdd={(content) => {
                     const newFile = {
@@ -363,13 +363,13 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                 />
                 
                 {/* 显示已添加的文件 */}
-                <div className="attached-files-list">
-                  <h5>已添加的文件:</h5>
+                <div className="flex flex-col gap-2">
+                  <h5 className="text-theme-gray text-[12px]">已添加的文件:</h5>
                   {selectedModeDetail.additionalInfo && selectedModeDetail.additionalInfo.content ? (
-                    <div className="attached-file-item">
-                      <span className="file-name">{selectedModeDetail.additionalInfo.content.path}</span>
+                    <div className="flex items-center justify-between p-2.5 bg-theme-gray border border-theme-gray rounded-small">
+                      <span className="text-theme-white text-[12px] truncate flex-1">{selectedModeDetail.additionalInfo.content.path}</span>
                       <button
-                        className="remove-file-button"
+                        className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[12px] hover:text-red-500 transition-colors"
                         onClick={() => {
                           handleAdditionalInfoChange(selectedMode, {});
                         }}
@@ -378,7 +378,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                       </button>
                     </div>
                   ) : (
-                    <div className="no-files">暂无附加文件</div>
+                    <div className="text-theme-gray text-[12px] p-2.5">暂无附加文件</div>
                   )}
                 </div>
               </div>
@@ -392,62 +392,62 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="general-settings-panel">
+    <div className="flex flex-col h-full bg-theme-black border border-theme-gray rounded-small overflow-hidden">
       {/* 头部操作栏 */}
-      <div className="agent-panel-header">
-        <h2>Agent设置面板</h2>
-        <div className="header-actions">
-          <button className="save-button" onClick={handleSave}>
+      <div className="flex items-center justify-between p-3 border-b border-theme-gray bg-theme-gray">
+        <h2 className="text-theme-white text-[16px] font-medium m-0">Agent设置面板</h2>
+        <div className="flex gap-2">
+          <button className="flex items-center gap-2 px-3 py-2 bg-theme-green text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-green/80" onClick={handleSave}>
             <FontAwesomeIcon icon={faSave} /> 保存
           </button>
           {onClose && (
-            <button className="close-button" onClick={onClose}>
+            <button className="flex items-center gap-2 px-3 py-2 bg-theme-gray text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-gray/80" onClick={onClose}>
               <FontAwesomeIcon icon={faTimes} /> 关闭
             </button>
           )}
         </div>
       </div>
 
-      <PanelGroup direction="horizontal" className="settings-panel-group">
+      <PanelGroup direction="horizontal" className="flex-1">
         {/* 左侧模式列表 */}
-        <Panel defaultSize={25} minSize={0} maxSize={100} className="mode-list-panel">
-          <div className="mode-list-container">
-            <div className="mode-list-header">
-              <h3>模式设置</h3>
-              <div className="search-container">
+        <Panel defaultSize={25} minSize={0} maxSize={100}>
+          <div className="flex flex-col h-full bg-theme-black">
+            <div className="p-3 border-b border-theme-gray">
+              <h3 className="text-theme-white text-[14px] font-medium mb-2">模式设置</h3>
+              <div className="flex">
                 <input
                   type="text"
                   placeholder="搜索模式..."
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  className="mode-search"
+                  className="flex-1 p-2.5 bg-transparent border border-theme-gray rounded-small text-theme-white text-[12px] outline-none placeholder:text-theme-gray"
                 />
               </div>
             </div>
             
-            <div className="mode-list">
+            <div className="flex-1 overflow-y-auto">
               {filteredModes.map(mode => (
                 <div
                   key={mode.id}
-                  className={`mode-item ${selectedMode === mode.id ? 'active' : ''}`}
+                  className={`flex items-center justify-between p-2.5 border-b border-theme-gray cursor-pointer transition-all ${selectedMode === mode.id ? 'bg-theme-green/10 border-l-3 border-l-theme-green' : 'hover:bg-theme-gray'}`}
                   onClick={() => setSelectedMode(mode.id)}
                 >
-                  <div className="mode-info">
-                    <div className="mode-name">{mode.name}</div>
-                    <div className="mode-type">
+                  <div className="flex flex-col gap-1">
+                    <div className="text-theme-white text-[14px] font-medium">{mode.name}</div>
+                    <div className="text-theme-gray text-[12px]">
                       {mode.type === 'custom' ? '自定义模式' : '内置模式'}
                     </div>
                   </div>
-                  <div className="mode-status">
+                  <div className="text-theme-gray text-[12px]">
                     {customPrompts[mode.id] ? '已自定义' : '默认'}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="mode-list-actions">
+            <div className="p-2.5 border-t border-theme-gray">
               <button
-                className="add-mode-btn"
+                className="w-full flex items-center justify-center gap-2 p-2.5 bg-theme-green text-theme-white border-none rounded-small cursor-pointer text-[12px] transition-all hover:bg-theme-green/80"
                 onClick={() => {
                   setShowCustomModeForm(true);
                   setEditingMode(null);
@@ -461,19 +461,17 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
         </Panel>
 
         {/* 分隔条 */}
-        <PanelResizeHandle className="panel-resize-handle">
-          <div className="resize-handle-inner" />
-        </PanelResizeHandle>
+        <PanelResizeHandle className="w-1 bg-theme-gray hover:bg-theme-green cursor-col-resize transition-colors" />
 
         {/* 右侧设置面板 */}
-        <Panel minSize={0} maxSize={100} className="mode-settings-panel">
-          <div className="mode-settings-container">
+        <Panel minSize={0} maxSize={100}>
+          <div className="flex flex-col h-full bg-theme-black">
             {showCustomModeForm ? (
-              <div className="custom-mode-form-container">
-                <div className="custom-mode-form-header">
-                  <h3>{editingMode ? '编辑自定义模式' : '添加自定义模式'}</h3>
+              <div className="flex flex-col h-full p-3">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-theme-white text-[14px] font-medium">{editingMode ? '编辑自定义模式' : '添加自定义模式'}</h3>
                   <button
-                    className="close-form-btn"
+                    className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[20px] hover:text-theme-white transition-colors"
                     onClick={() => {
                       setShowCustomModeForm(false);
                       setEditingMode(null);
@@ -483,26 +481,27 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                     ×
                   </button>
                 </div>
-                <div className="custom-mode-form">
-                  <div className="setting-group">
-                    <label>模式名称</label>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-theme-white text-[12px]">模式名称</label>
                     <input
                       type="text"
                       value={newModeName}
                       onChange={(e) => setNewModeName(e.target.value)}
                       placeholder="输入自定义模式名称..."
+                      className="w-full p-2.5 bg-theme-gray border border-theme-gray rounded-small text-theme-white text-[14px] outline-none placeholder:text-theme-gray"
                     />
                   </div>
-                  <div className="form-actions">
+                  <div className="flex gap-2">
                     <button
-                      className="save-btn"
+                      className="flex-1 p-2.5 bg-theme-green text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-green/80 disabled:bg-theme-gray disabled:text-theme-gray disabled:cursor-not-allowed"
                       onClick={editingMode ? handleEditCustomModeUI : handleAddCustomModeUI}
                       disabled={!newModeName.trim()}
                     >
                       {editingMode ? '保存' : '添加'}
                     </button>
                     <button
-                      className="cancel-btn"
+                      className="flex-1 p-2.5 bg-theme-gray text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-gray/80"
                       onClick={() => {
                         setShowCustomModeForm(false);
                         setEditingMode(null);
@@ -515,20 +514,20 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                 </div>
               </div>
             ) : (
-              <div className="mode-settings-content">
-                <div className="mode-settings-header">
-                  <h3>{selectedModeDetail.name}模式设置</h3>
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between p-3 border-b border-theme-gray">
+                  <h3 className="text-theme-white text-[14px] font-medium">{selectedModeDetail.name}模式设置</h3>
                   {selectedModeDetail.type === 'custom' && (
-                    <div className="mode-actions">
+                    <div className="flex gap-1">
                       <button
-                        className="edit-mode-btn"
+                        className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[12px] hover:text-theme-green transition-colors"
                         onClick={startEditCustomMode}
                         title="编辑模式名称"
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
                       <button
-                        className="delete-mode-btn"
+                        className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[12px] hover:text-red-500 transition-colors"
                         onClick={() => setShowDeleteConfirm(true)}
                         title="删除模式"
                       >
@@ -538,27 +537,27 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                   )}
                 </div>
                 {/* 标签页导航 */}
-                <div className="settings-tabs">
+                <div className="flex border-b border-theme-gray">
                   <button
-                    className={`tab-button ${activeTab === 'prompt' ? 'active' : ''}`}
+                    className={`flex-1 p-2.5 bg-transparent border-none text-[12px] cursor-pointer transition-all ${activeTab === 'prompt' ? 'text-theme-green border-b-2 border-b-theme-green' : 'text-theme-gray hover:text-theme-white'}`}
                     onClick={() => setActiveTab('prompt')}
                   >
                     提示词设置
                   </button>
                   <button
-                    className={`tab-button ${activeTab === 'ai' ? 'active' : ''}`}
+                    className={`flex-1 p-2.5 bg-transparent border-none text-[12px] cursor-pointer transition-all ${activeTab === 'ai' ? 'text-theme-green border-b-2 border-b-theme-green' : 'text-theme-gray hover:text-theme-white'}`}
                     onClick={() => setActiveTab('ai')}
                   >
                     聊天参数
                   </button>
                   <button
-                    className={`tab-button ${activeTab === 'tools' ? 'active' : ''}`}
+                    className={`flex-1 p-2.5 bg-transparent border-none text-[12px] cursor-pointer transition-all ${activeTab === 'tools' ? 'text-theme-green border-b-2 border-b-theme-green' : 'text-theme-gray hover:text-theme-white'}`}
                     onClick={() => setActiveTab('tools')}
                   >
                     工具配置
                   </button>
                 </div>
-  
+   
                 {/* 标签页内容 */}
                 {renderTabContent()}
               </div>

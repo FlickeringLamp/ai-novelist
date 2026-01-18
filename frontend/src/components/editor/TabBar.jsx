@@ -1,7 +1,6 @@
 import getDisplayName from "../../utils/getDisplayName";
 import { useSelector, useDispatch } from 'react-redux';
 import { setActiveTab } from "../../store/file_editor";
-import './TabBar.css';
 
 // 标签栏组件
 const TabBar = () => {
@@ -12,11 +11,11 @@ const TabBar = () => {
   const dispatch = useDispatch()
   console.log("是否加载了标签栏")
   return(
-    <div className="tab_bar">
+    <div className="flex items-center gap-1 bg-theme-gray border-b border-theme-gray overflow-x-auto">
       {openTabs.map(tab => (
         <div
           key={tab}
-          className={`tab ${activeTabs.includes(tab) ? 'active' : ''}`}
+          className={`px-3 py-2 cursor-pointer transition-all border-r border-theme-gray whitespace-nowrap ${activeTabs.includes(tab) ? 'bg-theme-black text-theme-white border-t-2 border-t-theme-green' : 'text-theme-gray hover:bg-theme-gray/80'}`}
           onClick={() => dispatch(setActiveTab(tab))}
         >
           {getDisplayName(tab)}

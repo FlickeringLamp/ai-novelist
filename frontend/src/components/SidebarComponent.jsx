@@ -5,7 +5,6 @@ import {
   faRobot,
   faPencil
 } from '@fortawesome/free-solid-svg-icons';
-import './SidebarComponent.css';
 
 const SidebarComponent = ({ activePanel, setActivePanel }) => {
   // 侧边栏项目配置
@@ -47,17 +46,20 @@ const SidebarComponent = ({ activePanel, setActivePanel }) => {
   };
 
   return (
-    <div className="sidebar">
+    <div className="w-[50px] h-full bg-theme-black flex flex-col">
       {/* 侧边栏项目列表 */}
-      <div className="sidebar-items">
+      <div className="flex-1 py-[10px] flex flex-col gap-2">
         {sidebarItems.map((item) => (
           <div
             key={item.id}
-            className={`sidebar-item ${activePanel === item.panelId ? 'active' : ''}`}
+            className={`flex items-center justify-center p-3 cursor-pointer border-l-[3px] border-transparent relative ${activePanel === item.panelId ? 'border-l-theme-green' : ''}`}
             onClick={() => handleItemClick(item)}
             title={item.label}
           >
-            <FontAwesomeIcon icon={item.icon} className="item-icon" />
+            <FontAwesomeIcon 
+              icon={item.icon} 
+              className={`text-[18px] ${activePanel === item.panelId ? 'text-theme-green' : 'text-theme-white hover:text-theme-green'}`} 
+            />
           </div>
         ))}
       </div>

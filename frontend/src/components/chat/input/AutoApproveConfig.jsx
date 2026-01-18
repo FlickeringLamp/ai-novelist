@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import './AutoApproveConfig.css';
+import { useState, useEffect } from 'react';
 import httpClient from '../../../utils/httpClient.js';
 
 /**
@@ -77,7 +76,7 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
 
   if (isLoading) {
     return (
-      <div className="auto-approve-config loading">
+      <div className="flex items-center justify-center p-4 text-theme-gray text-[14px]">
         <p>正在加载自动批准配置...</p>
       </div>
     );
@@ -90,29 +89,29 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
   };
 
   return (
-    <div className="auto-approve-container">
+    <div className="relative flex w-full z-[100] box-border">
       <div
-        className="auto-approve-button"
+        className="flex items-center justify-center w-full p-2 p-2.5-[12px] bg-theme-black border border-theme-gray rounded-small cursor-pointer transition-all min-h-[36px] box-border hover:border-theme-green hover:bg-theme-gray"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <span className="auto-approve-status">{getDisplayStatusText()}</span>
-        <span className="expand-icon">{isExpanded ? '▲' : '▶'}</span>
+        <span className="text-theme-white text-[14px] font-medium whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">{getDisplayStatusText()}</span>
+        <span className="text-theme-gray text-[12px] ml-2 transition-transform">{isExpanded ? '▲' : '▶'}</span>
       </div>
 
       {isExpanded && (
-        <div className="auto-approve-panel">
-          <div className="auto-approve-content">
-            <div className="setting-group">
-              <label className="setting-label">
+        <div className="absolute bottom-full left-[-10px] right-[-150px] bg-theme-black border border-theme-gray rounded-small shadow-deep z-[1000] mb-1 overflow-hidden">
+          <div className="p-3">
+            <div className="mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={autoApproveSettings.enabled}
                   onChange={(e) => handleEnabledChange(e.target.checked)}
+                  className="w-4 h-4 accent-theme-green cursor-pointer"
                 />
-                <span className="checkmark"></span>
-                启用自动批准
+                <span className="text-theme-white text-[14px]">启用自动批准</span>
               </label>
-              <div className="setting-description">
+              <div className="text-theme-gray text-[12px] mt-2">
                 启用后，工具调用将在1秒后自动批准，无需手动确认
               </div>
             </div>

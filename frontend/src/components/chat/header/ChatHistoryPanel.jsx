@@ -3,7 +3,6 @@ import httpClient from '../../../utils/httpClient.js';
 import ConfirmationModal from '../../others/UnifiedModal';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock, faUndo } from '@fortawesome/free-solid-svg-icons';
-import './ChatHistoryPanel.css';
 
 const ChatHistoryPanel = ({ onLoadHistory }) => {
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -323,9 +322,9 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
     }, []);
 
     return (
-        <div className="chat-history-container">
+        <div className="relative">
             <button
-                className="history-button"
+                className="flex items-center justify-center w-8 h-8 bg-theme-black border border-theme-gray rounded-small cursor-pointer transition-all hover:border-theme-green hover:bg-theme-gray text-theme-gray hover:text-theme-green"
                 onClick={() => setIsVisible(!isVisible)}
                 title="历史会话"
             >
@@ -333,105 +332,109 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
             </button>
             
             {isVisible && (
-                <div className="chat-history-panel">
-            <h3>对话历史</h3>
-            <button className="close-history-panel-button" onClick={handleClosePanel}>
-                &times;
-            </button>
-            {loading ? (
-                <p className="no-history-message">正在加载历史对话...</p>
-            ) : !history || !Array.isArray(history) || history.length === 0 ? (
-                <p className="no-history-message">暂无历史对话。</p>
-            ) : (
-                <ul className="history-list">
-                    {history.map((session, index) => {
-                        console.log(`Processing session[${index}]:`, session);
-                        // 后端会话格式：session_id, created_at, last_accessed, message_count, preview
-                        const sessionId = session.session_id || session.sessionId;
-                        const messageCount = session.message_count || 0;
-                        const createdAt = session.created_at || '';
-                        const preview = session.preview || '';
-                        
-                        // 格式化创建时间
-                        const formattedDate = createdAt ? new Date(createdAt).toLocaleString('zh-CN') : '未知时间';
-                        
-                        return (
-                            <li key={sessionId} className="history-item">
-                                <div
-                                    className="history-text"
-                                    onClick={() => handleSelectConversation(sessionId)}
-                                >
-                                    <div className="session-preview">{preview || `会话: ${sessionId}`}</div>
-                                    <div className="session-info">
-                                        <span className="message-count">{messageCount} 条消息</span>
-                                        <span className="created-time">{formattedDate}</span>
-                                    </div>
-                                </div>
-                                <div className="history-item-buttons">
-                                    <button
-                                        className="rollback-button"
-                                        onClick={() => handleRollbackClick(sessionId)}
-                                        title="回档此会话"
-                                    >
-                                        <FontAwesomeIcon icon={faUndo} />
-                                    </button>
-                                    <button
-                                        className="delete-button"
-                                        onClick={() => handleDeleteConversation(sessionId)}
-                                        title="删除此会话"
-                                    >
-                                        &times;
-                                    </button>
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
+                <div className="absolute top-full right-0 mt-1 w-[320px] max-h-[500px] bg-theme-black border border-theme-gray rounded-small shadow-deep z-[1000] flex flex-col overflow-hidden">
+                    <div className="flex items-center justify-between p-3 border-b border-theme-gray">
+                        <h3 className="text-theme-white text-[16px] font-medium m-0">对话历史</h3>
+                        <button className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[20px] hover:text-theme-white transition-colors" onClick={handleClosePanel}>
+                            &times;
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                        {loading ? (
+                            <p className="flex items-center justify-center p-4 text-theme-gray text-[14px]">正在加载历史对话...</p>
+                        ) : !history || !Array.isArray(history) || history.length === 0 ? (
+                            <p className="flex items-center justify-center p-4 text-theme-gray text-[14px]">暂无历史对话。</p>
+                        ) : (
+                            <ul className="list-none m-0 p-0">
+                                {history.map((session, index) => {
+                                    console.log(`Processing session[${index}]:`, session);
+                                    // 后端会话格式：session_id, created_at, last_accessed, message_count, preview
+                                    const sessionId = session.session_id || session.sessionId;
+                                    const messageCount = session.message_count || 0;
+                                    const createdAt = session.created_at || '';
+                                    const preview = session.preview || '';
+                                    
+                                    // 格式化创建时间
+                                    const formattedDate = createdAt ? new Date(createdAt).toLocaleString('zh-CN') : '未知时间';
+                                    
+                                    return (
+                                        <li key={sessionId} className="flex items-center justify-between p-2.5 border-b border-theme-gray last:border-b-0 hover:bg-theme-gray transition-colors">
+                                            <div
+                                                className="flex-1 cursor-pointer"
+                                                onClick={() => handleSelectConversation(sessionId)}
+                                            >
+                                                <div className="text-theme-white text-[14px] mb-1">{preview || `会话: ${sessionId}`}</div>
+                                                <div className="flex items-center gap-2 text-theme-gray text-[12px]">
+                                                    <span>{messageCount} 条消息</span>
+                                                    <span>{formattedDate}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[12px] hover:text-theme-green transition-colors"
+                                                    onClick={() => handleRollbackClick(sessionId)}
+                                                    title="回档此会话"
+                                                >
+                                                    <FontAwesomeIcon icon={faUndo} />
+                                                </button>
+                                                <button
+                                                    className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[16px] hover:text-red-500 transition-colors"
+                                                    onClick={() => handleDeleteConversation(sessionId)}
+                                                    title="删除此会话"
+                                                >
+                                                    &times;
+                                                </button>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                    </div>
 
-            {showConfirmationModal && (
-                <ConfirmationModal
-                    message={confirmationMessage}
-                    onConfirm={handleConfirmDelete}
-                    onCancel={handleCancelDelete}
-                />
-            )}
+                    {showConfirmationModal && (
+                        <ConfirmationModal
+                            message={confirmationMessage}
+                            onConfirm={handleConfirmDelete}
+                            onCancel={handleCancelDelete}
+                        />
+                    )}
                 </div>
             )}
             
             {/* 回档模态框 */}
             {showRollbackModal && (
-                <div className="rollback-modal-overlay">
-                    <div className="rollback-modal">
-                        <div className="rollback-modal-header">
-                            <h3>消息回档</h3>
-                            <button className="close-modal-button" onClick={handleCloseRollbackModal}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000]">
+                    <div className="bg-theme-black border border-theme-gray rounded-small shadow-deep w-[500px] max-h-[80vh] flex flex-col overflow-hidden">
+                        <div className="flex items-center justify-between p-3 border-b border-theme-gray">
+                            <h3 className="text-theme-white text-[16px] font-medium m-0">消息回档</h3>
+                            <button className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[20px] hover:text-theme-white transition-colors" onClick={handleCloseRollbackModal}>
                                 &times;
                             </button>
                         </div>
                         
-                        <div className="rollback-modal-content">
+                        <div className="flex-1 overflow-y-auto p-3">
                             {checkpointsLoading ? (
-                                <div className="loading-message">正在加载存档点...</div>
+                                <div className="flex items-center justify-center p-4 text-theme-gray text-[14px]">正在加载存档点...</div>
                             ) : checkpoints.length === 0 ? (
-                                <div className="no-checkpoints-message">该会话暂无存档点</div>
+                                <div className="flex items-center justify-center p-4 text-theme-gray text-[14px]">该会话暂无存档点</div>
                             ) : (
                                 <>
-                                    <div className="checkpoints-section">
-                                        <h4>选择存档点</h4>
-                                        <div className="checkpoints-list">
+                                    <div className="mb-4">
+                                        <h4 className="text-theme-white text-[14px] font-medium mb-2">选择存档点</h4>
+                                        <div className="max-h-[200px] overflow-y-auto">
                                             {checkpoints.map((checkpoint) => (
                                                 <div
                                                     key={checkpoint.checkpoint_id}
-                                                    className={`checkpoint-option ${selectedCheckpoint?.index === checkpoint.index ? 'selected' : ''}`}
+                                                    className={`p-2.5 cursor-pointer transition-all border border-theme-gray rounded-small mb-2 ${selectedCheckpoint?.index === checkpoint.index ? 'bg-theme-green/10 border-theme-green' : 'hover:bg-theme-gray'}`}
                                                     onClick={() => setSelectedCheckpoint(checkpoint)}
                                                 >
-                                                    <div className="checkpoint-info">
-                                                        <span className="checkpoint-index">#{checkpoint.index}</span>
-                                                        <span className="checkpoint-node">{Array.isArray(checkpoint.next_node) ? checkpoint.next_node.join(', ') : checkpoint.next_node}</span>
-                                                        <span className="checkpoint-type">{checkpoint.last_message_type}</span>
+                                                    <div className="flex items-center gap-2 text-theme-gray text-[12px] mb-1">
+                                                        <span>#{checkpoint.index}</span>
+                                                        <span>{Array.isArray(checkpoint.next_node) ? checkpoint.next_node.join(', ') : checkpoint.next_node}</span>
+                                                        <span>{checkpoint.last_message_type}</span>
                                                     </div>
-                                                    <div className="checkpoint-content">
+                                                    <div className="text-theme-white text-[12px]">
                                                         {checkpoint.last_message_content?.substring(0, 50) || '无内容'}
                                                         {checkpoint.last_message_content?.length > 50 && '...'}
                                                     </div>
@@ -440,26 +443,27 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
                                         </div>
                                     </div>
                                     
-                                    <div className="rollback-input-section">
-                                        <h4>回档后的新消息</h4>
+                                    <div className="mb-4">
+                                        <h4 className="text-theme-white text-[14px] font-medium mb-2">回档后的新消息</h4>
                                         <textarea
                                             value={rollbackMessage}
                                             onChange={(e) => setRollbackMessage(e.target.value)}
                                             placeholder="请输入回档后的新消息内容..."
                                             rows={3}
+                                            className="w-full p-2.5 bg-theme-gray border border-theme-gray rounded-small text-theme-white text-[14px] outline-none resize-none placeholder:text-theme-gray"
                                         />
                                     </div>
                                     
-                                    <div className="rollback-actions">
+                                    <div className="flex gap-2">
                                         <button
-                                            className="confirm-rollback-button"
+                                            className="flex-1 p-2.5 bg-theme-green text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-green/80 disabled:bg-theme-gray disabled:text-theme-gray disabled:cursor-not-allowed"
                                             onClick={handleConfirmRollback}
                                             disabled={checkpointsLoading || !selectedCheckpoint || !rollbackMessage.trim()}
                                         >
                                             {checkpointsLoading ? '回档中...' : '确认回档'}
                                         </button>
                                         <button
-                                            className="cancel-rollback-button"
+                                            className="flex-1 p-2.5 bg-theme-gray text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-gray/80"
                                             onClick={handleCloseRollbackModal}
                                         >
                                             取消

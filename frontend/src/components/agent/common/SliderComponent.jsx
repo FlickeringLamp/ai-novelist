@@ -1,5 +1,4 @@
-import React, { useEffect, useRef } from 'react';
-import './SliderComponent.css';
+import { useEffect, useRef } from 'react';
 
 /**
  * 统一的滑动条组件
@@ -41,14 +40,14 @@ const SliderComponent = ({
   };
 
   return (
-    <div className={`slider-component ${className} slider-${type}`}>
+    <div className={`mb-5 ${className}`}>
       {label && (
-        <label className="slider-label">
+        <label className="block mb-2 font-medium text-theme-gray">
           {label}
         </label>
       )}
-      
-      <div className="slider-container">
+
+      <div className="flex items-center gap-4 mb-1">
         <input
           ref={sliderRef}
           type="range"
@@ -57,18 +56,21 @@ const SliderComponent = ({
           step={step}
           value={value}
           onChange={handleChange}
-          className="slider-input"
+          className="slider-input flex-1 h-1.5 rounded-sm bg-theme-gray outline-none appearance-none cursor-pointer"
+          style={{
+            background: `linear-gradient(to right, var(--color-green) var(--slider-progress, 50%), var(--color-gray) var(--slider-progress, 50%))`
+          }}
         />
-        
+
         {showValue && (
-          <span className="slider-value">
+          <span className="min-w-10 text-center font-medium text-theme-green text-sm">
             {valueFormatter(value)}
           </span>
         )}
       </div>
-      
+
       {description && (
-        <div className="slider-description">
+        <div className="text-xs text-theme-gray mt-1 leading-relaxed">
           {description}
         </div>
       )}

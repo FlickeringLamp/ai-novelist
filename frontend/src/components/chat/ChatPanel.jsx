@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
-import './ChatPanel.css';
+import { useState, useRef, useEffect } from "react";
 import ChatHistoryPanel from './header/ChatHistoryPanel.jsx'
 import ModelSelectorPanel from './header/ModelSelectorPanel.jsx'
 import ModeSelector from './input/ModeSelector'
@@ -748,13 +747,13 @@ const handleAutoApproveSettingsChange = (newSettings) => {
 };
 
 return(
-  <div className="chat-panel">
-    <div className="header-buttons">
-      <div className="header-left-buttons">
+  <div className="flex flex-col h-full">
+    <div className="flex justify-between items-center p-2.5 border-b border-theme-gray gap-2">
+      <div className="flex gap-2">
         <ChatHistoryPanel onLoadHistory={handleLoadHistory} />
         <ModelSelectorPanel />
         <button
-          className="summarize-button"
+          className="bg-theme-green text-theme-white rounded-full w-[30px] h-[30px] text-lg font-bold flex items-center justify-center hover:bg-theme-gray disabled:bg-theme-gray disabled:cursor-not-allowed disabled:opacity-60"
           onClick={handleSummarizeConversation}
           disabled={isLoading}
           title="总结对话"
@@ -763,7 +762,7 @@ return(
         </button>
       </div>
       <button
-        className="new-thread-button"
+        className="bg-theme-black text-theme-white rounded-full w-[30px] h-[30px] text-lg font-bold flex items-center justify-center hover:bg-theme-green"
         onClick={handleCreateNewThread}
         title="创建新会话"
       >
@@ -771,16 +770,16 @@ return(
       </button>
     </div>
     
-    <div className="chat-content">
+    <div className="flex-1 overflow-y-auto p-2.5 flex flex-col">
       {/* 消息显示区域 */}
-      <div className="messages-container">
+      <div className="flex-1 overflow-y-auto mt-2.5">
         <MessageDisplay messages={messages} currentAiMessage={currentAiMessage} isLoading={isLoading} />
         
         {/* 用于自动滚动到底部的元素 */}
         <div ref={messagesEndRef} />
       </div>
     </div>
-    <div className="chat-input">
+    <div className="h-[15%] p-2.5 border-t border-theme-gray">
       <MessageInput
         onSendMessage={handleSendMessage}
         disabled={isLoading}
@@ -790,12 +789,12 @@ return(
       />
     </div>
     
-    <div className="chat-controls">
+    <div className="flex gap-2.5 p-2.5 border-t border-theme-gray relative">
       <ModeSelector />
       <AutoApproveConfig onSettingsChange={handleAutoApproveSettingsChange} />
     </div>
   </div>
-  );
+);
 }
 
 export default ChatPanel;

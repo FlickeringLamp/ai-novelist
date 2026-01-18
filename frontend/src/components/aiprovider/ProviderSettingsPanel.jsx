@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient';
-import './ProviderSettingsPanel.css';
 
 const ProviderSettingsPanel = () => {
   const [providers, setProviders] = useState([]);
@@ -16,11 +15,11 @@ const ProviderSettingsPanel = () => {
   const [favoriteModels, setFavoriteModels] = useState({})
   const [showNotification, setShowNotification] = useState(false)
   const [notificationMessage, setNotificationMessage] = useState('')
-  
+
   // 自定义提供商相关状态
   const [showCustomProviderModal, setShowCustomProviderModal] = useState(false);
   const [customProviderName, setCustomProviderName] = useState('');
-  
+
   // 删除确认模态框相关状态
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [providerToDelete, setProviderToDelete] = useState('');
@@ -84,18 +83,18 @@ const ProviderSettingsPanel = () => {
       const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
       const customProviders = providersResponse.data || [];
       const isCustomProvider = customProviders.some(provider => provider.name === providerToDelete);
-      
+
       if (isCustomProvider) {
         // 删除自定义提供商
         const result = await httpClient.delete(`/api/provider/custom-providers/${providerToDelete}`);
-        
+
         if (result.success) {
           // 刷新提供商列表
           const providersResult = await httpClient.get('/api/provider/providers');
           if (providersResult.success) {
             setProviders(providersResult.data || []);
           }
-          
+
           // 如果删除的是当前选中的提供商，清空选中状态
           if (selectedProviderId === providerToDelete) {
             setSelectedProviderId(null);
@@ -103,7 +102,7 @@ const ProviderSettingsPanel = () => {
             setApiKey('');
             setBaseUrl('');
           }
-          
+
           setNotificationMessage(`提供商 "${providerToDelete}" 删除成功`);
           setShowNotification(true);
         } else {
@@ -139,7 +138,7 @@ const ProviderSettingsPanel = () => {
   // 处理常用模型勾选
   const handleFavoriteToggle = async (modelId, provider) => {
     const isFavorite = modelId in favoriteModels;
-    
+
     if (isFavorite) {
       // 从常用列表中移除
       const result = await httpClient.delete(`/api/provider/favorite-models?modelId=${encodeURIComponent(modelId)}`);
@@ -163,13 +162,13 @@ const ProviderSettingsPanel = () => {
       // 内置提供商列表
       const builtinProviders = ['deepseek', 'openrouter', 'aliyun', 'siliconflow', 'zhipuai', 'kimi', 'ollama', 'gemini'];
       const isBuiltinProvider = builtinProviders.includes(selectedProviderId);
-      
+
       if (!isBuiltinProvider) {
         // 对于自定义提供商，使用customProviders数组
         const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
         let customProviders = providersResponse.data || [];
         const existingProviderIndex = customProviders.findIndex(provider => provider.name === selectedProviderId);
-        
+
         if (existingProviderIndex !== -1) {
           // 更新现有的自定义提供商
           customProviders[existingProviderIndex] = {
@@ -185,7 +184,7 @@ const ProviderSettingsPanel = () => {
             baseUrl: baseUrl
           });
         }
-        
+
         // 保存更新后的customProviders数组
         await httpClient.post('/api/config/store', {
           key: 'customProviders',
@@ -201,7 +200,7 @@ const ProviderSettingsPanel = () => {
         // 对于内置提供商，使用原来的方式
         const apiKeyConfigKey = `${selectedProviderId}ApiKey`;
         const baseUrlConfigKey = `${selectedProviderId}BaseUrl`;
-        
+
         await Promise.all([
           httpClient.post('/api/config/store', { key: apiKeyConfigKey, value: apiKey }),
           httpClient.post('/api/config/store', { key: baseUrlConfigKey, value: baseUrl })
@@ -230,18 +229,18 @@ const ProviderSettingsPanel = () => {
         baseUrl: '',
         apiKey: ''
       });
-      
+
       if (result.success) {
         // 刷新提供商列表
         const providersResult = await httpClient.get('/api/provider/providers');
         if (providersResult.success) {
           setProviders(providersResult.data || []);
         }
-        
+
         // 重置表单并关闭模态框
         setCustomProviderName('');
         setShowCustomProviderModal(false);
-        
+
         // 显示成功通知
         setNotificationMessage('自定义提供商添加成功');
         setShowNotification(true);
@@ -268,7 +267,7 @@ const ProviderSettingsPanel = () => {
         const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
         const customProviders = providersResponse.data || [];
         const customProvider = customProviders.find(provider => provider.name === selectedProviderId);
-        
+
         if (customProvider) {
           // 对于自定义提供商，从customProviders数组中获取配置
           setApiKey(customProvider.apiKey || '');
@@ -277,19 +276,19 @@ const ProviderSettingsPanel = () => {
           // 对于内置提供商，使用原来的方式
           const apiKeyConfigKey = `${selectedProviderId}ApiKey`;
           const baseUrlConfigKey = `${selectedProviderId}BaseUrl`;
-          
+
           const [apiKeyResponse, baseUrlResponse] = await Promise.all([
             httpClient.get(`/api/config/store?key=${encodeURIComponent(apiKeyConfigKey)}`),
             httpClient.get(`/api/config/store?key=${encodeURIComponent(baseUrlConfigKey)}`)
           ]);
-          
+
           // 检查返回结果结构
           if (apiKeyResponse.data) {
             setApiKey(apiKeyResponse.data);
           } else {
             setApiKey('');
           }
-          
+
           if (baseUrlResponse.data) {
             setBaseUrl(baseUrlResponse.data);
           } else {
@@ -324,82 +323,82 @@ const ProviderSettingsPanel = () => {
   }, [selectedProviderId]);
 
   return (
-    <div className="provider-settings-panel">
-      <PanelGroup direction="horizontal" className="provider-panel-group">
+    <div className="w-full">
+      <PanelGroup direction="horizontal" className="pt-2.5">
         {/* 左侧提供商列表面板 */}
-        <Panel defaultSize={25} minSize={0} maxSize={100} className="provider-list-panel">
-          <div className="provider-list">
+        <Panel defaultSize={25} minSize={0} maxSize={100} className="border border-theme-gray flex flex-col h-[932px]">
+          <div className="overflow-y-auto flex-1 p-1.25">
             {providers.map((provider, index) => (
               <div
                 key={index}
-                className={`provider-item ${selectedProviderId === provider ? 'selected' : ''}`}
+                className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray ${selectedProviderId === provider ? 'border border-theme-green text-theme-green' : ''}`}
                 onClick={() => handleProviderClick(provider)}
               >
                 {provider}
               </div>
             ))}
             {/* 自定义提供商按钮 */}
-            <div className="custom-provider-button" onClick={() => setShowCustomProviderModal(true)}>
+            <div className="m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray hover:bg-theme-gray" onClick={() => setShowCustomProviderModal(true)}>
               + 自定义提供商
             </div>
           </div>
         </Panel>
-        <PanelResizeHandle className="provider-panel-resize-handle" />
+        <PanelResizeHandle className="w-1.25 bg-theme-gray cursor-col-resize relative transition-colors hover:bg-theme-gray after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-0.5 after:h-5 after:bg-theme-gray after:rounded-[1px]" />
         {/* 右侧模型列表面板 */}
-        <Panel className='model-list-panel'>
+        <Panel className='border border-theme-gray flex flex-col h-[932px]'>
           {selectedProviderId && (
-            <div className='api-url-input'>
+            <div className='block mx-auto my-5 bg-theme-gray p-2.5 rounded-small w-[80%]'>
               <form onSubmit={handleSubmit}>
-                <label htmlFor="api-input" className="api-label">API Key:</label>
+                <label htmlFor="api-input" className="block mx-auto my-2.5 mb-1.25 text-theme-gray w-[80%] text-left">API Key:</label>
                 <input
                   type='password'
                   id='api-input'
-                  className="api-key-input"
+                  className="block mx-auto my-2.5 border-0 h-[25px] w-[80%] bg-theme-gray"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="请输入 API Key"
                 />
-                <label htmlFor="url-input" className="url-label">Base URL:</label>
+                <label htmlFor="url-input" className="block mx-auto my-2.5 mb-1.25 text-theme-gray w-[80%] text-left">Base URL:</label>
                 <input
                   type='text'
                   id='url-input'
-                  className="base-url-input"
+                  className="block mx-auto my-2.5 border-0 h-[25px] w-[80%] bg-theme-gray"
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
                   placeholder="请输入 Base URL"
                 />
-                <button type="submit" className="api-submit-btn">确定</button>
+                <button type="submit" className="block mx-auto my-3.75 px-4 py-2 bg-theme-green text-white border-none rounded-small cursor-pointer hover:bg-theme-green">确定</button>
               </form>
             </div>
           )}
           {selectedProviderId && (
-            <div className="provider-actions-container">
+            <div className="mx-auto my-2.5 w-[80%] flex gap-2.5">
               <button
                 type="button"
-                className="refresh-models-btn"
+                className="flex-1 px-4 py-2 bg-theme-green text-white border-none rounded-small cursor-pointer"
                 onClick={fetchProviderModels}
               >
                 刷新模型列表
               </button>
               <button
                 type="button"
-                className="delete-provider-btn"
+                className="flex-1 px-4 py-2 bg-red-500 text-white border-none rounded-small cursor-pointer hover:bg-red-600"
                 onClick={() => handleDeleteProvider(selectedProviderId)}
               >
                 删除此提供商
               </button>
             </div>
           )}
-          <div className="model-list">
+          <div className="overflow-y-auto flex-1 p-1.25">
             {modelError ? (
-              <div className="error-message" style={{color: '#ff6b6b', padding: '10px', backgroundColor: '#ffe0e0', borderRadius: '4px', margin: '10px 0'}}>
+              <div className="p-2.5 rounded-small m-2.5" style={{color: '#ff6b6b', backgroundColor: '#ffe0e0'}}>
                 {modelError}
               </div>
             ) : (
               providerModels.map((model, index) => (
                 <div
                   key={index}
-                  className={`model-item ${selectedModelId === model.id?'selected': ''}`}
+                  className={`m-2.5 cursor-pointer ${selectedModelId === model.id?'border border-theme-green text-theme-green': ''}`}
                 >
                   <input
                     type="checkbox"
@@ -422,7 +421,7 @@ const ProviderSettingsPanel = () => {
           </div>
         </Panel>
       </PanelGroup>
-      
+
       {/* 通知弹窗 */}
       {showNotification && (
         <UnifiedModal
@@ -431,37 +430,38 @@ const ProviderSettingsPanel = () => {
           onCancel={() => setShowNotification(false)}
         />
       )}
-      
+
       {/* 自定义提供商模态框 */}
       {showCustomProviderModal && (
-        <div className="custom-provider-modal-overlay">
-          <div className="custom-provider-modal">
-            <div className="custom-provider-modal-header">
-              <h3>添加自定义提供商</h3>
+        <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex justify-center items-center z-[1000]">
+          <div className="bg-theme-gray rounded-medium shadow-medium w-[400px] max-w-[90vw] text-theme-gray">
+            <div className="flex justify-between items-center px-5 py-3.75 border-b border-theme-gray">
+              <h3 className="m-0 text-theme-white text-lg">添加自定义提供商</h3>
               <button
-                className="custom-provider-modal-close"
+                className="bg-none border-none text-xl text-theme-gray cursor-pointer p-1.25 hover:text-theme-white"
                 onClick={() => setShowCustomProviderModal(false)}
               >
                 ×
               </button>
             </div>
-            <form onSubmit={handleCustomProviderSubmit} className="custom-provider-form">
-              <div className="form-group">
-                <label htmlFor="provider-name">提供商名称:</label>
+            <form onSubmit={handleCustomProviderSubmit} className="px-5 py-5">
+              <div className="mb-3.75">
+                <label htmlFor="provider-name" className="block mb-1.25 text-theme-gray">提供商名称:</label>
                 <input
                   type="text"
                   id="provider-name"
+                  className="w-full p-2 bg-theme-gray text-theme-gray border border-theme-gray rounded-small box-border focus:outline-none focus:border-theme-green"
                   value={customProviderName}
                   onChange={(e) => setCustomProviderName(e.target.value)}
                   placeholder="例如: 我的提供商"
                   required
                 />
               </div>
-              <div className="form-actions">
-                <button type="button" onClick={() => setShowCustomProviderModal(false)}>
+              <div className="flex justify-end gap-2.5 mt-5">
+                <button type="button" className="px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-700" onClick={() => setShowCustomProviderModal(false)}>
                   取消
                 </button>
-                <button type="submit">
+                <button type="submit" className="px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-theme-green text-white hover:bg-theme-green">
                   确定
                 </button>
               </div>
@@ -469,7 +469,7 @@ const ProviderSettingsPanel = () => {
           </div>
         </div>
       )}
-      
+
       {/* 删除确认模态框 */}
       {showDeleteConfirmModal && (
         <UnifiedModal

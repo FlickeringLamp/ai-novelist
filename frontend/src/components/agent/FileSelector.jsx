@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faFolder, faSearch, faPlus } from '@fortawesome/free-solid-svg-icons';
 import httpClient from '../../utils/httpClient.js';
-import './FileSelector.css';
 
 const FileSelector = ({ onFileContentAdd }) => {
   const [files, setFiles] = useState([]);
@@ -97,24 +96,24 @@ const FileSelector = ({ onFileContentAdd }) => {
   // 渲染文件树
   const renderFileTree = (items, level = 0) => {
     return items.map(item => (
-      <div key={item.id} className="file-item" style={{ paddingLeft: `${level * 20}px` }}>
-        <div 
-          className={`file-row ${item.isFolder ? 'folder' : 'file'}`}
+      <div key={item.id} style={{ paddingLeft: `${level * 20}px` }}>
+        <div
+          className={`flex items-center gap-2 p-2 cursor-pointer transition-all ${item.isFolder ? 'hover:bg-theme-gray' : 'hover:bg-theme-gray'}`}
           onClick={() => handleFileClick(item)}
         >
           {item.isFolder && (
-            <FontAwesomeIcon 
-              icon={expandedFolders[item.id] ? faFolder : faFolder} 
-              className="folder-icon"
+            <FontAwesomeIcon
+              icon={expandedFolders[item.id] ? faFolder : faFolder}
+              className="text-theme-gray text-[12px]"
             />
           )}
           {!item.isFolder && (
-            <FontAwesomeIcon icon={faFile} className="file-icon" />
+            <FontAwesomeIcon icon={faFile} className="text-theme-gray text-[12px]" />
           )}
-          <span className="file-name">{item.title}</span>
+          <span className="text-theme-white text-[12px]">{item.title}</span>
         </div>
         {item.isFolder && item.children && expandedFolders[item.id] && (
-          <div className="folder-children">
+          <div>
             {renderFileTree(item.children, level + 1)}
           </div>
         )}
@@ -123,32 +122,32 @@ const FileSelector = ({ onFileContentAdd }) => {
   };
 
   return (
-    <div className="file-selector">
-      <div className="file-selector-header">
-        <h4>选择文件</h4>
-        <button className="refresh-button" onClick={fetchFiles} title="刷新文件列表">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-theme-white text-[12px] font-medium">选择文件</h4>
+        <button className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[12px] hover:text-theme-green transition-colors" onClick={fetchFiles} title="刷新文件列表">
           <FontAwesomeIcon icon={faSearch} />
         </button>
       </div>
       
-      <div className="search-container">
-        <div className="search-input-wrapper">
-          <FontAwesomeIcon icon={faSearch} className="search-icon" />
+      <div className="flex">
+        <div className="relative flex-1">
+          <FontAwesomeIcon icon={faSearch} className="absolute left-2 top-1/2 transform -translate-y-1/2 text-theme-gray text-[12px]" />
           <input
             type="text"
             placeholder="搜索文件..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
+            className="w-full pl-8 pr-2 py-2 bg-transparent border border-theme-gray rounded-small text-theme-white text-[12px] outline-none placeholder:text-theme-gray"
           />
         </div>
       </div>
 
-      <div className="file-list">
+      <div className="max-h-[200px] overflow-y-auto border border-theme-gray rounded-small">
         {isLoading ? (
-          <div className="loading">加载中...</div>
+          <div className="flex items-center justify-center p-4 text-theme-gray text-[12px]">加载中...</div>
         ) : filteredFiles.length === 0 ? (
-          <div className="no-files">没有找到文件</div>
+          <div className="flex items-center justify-center p-4 text-theme-gray text-[12px]">没有找到文件</div>
         ) : (
           renderFileTree(filteredFiles)
         )}

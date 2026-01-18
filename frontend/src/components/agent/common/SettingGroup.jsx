@@ -1,5 +1,4 @@
 import React from 'react';
-import './SettingGroup.css';
 
 /**
  * 统一的设置项组件
@@ -22,29 +21,29 @@ const SettingGroup = ({
   };
 
   return (
-    <div className={`setting-group ${className}`}>
+    <div className={`mb-6 border border-theme-gray rounded-medium p-4 bg-theme-black shadow-light ${className}`}>
       {title && (
-        <div 
-          className={`setting-group-header ${collapsible ? 'collapsible' : ''}`}
+        <div
+          className={`flex justify-between items-center mb-2 pb-2 border-b border-theme-gray ${collapsible ? 'cursor-pointer transition-colors p-2 -m-2 mb-2 rounded-small hover:bg-theme-gray' : ''}`}
           onClick={toggleCollapse}
         >
-          <h4 className="setting-group-title">{title}</h4>
+          <h4 className="m-0 text-base font-semibold text-theme-white">{title}</h4>
           {collapsible && (
-            <span className="collapse-icon">
-              {isCollapsed ? '▶' : '▼'}
+            <span className={`text-theme-green text-xs transition-transform ${isCollapsed ? '' : 'rotate-90'}`}>
+              ▶
             </span>
           )}
         </div>
       )}
-      
+
       {description && !isCollapsed && (
-        <div className="setting-group-description">
+        <div className="text-sm text-theme-gray mb-4 leading-relaxed p-2 bg-theme-gray rounded-small border-l-3 border-theme-green">
           {description}
         </div>
       )}
-      
+
       {!isCollapsed && (
-        <div className="setting-group-content">
+        <div className="flex flex-col gap-4">
           {children}
         </div>
       )}

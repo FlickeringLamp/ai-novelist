@@ -34,6 +34,7 @@ backend/data
 *.bat
 test_files/
 archive/
+count_code.ps1
 
 # Lock files
 mcp-filesystem-server.lock

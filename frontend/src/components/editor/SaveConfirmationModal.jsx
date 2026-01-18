@@ -62,14 +62,14 @@ const SaveConfirmationModal = ({
   }, [focusedButton, onSave, onDiscard, onCancel]);
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <p>{message}</p>
-        <div className="modal-actions">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000]">
+      <div className="bg-theme-black border border-theme-gray rounded-small shadow-deep p-6 w-[400px]">
+        <p className="text-theme-white text-[14px] mb-4">{message}</p>
+        <div className="flex gap-2">
           <button
             ref={saveButtonRef}
             onClick={onSave}
-            className={focusedButton === 'save' ? 'focused' : ''}
+            className={`flex-1 p-2.5 border-none rounded-small cursor-pointer text-[14px] transition-all ${focusedButton === 'save' ? 'bg-theme-green text-theme-white' : 'bg-theme-gray text-theme-white hover:bg-theme-gray/80'}`}
             tabIndex={0}
           >
             保存
@@ -77,7 +77,7 @@ const SaveConfirmationModal = ({
           <button
             ref={discardButtonRef}
             onClick={onDiscard}
-            className={focusedButton === 'discard' ? 'focused' : ''}
+            className={`flex-1 p-2.5 border-none rounded-small cursor-pointer text-[14px] transition-all ${focusedButton === 'discard' ? 'bg-theme-green text-theme-white' : 'bg-theme-gray text-theme-white hover:bg-theme-gray/80'}`}
             tabIndex={0}
           >
             丢弃
@@ -85,7 +85,7 @@ const SaveConfirmationModal = ({
           <button
             ref={cancelButtonRef}
             onClick={onCancel}
-            className={focusedButton === 'cancel' ? 'focused' : ''}
+            className={`flex-1 p-2.5 border-none rounded-small cursor-pointer text-[14px] transition-all ${focusedButton === 'cancel' ? 'bg-theme-green text-theme-white' : 'bg-theme-gray text-theme-white hover:bg-theme-gray/80'}`}
             tabIndex={0}
           >
             取消

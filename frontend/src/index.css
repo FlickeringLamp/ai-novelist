@@ -1,3 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== CSS 变量定义 - 支持动态主题 ===== */
+:root {
+  /* 四种基础颜色 - 默认值 */
+  --color-black: #000000;    /* 纯黑：项目底色 */
+  --color-green: #00AD62;    /* 绿色：特色色 */
+  --color-gray: #333333;     /* 灰色：hover、activate 状态 */
+  --color-white: #FFFFFF;    /* 纯白色：字体 */
+}
+
+/* ===== 全局基础样式 ===== */
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -5,29 +19,51 @@
 html, body, #root {
   height: 100%;
   margin: 0;
-  padding: 0; /* 确保没有默认的内边距 */
-  /* 禁止 html,body 滚动，避免滚动条出现在标题栏右边 */
+  padding: 0;
   overflow: hidden;
 }
 
-/* 确保文本大小调整在所有浏览器中正常工作 */
 html {
-  -webkit-text-size-adjust: 100%; /* 兼容旧版WebKit浏览器 */
-  text-size-adjust: 100%; /* 标准属性，支持现代浏览器 */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
-  font-family: sans-serif; /* 使用最安全的默认字体 */
+  font-family: sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-black);
+  color: var(--color-white);
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
-  color: var(--text-color-primary); /* 调整代码块颜色 */
+  color: var(--color-white);
 }
 
 h1, h2 {
-    color: var(--text-color-primary); /* 使用主题变量 */
+  color: var(--color-white);
+}
+
+/* ===== 自定义滚动条样式 ===== */
+@layer utilities {
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: var(--color-black);
+    border-radius: 10px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: var(--color-gray);
+    border-radius: 10px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: var(--color-green);
+  }
 }

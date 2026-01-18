@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faSyncAlt, faRobot } from '@fortawesome/free-solid-svg-icons';
 import httpClient from '../../../utils/httpClient';
 import { isEmbeddingModel } from '../../../utils/embeddingModelUtils';
-import './ModelSelectorPanel.css';
 
 const ModelSelectorPanel = () => {
   // 本地状态管理 - 不再使用Redux
@@ -141,37 +140,37 @@ const ModelSelectorPanel = () => {
   }, []);
 
   return (
-    <div className="model-selector-container">
+    <div className="relative">
       <button
-        className="model-button"
+        className="flex items-center justify-center gap-2 w-full p-2 p-2.5-[12px] bg-theme-black border border-theme-gray rounded-small cursor-pointer transition-all min-h-[36px] hover:border-theme-green hover:bg-theme-gray"
         onClick={() => setIsVisible(!isVisible)}
         title="模型选择"
       >
         {selectedModel ? (
-          <span className="model-name-text">{selectedModel}</span>
+          <span className="text-theme-white text-[14px] font-medium whitespace-nowrap overflow-hidden text-ellipsis">{selectedModel}</span>
         ) : (
           <>
-            <FontAwesomeIcon icon={faRobot} />
-            <span className="model-select-hint">选择模型</span>
+            <FontAwesomeIcon icon={faRobot} className="text-theme-gray" />
+            <span className="text-theme-gray text-[14px]">选择模型</span>
           </>
         )}
       </button>
       
       {isVisible && (
-        <div className="model-selector-panel">
+        <div className="absolute bottom-full left-[-10px] right-[-150px] w-[400px] bg-theme-black border border-theme-gray rounded-small shadow-deep z-[1000] mb-1 flex flex-col overflow-hidden max-h-[500px]">
           {/* 搜索和过滤区域 */}
-          <div className="model-filter-section">
-            <div className="search-container">
-              <FontAwesomeIcon icon={faSearch} className="search-icon" />
+          <div className="p-3 border-b border-theme-gray">
+            <div className="flex items-center gap-2 mb-3">
+              <FontAwesomeIcon icon={faSearch} className="text-theme-gray text-[12px]" />
               <input
                 type="text"
                 placeholder="搜索模型名称或提供商..."
                 value={searchText}
                 onChange={handleSearchChange}
-                className="search-input"
+                className="flex-1 p-2.5 bg-transparent border border-theme-gray rounded-small text-theme-white text-[14px] outline-none placeholder:text-theme-gray"
               />
               <button
-                className={`refresh-button ${refreshing ? 'refreshing' : ''}`}
+                className="flex items-center justify-center w-8 h-8 bg-transparent border-none text-theme-gray cursor-pointer transition-all hover:text-theme-green disabled:text-theme-gray disabled:cursor-not-allowed"
                 onClick={handleRefreshModels}
                 title="刷新模型列表"
                 disabled={refreshing}
@@ -181,13 +180,13 @@ const ModelSelectorPanel = () => {
             </div>
             
             {/* 提供商筛选 */}
-            <div className="provider-filter">
-              <span className="filter-label">提供商：</span>
-              <div className="provider-tags">
+            <div className="flex items-center gap-2">
+              <span className="text-theme-gray text-[12px]">提供商：</span>
+              <div className="flex flex-wrap gap-1">
                 {providers().map(provider => (
                   <button
                     key={provider}
-                    className={`provider-tag ${selectedProvider === provider ? 'active' : ''}`}
+                    className={`px-2 py-1 border border-theme-gray rounded-small text-[12px] cursor-pointer transition-all ${selectedProvider === provider ? 'bg-theme-green text-theme-white border-theme-green' : 'text-theme-gray hover:bg-theme-gray'}`}
                     onClick={() => handleProviderSelect(provider)}
                   >
                     {provider}
@@ -198,26 +197,26 @@ const ModelSelectorPanel = () => {
           </div>
 
           {/* 模型列表 */}
-          <div className="model-list-container">
+          <div className="flex-1 overflow-y-auto p-2">
             {loading ? (
-              <div className="loading-state">
+              <div className="flex items-center justify-center p-4 text-theme-gray text-[14px]">
                 正在加载模型列表...
               </div>
             ) : filteredModels().length === 0 ? (
-              <div className="empty-state">
+              <div className="flex items-center justify-center p-4 text-theme-gray text-[14px]">
                 {searchText || selectedProvider ? '没有找到匹配的模型' : '暂无可用模型'}
               </div>
             ) : (
-              <div className="model-grid">
+              <div className="grid grid-cols-1 gap-2">
                 {filteredModels().map((model) => (
                   <div
                     key={model.id}
-                    className="model-card"
+                    className="p-2.5 border border-theme-gray rounded-small cursor-pointer transition-all hover:bg-theme-gray hover:border-theme-green"
                     onClick={() => handleModelSelect(model.id)}
                   >
-                    <div className="model-info">
-                      <div className="model-name">{model.id}</div>
-                      <div className="model-provider">{model.provider}</div>
+                    <div className="flex flex-col gap-1">
+                      <div className="text-theme-white text-[14px] font-medium truncate">{model.id}</div>
+                      <div className="text-theme-gray text-[12px]">{model.provider}</div>
                     </div>
                   </div>
                 ))}
@@ -226,7 +225,7 @@ const ModelSelectorPanel = () => {
             
             {/* 搜索结果统计 */}
             {searchText && (
-              <div className="search-results-info">
+              <div className="mt-2 text-center text-theme-gray text-[12px]">
                 找到 {filteredModels().length} 个匹配的模型
               </div>
             )}

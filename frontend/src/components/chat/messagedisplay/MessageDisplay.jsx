@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import './MessageDisplay.css';
+import { useState, useEffect } from 'react';
 import ReactMarkdownMessageRenderer from './ReactMarkdownMessageRenderer.jsx';
 
 const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
@@ -40,7 +39,7 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
   };
   
   return (
-    <div className="simple-message-display">
+    <div className="flex flex-col gap-3 p-2.5 h-full overflow-y-auto">
       {messages.map((msg, index) => {
         const isUser = msg.role === 'user';
         const isSystem = msg.role === 'system';
@@ -51,41 +50,41 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
         const isCollapsed = (isTool || isSystem || msg.role === 'tool_request' || isSummary) && collapsedTools[messageId];
         
         return (
-          <div key={messageId} className={`simple-message ${isUser ? 'user-message' : isSystem ? 'system-message' : isTool ? 'tool-message' : msg.role === 'tool_request' ? 'tool-request-message' : isSummary ? 'summary-message' : 'ai-message'}`}>
-            <div className="message-sender">
+          <div key={messageId} className={`flex flex-col max-w-[80%] p-2.5-[10px] p-2.5-[15px] rounded-medium break-words overflow-wrap break-word ${isUser ? 'self-end bg-theme-green text-theme-white' : isSystem ? 'self-start bg-theme-gray text-theme-white border-l-4 border-theme-green' : isTool ? 'self-start bg-theme-gray text-theme-white border-l-4 border-theme-green' : msg.role === 'tool_request' ? 'self-start bg-theme-gray text-theme-white border-l-4 border-theme-green' : isSummary ? 'self-start bg-theme-gray text-theme-white border-l-4 border-theme-green rounded-medium my-2' : 'self-start bg-theme-gray text-theme-white'}`}>
+            <div className="font-bold mb-1.25 text-[0.9em]">
               {isUser ? '用户' : isSystem ? '系统' : isTool ? '工具' : msg.role === 'tool_request' ? '工具请求' : isSummary ? '📝 对话总结' : 'AI'}
             </div>
-            <div className="message-content">
+            <div className="leading-[1.4] overflow-wrap break-word break-words">
               {isUser ? (
                 // 用户消息使用简单文本显示
-                <div style={{ whiteSpace: 'pre-wrap' }}>{content}</div>
+                <div className="whitespace-pre-wrap">{content}</div>
               ) : isSystem ? (
                 // 系统消息使用折叠功能
-                <div className="tool-message-container">
-                  <div className="tool-message-header" onClick={() => toggleToolCollapse(messageId)}>
-                    <span className="tool-toggle-icon">{isCollapsed ? '▶' : '▼'}</span>
-                    <span className={`tool-message-preview ${isCollapsed ? 'collapsed' : ''}`}>
+                <div className="w-full">
+                  <div className="flex items-center cursor-pointer p-1 user-select-none hover:bg-white/5 rounded-small" onClick={() => toggleToolCollapse(messageId)}>
+                    <span className="mr-2 text-[0.8em] text-theme-green transition-transform">{isCollapsed ? '▶' : '▼'}</span>
+                    <span className={`flex-1 text-theme-white whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full ${isCollapsed ? 'line-clamp-1' : ''}`}>
                       {isCollapsed ? content : content}
                     </span>
                   </div>
                 </div>
               ) : isTool ? (
                 // 工具消息使用折叠功能
-                <div className="tool-message-container">
-                  <div className="tool-message-header" onClick={() => toggleToolCollapse(messageId)}>
-                    <span className="tool-toggle-icon">{isCollapsed ? '▶' : '▼'}</span>
-                    <span className={`tool-message-preview ${isCollapsed ? 'collapsed' : ''}`}>
+                <div className="w-full">
+                  <div className="flex items-center cursor-pointer p-1 user-select-none hover:bg-white/5 rounded-small" onClick={() => toggleToolCollapse(messageId)}>
+                    <span className="mr-2 text-[0.8em] text-theme-green transition-transform">{isCollapsed ? '▶' : '▼'}</span>
+                    <span className={`flex-1 text-theme-white whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full ${isCollapsed ? 'line-clamp-1' : ''}`}>
                       {isCollapsed ? content : content}
                     </span>
                   </div>
                   {!isCollapsed && msg.tool_calls && msg.tool_calls.length > 0 && (
-                    <div className="tool-calls-info">
-                      <div className="tool-calls-title">调用的工具:</div>
+                    <div className="mt-2 p-2 bg-black/20 rounded-small">
+                      <div className="font-bold mb-1 text-theme-green">调用的工具:</div>
                       {msg.tool_calls.map((toolCall, toolIndex) => (
-                        <div key={toolIndex} className="tool-call-item">
-                          <span className="tool-name">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
+                        <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
+                          <span className="font-bold text-theme-green">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
                           {toolCall.function?.arguments && (
-                            <div className="tool-arguments">
+                            <div className="mt-1 text-[0.8em] text-theme-gray whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
                               参数: {JSON.stringify(toolCall.function.arguments, null, 2)}
                             </div>
                           )}
@@ -96,10 +95,10 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
                 </div>
               ) : msg.role === 'tool_request' ? (
                 // 工具请求消息使用折叠功能
-                <div className="tool-message-container">
-                  <div className="tool-message-header" onClick={() => toggleToolCollapse(messageId)}>
-                    <span className="tool-toggle-icon">{isCollapsed ? '▶' : '▼'}</span>
-                    <span className={`tool-message-preview ${isCollapsed ? 'collapsed' : ''}`}>
+                <div className="w-full">
+                  <div className="flex items-center cursor-pointer p-1 user-select-none hover:bg-white/5 rounded-small" onClick={() => toggleToolCollapse(messageId)}>
+                    <span className="mr-2 text-[0.8em] text-theme-green transition-transform">{isCollapsed ? '▶' : '▼'}</span>
+                    <span className={`flex-1 text-theme-white whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full ${isCollapsed ? 'line-clamp-1' : ''}`}>
                       {isCollapsed ? (
                         // 折叠状态下显示工具名称或问题预览
                         (() => {
@@ -139,18 +138,18 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
                     </span>
                   </div>
                   {!isCollapsed && (
-                    <div className="tool-calls-info">
-                      <div className="tool-calls-title">工具请求:</div>
+                    <div className="mt-2 p-2 bg-black/20 rounded-small">
+                      <div className="font-bold mb-1 text-theme-green">工具请求:</div>
                       {msg.tool_calls.map((toolCall, toolIndex) => (
-                        <div key={toolIndex} className="tool-call-item">
-                          <span className="tool-name">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
+                        <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
+                          <span className="font-bold text-theme-green">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
                           {toolCall.args && (
-                            <div className="tool-arguments">
+                            <div className="mt-1 text-[0.8em] text-theme-gray whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
                               参数: {JSON.stringify(toolCall.args, null, 2)}
                             </div>
                           )}
                           {toolCall.function?.arguments && (
-                            <div className="tool-arguments">
+                            <div className="mt-1 text-[0.8em] text-theme-gray whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
                               参数: {JSON.stringify(JSON.parse(toolCall.function.arguments), null, 2)}
                             </div>
                           )}
@@ -161,10 +160,10 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
                 </div>
               ) : isSummary ? (
                 // 总结消息使用折叠功能
-                <div className="tool-message-container">
-                  <div className="tool-message-header" onClick={() => toggleToolCollapse(messageId)}>
-                    <span className="tool-toggle-icon">{isCollapsed ? '▶' : '▼'}</span>
-                    <span className={`tool-message-preview ${isCollapsed ? 'collapsed' : ''}`}>
+                <div className="w-full">
+                  <div className="flex items-center cursor-pointer p-1 user-select-none hover:bg-white/5 rounded-small" onClick={() => toggleToolCollapse(messageId)}>
+                    <span className="mr-2 text-[0.8em] text-theme-green transition-transform">{isCollapsed ? '▶' : '▼'}</span>
+                    <span className={`flex-1 text-theme-white whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full ${isCollapsed ? 'line-clamp-1' : ''}`}>
                       {isCollapsed ? (
                         // 折叠状态下显示总结预览
                         content.length > 50 ? content.substring(0, 50) + '...' : content
@@ -175,7 +174,7 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
                     </span>
                   </div>
                   {!isCollapsed && (
-                    <div className="summary-content">
+                    <div className="mt-2 p-3 bg-theme-green/10 rounded-small border-l-3 border-theme-green">
                       <ReactMarkdownMessageRenderer value={content} />
                     </div>
                   )}
@@ -194,11 +193,11 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
       
       {/* 显示当前正在输入的AI消息 - 流式传输时显示 */}
       {currentAiMessage && (
-        <div className="simple-message ai-message">
-          <div className="message-sender">AI</div>
-          <div className="message-content">
+        <div className="flex flex-col max-w-[80%] p-2.5-[10px] p-2.5-[15px] rounded-medium break-words overflow-wrap break-word self-start bg-theme-gray text-theme-white">
+          <div className="font-bold mb-1.25 text-[0.9em]">AI</div>
+          <div className="leading-[1.4] overflow-wrap break-word break-words">
             <ReactMarkdownMessageRenderer value={currentAiMessage} />
-            {isLoading && <span className="typing-indicator">...</span>}
+            {isLoading && <span className="inline-block animate-blink">...</span>}
           </div>
         </div>
       )}

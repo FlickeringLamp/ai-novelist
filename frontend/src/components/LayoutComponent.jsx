@@ -4,7 +4,6 @@ import SidebarComponent from './SidebarComponent';
 import ProviderSettingsPanel from './aiprovider/ProviderSettingsPanel';
 import RagManagementPanel from './rag/RagManagementPanel';
 import AgentPanel from './agent/AgentPanel';
-import './LayoutComponent.css';
 
 function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
   const [activePanel, setActivePanel] = useState(null); // 'api' | 'rag' | 'agent' | null
@@ -22,47 +21,45 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
   };
 
   return (
-    <div className="layout-container">
-      <PanelGroup direction="horizontal" className="main-layout">
+    <div className="flex-grow flex h-full">
+      <PanelGroup direction="horizontal" className="flex-grow flex h-full overflow-hidden min-h-0">
         {/* 左侧组件栏 - 固定宽度图标栏，不能拖动 */}
-        <div className="sidebar-panel-fixed">
+        <div className="bg-theme-black p-0 w-[50px] flex-shrink-0 overflow-hidden">
           <SidebarComponent activePanel={activePanel} setActivePanel={setActivePanel} />
         </div>
         
         {/* 细长的普通灰色分隔线 */}
-        <div className="divider-line"></div>
+        <div className="w-[1px] bg-theme-gray flex-shrink-0"></div>
         
         {/* 章节面板 */}
         <Panel
           defaultSize={leftPanelSize} /* 使用 defaultSize 允许用户拖动 */
           minSize={0} /* 允许完全隐藏 */
           maxSize={100} /* 允许全范围拖动 */
-          className="left-panel"
+          className="bg-theme-black p-0"
           onResize={handleLeftPanelChange} /* 监听尺寸变化 */
         >
           {chapterPanel}
         </Panel>
-        <PanelResizeHandle className="resize-handle" />
+        <PanelResizeHandle className="w-[5px] bg-theme-gray cursor-ew-resize flex-shrink-0 relative hover:bg-theme-green" />
         
         {/* 编辑器面板 */}
         <Panel
           defaultSize={60}
           minSize={0}
           maxSize={100}
-          className="middle-panel"
-          style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+          className="bg-theme-black p-0 flex flex-col h-full overflow-hidden"
         >
           {editorPanel}
         </Panel>
-        <PanelResizeHandle className="resize-handle" />
+        <PanelResizeHandle className="w-[5px] bg-theme-gray cursor-ew-resize flex-shrink-0 relative hover:bg-theme-green" />
         
         {/* 聊天面板 */}
         <Panel
           defaultSize={rightPanelSize} /* 使用 defaultSize 允许用户拖动 */
           minSize={0} /* 允许完全隐藏 */
           maxSize={100} /* 允许全范围拖动 */
-          className="right-panel"
-          style={{ overflow: 'hidden' }}
+          className="bg-theme-black p-0 flex flex-col h-full overflow-hidden"
           onResize={handleRightPanelChange} /* 监听尺寸变化 */
         >
           {chatPanel}
@@ -71,7 +68,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
 
       {/* 设置面板 - 全屏覆盖 */}
       {activePanel && (
-        <div className="settings-panel-overlay">
+        <div className="fixed top-0 left-[50px] right-0 bottom-0 bg-theme-black z-[1000] overflow-auto">
           {activePanel === 'api' && (
             <ProviderSettingsPanel
               isOpen={true}
