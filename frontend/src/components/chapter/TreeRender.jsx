@@ -1,13 +1,16 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFolder, faFile, faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
+import getDisplayName from '../../utils/getDisplayName';
+
 // 渲染章节树
-const renderChapterTree = (items, level = 0) => {
-// 辅助函数：根据文件名获取显示名称(文件名去掉后缀)
-  const getDisplayName = (name, isFolder) => {
-    if (isFolder) {
-      return name;
-    }
-    const lastDotIndex = name.lastIndexOf('.');
-    return lastDotIndex !== -1 ? name.substring(0, lastDotIndex) : name;
-  };
+const renderChapterTree = (items, level = 0, props) => {
+  const {
+    handleContextMenu,
+    handleChapterClick,
+    collapsedChapters
+  } = props;
+
+
   return items.map(item => {
     const itemId = item.id || '';
     const itemTitle = item.title || '';
@@ -26,7 +29,6 @@ const renderChapterTree = (items, level = 0) => {
           onContextMenu={(e) => {
             e.stopPropagation();
             const parentPath = isFolder ? itemId : (itemId.includes('/') ? itemId.substring(0, itemId.lastIndexOf('/')) : '');
-
             handleContextMenu(e, itemId, isFolder, itemTitle, parentPath);
           }}
         >
@@ -49,10 +51,12 @@ const renderChapterTree = (items, level = 0) => {
 
         {isFolder && hasChildren && collapsedChapters[itemId] && (
           <ul className="sub-chapter-list">
-            {renderChapterTree(item.children, level + 1)}
+            {renderChapterTree(item.children, level + 1, props)}
           </ul>
         )}
       </li>
     );
   });
 }
+
+export default renderChapterTree

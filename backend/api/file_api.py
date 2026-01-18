@@ -15,6 +15,7 @@ from backend.core.file.file_service import (
     get_file_tree,
     upload_image,
 )
+from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,7 @@ async def api_copy_file(request: CopyItemRequest):
 @router.get("/tree", summary="获取文件树", response_model=List[dict])
 async def api_get_file_tree():
     """获取文件树结构"""
-    tree = await get_file_tree()
+    tree = await get_file_tree(settings.NOVEL_DIR, settings.NOVEL_DIR)
     return tree
 
 

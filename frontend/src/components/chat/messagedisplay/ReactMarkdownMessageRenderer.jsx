@@ -1,4 +1,3 @@
-import React, { memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -19,7 +18,7 @@ const CustomLink = ({ href, children, ...props }) => (
 );
 
 // 自定义代码块组件，使用简单的语法高亮
-const CustomCodeBlock = memo(({ node, inline, className, children, ...props }) => {
+const CustomCodeBlock = ({ node, inline, className, children, ...props }) => {
   const match = /language-(\w+)/.exec(className || '');
   const language = match ? match[1] : '';
   const code = String(children).replace(/\n$/, '');
@@ -66,7 +65,7 @@ const CustomCodeBlock = memo(({ node, inline, className, children, ...props }) =
       </code>
     </pre>
   );
-});
+};
 
 // 自定义表格组件，添加更好的样式
 const CustomTable = ({ children, ...props }) => (
@@ -119,14 +118,13 @@ const CustomBlockquote = ({ children, ...props }) => (
 );
 
 // 主渲染器组件
-const ReactMarkdownMessageRenderer = memo(({
+const ReactMarkdownMessageRenderer = ({
   value = '',
   className = '',
   isStreaming = false,
   ...props
 }) => {
-  // 使用useMemo优化渲染性能
-  const processedValue = useMemo(() => {
+  const processedValue = () => {
     if (!value) return '';
     
     // 处理一些常见的markdown格式问题
@@ -134,9 +132,9 @@ const ReactMarkdownMessageRenderer = memo(({
       .replace(/\\n/g, '\n') // 处理转义的换行符
       .replace(/^```(\w+)?\s*\n/gm, '```$1\n') // 标准化代码块开始标记
       .replace(/\n```$/gm, '\n```'); // 标准化代码块结束标记
-  }, [value]);
+  };
 
-  const components = useMemo(() => ({
+  const components = () => ({
     // 链接组件
     a: CustomLink,
     
@@ -198,13 +196,12 @@ const ReactMarkdownMessageRenderer = memo(({
             borderRadius: '4px',
           }}
           onError={(e) => {
-            // 图片加载失败时显示占位符
-            e.target.onerror = null; // 防止无限循环
-            e.target.style.display = 'none';
+            const target = e.currentTarget;
+            target.style.display = 'none';
             const placeholder = document.createElement('div');
             placeholder.style.cssText = 'max-width:100%;height:150px;background-color:#444;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#aaa;font-style:italic;margin:0.5em 0';
             placeholder.textContent = alt || '图片加载失败';
-            e.target.parentNode.insertBefore(placeholder, e.target.nextSibling);
+            target.parentNode.insertBefore(placeholder, target.nextSibling);
           }}
           {...props}
         />
@@ -265,7 +262,7 @@ const ReactMarkdownMessageRenderer = memo(({
         {children}
       </li>
     ),
-  }), []);
+  });
 
   return (
     <div
@@ -285,10 +282,10 @@ const ReactMarkdownMessageRenderer = memo(({
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex, rehypeRaw, rehypeSlug]}
-        components={components}
+        components={components()}
         skipHtml={false}
       >
-        {processedValue}
+        {processedValue()}
       </ReactMarkdown>
       
       {/* 流式传输时的加载指示器 */}
@@ -306,7 +303,7 @@ const ReactMarkdownMessageRenderer = memo(({
       )}
     </div>
   );
-});
+};
 
 // 添加CSS动画
 const styles = `

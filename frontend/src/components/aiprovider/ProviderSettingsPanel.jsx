@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import NotificationModal from '../others/NotificationModal';
-import ConfirmationModal from '../others/ConfirmationModal';
+import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient';
 import './ProviderSettingsPanel.css';
 
@@ -83,7 +82,7 @@ const ProviderSettingsPanel = () => {
     try {
       // 检查是否是自定义提供商
       const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-      const customProviders = providersresponse || [];
+      const customProviders = providersResponse.data || [];
       const isCustomProvider = customProviders.some(provider => provider.name === providerToDelete);
       
       if (isCustomProvider) {
@@ -143,9 +142,7 @@ const ProviderSettingsPanel = () => {
     
     if (isFavorite) {
       // 从常用列表中移除
-      const result = await httpClient.delete('/api/provider/favorite-models', {
-        params: { modelId }
-      });
+      const result = await httpClient.delete(`/api/provider/favorite-models?modelId=${encodeURIComponent(modelId)}`);
       if (result.success) {
         setFavoriteModels(result.data || {});
       }
@@ -170,7 +167,7 @@ const ProviderSettingsPanel = () => {
       if (!isBuiltinProvider) {
         // 对于自定义提供商，使用customProviders数组
         const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-        let customProviders = providersresponse || [];
+        let customProviders = providersResponse.data || [];
         const existingProviderIndex = customProviders.findIndex(provider => provider.name === selectedProviderId);
         
         if (existingProviderIndex !== -1) {
@@ -269,7 +266,7 @@ const ProviderSettingsPanel = () => {
       try {
         // 检查是否是自定义提供商
         const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-        const customProviders = providersresponse || [];
+        const customProviders = providersResponse.data || [];
         const customProvider = customProviders.find(provider => provider.name === selectedProviderId);
         
         if (customProvider) {
@@ -287,14 +284,14 @@ const ProviderSettingsPanel = () => {
           ]);
           
           // 检查返回结果结构
-          if (apiKeyresponse) {
-            setApiKey(apiKeyresponse);
+          if (apiKeyResponse.data) {
+            setApiKey(apiKeyResponse.data);
           } else {
             setApiKey('');
           }
           
-          if (baseUrlresponse) {
-            setBaseUrl(baseUrlresponse);
+          if (baseUrlResponse.data) {
+            setBaseUrl(baseUrlResponse.data);
           } else {
             // 如果没有自定义URL，对于内置提供商，使用默认URL
             if (selectedProviderId === 'deepseek') {
@@ -428,9 +425,10 @@ const ProviderSettingsPanel = () => {
       
       {/* 通知弹窗 */}
       {showNotification && (
-        <NotificationModal
+        <UnifiedModal
           message={notificationMessage}
-          onClose={() => setShowNotification(false)}
+          onConfirm={() => setShowNotification(false)}
+          onCancel={() => setShowNotification(false)}
         />
       )}
       
@@ -474,8 +472,9 @@ const ProviderSettingsPanel = () => {
       
       {/* 删除确认模态框 */}
       {showDeleteConfirmModal && (
-        <ConfirmationModal
+        <UnifiedModal
           message={`确定要删除提供商 "${providerToDelete}" 吗？此操作不可撤销。`}
+          showCancelButton={true}
           onConfirm={confirmDeleteProvider}
           onCancel={cancelDeleteProvider}
         />

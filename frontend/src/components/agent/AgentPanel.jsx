@@ -4,8 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faTimes, faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
 import httpClient from '../../utils/httpClient.js';
 import useModeManager from './ModeManager';
-import NotificationModal from '../others/NotificationModal';
-import ConfirmationModal from '../others/ConfirmationModal';
+import UnifiedModal from '../others/UnifiedModal.jsx';
 import ChatParameters from '././parameterTab/ChatParameters';
 import FileSelector from './FileSelector';
 import ToolConfigTab from './toolTab/ToolConfigTab';
@@ -570,18 +569,21 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
 
       {/* 删除确认对话框 */}
       {showDeleteConfirm && (
-        <ConfirmationModal
+        <UnifiedModal
           message={`确定要删除自定义模式 "${selectedModeDetail.name}" 吗？此操作不可撤销。`}
+          showCancelButton={true}
+          confirmText="确定"
+          cancelText="取消"
           onConfirm={handleDeleteCustomModeUI}
           onCancel={() => setShowDeleteConfirm(false)}
         />
       )}
-
       {/* 通知模态框 */}
       {notification.isOpen && (
-        <NotificationModal
+        <UnifiedModal
           message={notification.message}
-          onClose={handleNotificationClose}
+          onConfirm={handleNotificationClose}
+          onCancel={handleNotificationClose}
         />
       )}
     </div>

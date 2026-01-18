@@ -1,14 +1,64 @@
 import { useEffect, useRef, useState } from 'react';
 import './ContextMenu.css';
 
-function ContextMenu({ x, y, items, onClose }) {
+function ContextMenu({
+  contextMenu,
+  setContextMenu,
+  operateState,
+  setOperateState,
+  handleCreateItem,
+  handleDeleteItem,
+  handlePaste,
+  handleRenameItem
+}) {
   const menuRef = useRef(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+
+  const handleCloseContextMenu = () => {
+    setContextMenu({ ...contextMenu, show: false });
+  };
+
+  const getContextMenuItems = () => {
+    const items = [];
+    const isItemSelected = contextMenu.itemId !== null && contextMenu.itemId !== undefined;
+    const canPaste = operateState;
+
+    if (isItemSelected) {
+      const isFolder = contextMenu.isFolder;
+
+      items.push(
+        { label: '复制', onClick: () => { setOperateState('copying'); handleCloseContextMenu(); } },
+        { label: '剪切', onClick: () => { setOperateState('cutting'); handleCloseContextMenu(); } },
+        { label: '重命名', onClick: () => handleRenameItem() },
+        { label: '删除', onClick: () => handleDeleteItem(contextMenu.itemId) }
+      );
+      if (isFolder && canPaste) {
+        items.push({ label: '粘贴', onClick: () => handlePaste(contextMenu.itemId) });
+      }
+
+      if (isFolder) {
+        items.push(
+          { label: '新建文件', onClick: () => handleCreateItem(false, contextMenu.itemId) },
+          { label: '新建文件夹', onClick: () => handleCreateItem(true, contextMenu.itemId) }
+        );
+      }
+    } else {
+      items.push(
+        { label: '新建文件', onClick: () => handleCreateItem(false, '') },
+        { label: '新建文件夹', onClick: () => handleCreateItem(true, '') }
+      );
+      if (canPaste) {
+        items.push({ label: '粘贴', onClick: () => handlePaste('') });
+      }
+    }
+
+    return items;
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
-        onClose();
+        handleCloseContextMenu();
       }
     };
 
@@ -16,10 +66,11 @@ function ContextMenu({ x, y, items, onClose }) {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [onClose]);
+  }, [contextMenu]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      const items = getContextMenuItems();
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedIndex((prevIndex) =>
@@ -34,11 +85,11 @@ function ContextMenu({ x, y, items, onClose }) {
         e.preventDefault();
         if (selectedIndex !== -1) {
           items[selectedIndex].onClick();
-          onClose();
+          handleCloseContextMenu();
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        handleCloseContextMenu();
       }
     };
 
@@ -46,7 +97,7 @@ function ContextMenu({ x, y, items, onClose }) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [items, selectedIndex, onClose]);
+  }, [selectedIndex, contextMenu, operateState]);
 
   useEffect(() => {
     if (menuRef.current) {
@@ -54,14 +105,16 @@ function ContextMenu({ x, y, items, onClose }) {
     }
   }, []);
 
-  if (!x || !y || !items.length) return null;
+  if (!contextMenu.show) return null;
+
+  const items = getContextMenuItems();
 
   return (
     <ul
       className="context-menu"
       ref={menuRef}
-      style={{ top: y, left: x }}
-      tabIndex="-1"
+      style={{ top: contextMenu.y, left: contextMenu.x }}
+      tabIndex={-1}
     >
       {items.map((item, index) => (
         <li
@@ -69,7 +122,7 @@ function ContextMenu({ x, y, items, onClose }) {
           className={selectedIndex === index ? 'selected' : ''}
           onClick={() => {
             item.onClick();
-            onClose();
+            handleCloseContextMenu();
           }}
           onMouseEnter={() => setSelectedIndex(index)}
         >

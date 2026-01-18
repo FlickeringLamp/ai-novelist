@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faSyncAlt, faRobot } from '@fortawesome/free-solid-svg-icons';
 import httpClient from '../../../utils/httpClient';
@@ -99,13 +99,13 @@ const ModelSelectorPanel = () => {
   };
 
   // 获取所有提供商列表
-  const providers = useMemo(() => {
+  const providers = () => {
     const uniqueProviders = [...new Set(availableModels.map(model => model.provider))];
     return uniqueProviders.sort();
-  }, [availableModels]);
+  };
 
   // 过滤模型
-  const filteredModels = useMemo(() => {
+  const filteredModels = () => {
     let filtered = availableModels;
     
     // 按搜索文本过滤
@@ -122,7 +122,7 @@ const ModelSelectorPanel = () => {
     }
     
     return filtered;
-  }, [availableModels, searchText, selectedProvider]);
+  };
 
   // 处理搜索输入变化
   const handleSearchChange = (e) => {
@@ -184,7 +184,7 @@ const ModelSelectorPanel = () => {
             <div className="provider-filter">
               <span className="filter-label">提供商：</span>
               <div className="provider-tags">
-                {providers.map(provider => (
+                {providers().map(provider => (
                   <button
                     key={provider}
                     className={`provider-tag ${selectedProvider === provider ? 'active' : ''}`}
@@ -203,13 +203,13 @@ const ModelSelectorPanel = () => {
               <div className="loading-state">
                 正在加载模型列表...
               </div>
-            ) : filteredModels.length === 0 ? (
+            ) : filteredModels().length === 0 ? (
               <div className="empty-state">
                 {searchText || selectedProvider ? '没有找到匹配的模型' : '暂无可用模型'}
               </div>
             ) : (
               <div className="model-grid">
-                {filteredModels.map((model) => (
+                {filteredModels().map((model) => (
                   <div
                     key={model.id}
                     className="model-card"
@@ -227,7 +227,7 @@ const ModelSelectorPanel = () => {
             {/* 搜索结果统计 */}
             {searchText && (
               <div className="search-results-info">
-                找到 {filteredModels.length} 个匹配的模型
+                找到 {filteredModels().length} 个匹配的模型
               </div>
             )}
           </div>

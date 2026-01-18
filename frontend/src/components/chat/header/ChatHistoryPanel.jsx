@@ -1,11 +1,11 @@
-import React, { memo, useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import httpClient from '../../../utils/httpClient.js';
-import ConfirmationModal from '../../others/ConfirmationModal';
+import ConfirmationModal from '../../others/UnifiedModal';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock, faUndo } from '@fortawesome/free-solid-svg-icons';
 import './ChatHistoryPanel.css';
 
-const ChatHistoryPanel = memo(({ onLoadHistory }) => {
+const ChatHistoryPanel = ({ onLoadHistory }) => {
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [confirmationMessage, setConfirmationMessage] = useState('');
     const [sessionIdToDelete, setSessionIdToDelete] = useState(null);
@@ -244,7 +244,7 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                 
                 // 如果回档的是当前会话，刷新消息
                 const threadResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('thread_id')}`);
-                const currentThreadId = threadresponse;
+                const currentThreadId = threadResponse;
                 if (currentThreadId === rollbackSessionId) {
                     // 重新加载当前会话的消息
                     const messagesResult = await httpClient.post('/api/history/messages', {
@@ -344,7 +344,6 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
                 <p className="no-history-message">暂无历史对话。</p>
             ) : (
                 <ul className="history-list">
-                    {console.log('ChatHistoryPanel received history (before map):', history)}
                     {history.map((session, index) => {
                         console.log(`Processing session[${index}]:`, session);
                         // 后端会话格式：session_id, created_at, last_accessed, message_count, preview
@@ -474,6 +473,6 @@ const ChatHistoryPanel = memo(({ onLoadHistory }) => {
             )}
         </div>
     );
-});
+};
 
 export default ChatHistoryPanel;

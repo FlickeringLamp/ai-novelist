@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react';
 import './ChapterTreePanel.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGear, faFolder, faFile, faPlus, faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
+import { faGear, faFolder, faFile, faPlus } from '@fortawesome/free-solid-svg-icons';
 import CombinedIcon from '../others/CombinedIcon';
 import ContextMenu from './ContextMenu.jsx';
-import ModalManager from '../others/ModalManager';
+import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.js';
-import tabStateService from '../../services/tabStateService';
+import renderChapterTree from './TreeRender.jsx';
+import { useDispatch, useSelector } from 'react-redux'
+import { addTab, setActiveTab } from '../../store/file_editor.js';
+
 
 function ChapterTreePanel() {
-  const [chapters, setChapters] = useState([]);
+  //@ts-ignore
+  const tab = useSelector((state)=>state.file_editor.tabId)
+  //@ts-ignore
+  const activeTabId = useSelector((state)=>state.file_editor.activeTabId)
+  const dispatch = useDispatch()
+  //@ts-ignore
+  const [chapters, setChapters] = useState([]); // 整个章节列表
   const [operateState, setOperateState] = useState(null); // 操作状态: 'selected' | 'copying' | 'cutting' | 'renaming' | null
   const [collapsedChapters, setCollapsedChapters] = useState({}); // 管理文件夹展开/折叠状态，不存在或false应该为关闭
-  const [notificationModal, setNotificationModal] = useState({
-    show: false,
-    message: ''
-  });
-  const [confirmationModal, setConfirmationModal] = useState({
+  const [modal, setModal] = useState({
     show: false,
     message: ''
   });
@@ -31,7 +36,22 @@ function ChapterTreePanel() {
     itemParentPath: null
   });
 
-  // 右键菜单处理
+  // 获取章节列表
+  const fetchChapters = async () => {
+    try {
+      const result = await httpClient.get('/api/file/tree');
+      setChapters(result || []);
+    } catch (error) {
+      console.error('获取章节列表失败：', error);
+      setModal({ show: true, message: error.toString() });
+    }
+  };
+  // 注册章节更新监听器和初始加载
+  useEffect(() => {
+    fetchChapters();
+  }, []);
+
+  // 用来调出，关闭右键菜单的函数。
   const handleContextMenu = (event, itemId, isFolder, itemTitle, itemParentPath) => {
     event.preventDefault();
     setContextMenu({
@@ -44,139 +64,35 @@ function ChapterTreePanel() {
       itemParentPath: itemParentPath,
     });
   };
-
-  // 由return里的{contextMenu.show &&...}检测show的ture值，控制右键菜单开启
-
-  // 构建右键菜单项
-  const getContextMenuItems = () => {
-    const items = [];
-    const isItemSelected = contextMenu.itemId !== null && contextMenu.itemId !== undefined;
-    const canPaste = operateState;
-
-    if (isItemSelected) {
-      const isFolder = contextMenu.isFolder;
-
-      items.push(
-        { label: '复制', onClick: () => { setOperateState('copying'); handleCloseContextMenu(); } },
-        { label: '剪切', onClick: () => { setOperateState('cutting'); handleCloseContextMenu(); } },
-        { label: '重命名', onClick: () => handleRenameItem() }, // 重命名操作自己会关菜单
-        { label: '删除', onClick: () => handleDeleteItem(contextMenu.itemId) }
-      );
-      if (isFolder && canPaste) {
-        items.push({ label: '粘贴', onClick: () => handlePaste(contextMenu.itemId) });
-      }
-
-      if (isFolder) {
-        items.push(
-          { label: '新建文件', onClick: () => handleCreateItem(false, contextMenu.itemId) },
-          { label: '新建文件夹', onClick: () => handleCreateItem(true, contextMenu.itemId) }
-        );
-      }
-    } else {
-      items.push(
-        { label: '新建文件', onClick: () => handleCreateItem(false, '') },
-        { label: '新建文件夹', onClick: () => handleCreateItem(true, '') }
-      );
-      if (canPaste) {
-        items.push({ label: '粘贴', onClick: () => handlePaste('') });
-      }
-    }
-
-    return items;
-  };
-
-  // 获取章节列表
-  const fetchChapters = async () => {
-    try {
-      const result = await httpClient.get('/api/file/tree');
-      setChapters(result || []);
-      tabStateService.setChapters(result || []);
-    } catch (error) {
-      console.error('获取章节列表失败：', error);
-      setNotificationModal({ show: true, message: error.toString() });
-    }
-  };
-  // 注册章节更新监听器和初始加载
-  useEffect(() => {
-    fetchChapters();
-  }, []);
-
-  // 监听刷新计数器变化，重新获取章节列表
-  useEffect(() => {
-    const handleStateChange = (event) => {
-      const refreshCounter = event.detail.refreshCounter;
-      // 当 refreshCounter 变化时，重新获取章节列表
-      if (refreshCounter > 0) {
-        fetchChapters();
-      }
-    };
-
-    tabStateService.addEventListener('stateChanged', handleStateChange);
-
-    return () => {
-      tabStateService.removeEventListener('stateChanged', handleStateChange);
-    };
-  }, []);
-
-  // 章节点击处理
-  const handleChapterClick = async (item) => {
-    if (item.isFolder) {
-      setCollapsedChapters(prev => ({
-        ...prev,
-        [item.id]: !prev[item.id]
-      }));
-    } else {
-      console.log(`请求打开文件: ${item.id}`);
-      const existingTab = tabStateService.getOpenTabs().find(tab => tab.id === item.id);
-      if (existingTab) {
-        tabStateService.setActiveTab(item.id);
-      } else {
-        try {
-          const response = await httpClient.get(`/api/file/read/${encodeURIComponent(item.id)}`);
-          tabStateService.createTab(item.id, response);
-        } catch (error) {
-          console.error('读取文件失败:', error);
-        }
-      }
-    }
-  };
-
   const handleCloseContextMenu = () => {
     setContextMenu({ ...contextMenu, show: false });
   };
+
 
   // 文件操作处理函数
   // 确认删除
   const handleConfirmDelete = async () => {
     if (!contextMenu.itemId) return;
     
-    setConfirmationModal(prev => ({ ...prev, show: false }));
+    setModal({ show: false, message: '' });
     try {
       await httpClient.delete(`/api/file/delete/${contextMenu.itemId}`);
       await fetchChapters();
     } catch (error) {
       console.error('删除失败:', error);
-      setNotificationModal({ show: true, message: error.toString() });
+      setModal({ show: true, message: error.toString() });
     }
-  };
-  // 取消删除
-  const handleCancelDelete = () => {
-    setConfirmationModal(prev => ({ ...prev, show: false }));
   };
 
   // 文件操作处理函数
   const handleDeleteItem = async (itemId) => {
-    setConfirmationModal({
+    setModal({
       show: true,
       message: `确定要删除 "${itemId}" 吗？`
     });
   };
-  const handleRenameItem = () => {
-    handleCloseContextMenu();
-    setOperateState('renaming');
-  };
 
-  // 统一的创建项目函数
+  // 统一的新建函数
   const handleCreateItem = async (isFolder, parentPath = '') => {
     try {
       await httpClient.post('/api/file/items', {
@@ -187,12 +103,12 @@ function ChapterTreePanel() {
       await fetchChapters();
     } catch (error) {
       console.error('创建失败:', error);
-      setNotificationModal({ show: true, message: error.toString() });
+      setModal({ show: true, message: error.toString() });
     }
   };
 
   const handlePaste = async (targetFolderId) => {
-    if (!operateState || !contextMenu.itemId) return;
+    if (!operateState) return;
     
     try {
       if (operateState === 'cutting') {
@@ -211,9 +127,36 @@ function ChapterTreePanel() {
       await fetchChapters();
     } catch (error) {
       console.error('粘贴失败:', error);
-      setNotificationModal({ show: true, message: error.toString() });
+      setModal({ show: true, message: error.toString() });
     }
   };
+
+  const handleRenameItem = () => {
+    const newItemName = prompt('请输入新名称:', contextMenu.itemTitle);
+    if (newItemName && newItemName !== contextMenu.itemTitle) {
+      const oldPath = contextMenu.itemId;
+      const newPath = contextMenu.itemParentPath
+        ? `${contextMenu.itemParentPath}/${newItemName}`
+        : newItemName;
+      
+      httpClient.post('/api/file/move', {
+        source_path: oldPath,
+        target_path: newPath
+      }).then(() => {
+        handleCloseContextMenu();
+        fetchChapters();
+      }).catch(error => {
+        console.error('重命名失败:', error);
+        setModal({ show: true, message: error.toString() });
+      });
+    }
+  };
+
+  const handleChapterClick = (fileId) => {
+    dispatch(addTab(fileId.id));
+    dispatch(setActiveTab(fileId.id))
+    console.log("当前总标签页：",tab,"，当前活跃标签页：",activeTabId)
+  }
 
 
   return (
@@ -233,21 +176,27 @@ function ChapterTreePanel() {
             <p className="no-chapters-message">暂无文件</p>
           ) : (
             <ul className="chapter-list">
-              {renderChapterTree(chapters)}
+              {renderChapterTree(chapters, 0, {
+                handleContextMenu,
+                handleChapterClick,
+                collapsedChapters
+              })}
             </ul>
           )}
         </div>
       </div>
 
       {/* 右键菜单 */}
-      {contextMenu.show && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          items={getContextMenuItems()}
-          onClose={handleCloseContextMenu}
-        />
-      )}
+      <ContextMenu
+        contextMenu={contextMenu}
+        setContextMenu={setContextMenu}
+        operateState={operateState}
+        setOperateState={setOperateState}
+        handleCreateItem={handleCreateItem}
+        handleDeleteItem={handleDeleteItem}
+        handlePaste={handlePaste}
+        handleRenameItem={handleRenameItem}
+      />
 
       {/* 设置按钮区域 */}
       <div className="settings-button-area">
@@ -257,16 +206,20 @@ function ChapterTreePanel() {
       </div>
 
       {/* 模态框管理模块 */}
-      <ModalManager
-        showNotificationModal={notificationModal.show}
-        notificationMessage={notificationModal.message}
-        onNotificationClose={() => setNotificationModal({ ...notificationModal, show: false })}
-
-        showConfirmationModal={confirmationModal.show}
-        confirmationMessage={confirmationModal.message}
-        onConfirm={handleConfirmDelete}
-        onCancel={handleCancelDelete}
-      />
+      {modal.show && (
+        <UnifiedModal
+          message={modal.message}
+          showCancelButton={true}
+          onConfirm={() => {
+            if (modal.message.startsWith('确定要删除')) {
+              handleConfirmDelete();
+            } else {
+              setModal({ show: false, message: '' });
+            }
+          }}
+          onCancel={() => setModal({ show: false, message: '' })}
+        />
+      )}
 
     </div>
   );
