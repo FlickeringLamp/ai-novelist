@@ -110,7 +110,7 @@ function ContextMenu({
 
   return (
     <ul
-      className="absolute bg-theme-black border border-theme-gray rounded-small shadow-medium list-none p-0 m-0 z-[1000] text-sm min-w-[120px]"
+      className="absolute bg-theme-black border border-theme-gray1 rounded-small shadow-medium list-none p-0 m-0 z-[1000] text-sm min-w-[120px]"
       ref={menuRef}
       style={{ top: contextMenu.y, left: contextMenu.x }}
       tabIndex={-1}
@@ -118,7 +118,7 @@ function ContextMenu({
       {items.map((item, index) => (
         <li
           key={index}
-          className={`p-2 cursor-pointer text-theme-white ${selectedIndex === index ? 'bg-theme-gray text-theme-green' : ''} hover:bg-theme-gray hover:text-theme-green active:bg-theme-gray`}
+          className={`p-2 cursor-pointer text-theme-white ${selectedIndex === index ? 'bg-theme-gray1 text-theme-green' : ''} hover:bg-theme-gray1 hover:text-theme-green active:bg-theme-gray1`}
           onClick={() => {
             item.onClick();
             handleCloseContextMenu();

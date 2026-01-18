@@ -11,11 +11,11 @@ const TabBar = () => {
   const dispatch = useDispatch()
   console.log("是否加载了标签栏")
   return(
-    <div className="flex items-center gap-1 bg-theme-gray border-b border-theme-gray overflow-x-auto">
+    <div className="flex items-center gap-1 bg-theme-gray1 border-b border-theme-gray1 overflow-x-auto">
       {openTabs.map(tab => (
         <div
           key={tab}
-          className={`px-3 py-2 cursor-pointer transition-all border-r border-theme-gray whitespace-nowrap ${activeTabs.includes(tab) ? 'bg-theme-black text-theme-white border-t-2 border-t-theme-green' : 'text-theme-gray hover:bg-theme-gray/80'}`}
+          className={`px-3 py-2 cursor-pointer transition-all border-r border-theme-gray1 whitespace-nowrap ${activeTabs.includes(tab) ? 'bg-theme-black text-theme-white border-t-2 border-t-theme-green' : 'text-theme-gray1 hover:bg-theme-gray1/80'}`}
           onClick={() => dispatch(setActiveTab(tab))}
         >
           {getDisplayName(tab)}

@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder, faFile, faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
+import { faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
 import getDisplayName from '../../utils/getDisplayName';
 
 // 渲染章节树
@@ -7,6 +7,7 @@ const renderChapterTree = (items, level = 0, props) => {
   const {
     handleContextMenu,
     handleChapterClick,
+    handleToggleCollapse,
     collapsedChapters
   } = props;
 
@@ -21,11 +22,25 @@ const renderChapterTree = (items, level = 0, props) => {
     return (
       <li
         key={itemId}
-        className={`chapter-list-item ${isFolder ? 'folder-item' : 'file-item'} level-${level}`}
+        className={`chapter-list-item ${isFolder ? 'folder-item' : 'file-item'} level-${level} relative`}
       >
+        {/* 垂直引导线 */}
+        {level > 0 && (
+          <div
+            className="tree-guide-line absolute top-0 bottom-0 w-px bg-theme-white"
+            style={{ left: `${level * 20 - 10}px` }}
+          />
+        )}
         <div
-          className={`chapter-item-content ${isFolder && level > 0 ? 'nested-folder-content' : ''}`}
+          className={`chapter-item-content ${isFolder && level > 0 ? 'nested-folder-content' : ''} cursor-pointer text-theme-white hover:text-theme-green hover:bg-theme-gray1`}
           style={{ paddingLeft: `${level * 20}px` }}
+          onClick={() => {
+            if (isFolder) {
+              handleToggleCollapse(itemId);
+            } else {
+              handleChapterClick(item);
+            }
+          }}
           onContextMenu={(e) => {
             e.stopPropagation();
             const parentPath = isFolder ? itemId : (itemId.includes('/') ? itemId.substring(0, itemId.lastIndexOf('/')) : '');
@@ -33,20 +48,14 @@ const renderChapterTree = (items, level = 0, props) => {
           }}
         >
           {isFolder && (
-            <span onClick={() => handleChapterClick(item)} className="collapse-icon">
+            <span className="collapse-icon">
               <FontAwesomeIcon icon={collapsedChapters[itemId] ? faCaretDown : faCaretRight} />
             </span>
           )}
-
-          {/* 文件/文件夹图标 */}
-          <FontAwesomeIcon icon={isFolder ? faFolder : faFile} className="folder-file-icon" />
           {/* 文件/文件夹名称 */}
-          <button
-            onClick={() => handleChapterClick(item)}
-            className="chapter-title-button"
-          >
+          <span className="chapter-title-text">
             {displayName}
-          </button>
+          </span>
         </div>
 
         {isFolder && hasChildren && collapsedChapters[itemId] && (

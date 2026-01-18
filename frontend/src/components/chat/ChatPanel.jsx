@@ -748,12 +748,12 @@ const handleAutoApproveSettingsChange = (newSettings) => {
 
 return(
   <div className="flex flex-col h-full">
-    <div className="flex justify-between items-center p-2.5 border-b border-theme-gray gap-2">
+    <div className="flex justify-between items-center p-2.5 border-b border-theme-gray1 gap-2">
       <div className="flex gap-2">
         <ChatHistoryPanel onLoadHistory={handleLoadHistory} />
         <ModelSelectorPanel />
         <button
-          className="bg-theme-green text-theme-white rounded-full w-[30px] h-[30px] text-lg font-bold flex items-center justify-center hover:bg-theme-gray disabled:bg-theme-gray disabled:cursor-not-allowed disabled:opacity-60"
+          className="bg-theme-green text-theme-white rounded-full w-[30px] h-[30px] text-lg font-bold flex items-center justify-center hover:bg-theme-gray1 disabled:bg-theme-gray1 disabled:cursor-not-allowed disabled:opacity-60"
           onClick={handleSummarizeConversation}
           disabled={isLoading}
           title="总结对话"
@@ -779,7 +779,7 @@ return(
         <div ref={messagesEndRef} />
       </div>
     </div>
-    <div className="h-[15%] p-2.5 border-t border-theme-gray">
+    <div className="h-[15%] p-2.5 border-t border-theme-gray1">
       <MessageInput
         onSendMessage={handleSendMessage}
         disabled={isLoading}
@@ -789,7 +789,7 @@ return(
       />
     </div>
     
-    <div className="flex gap-2.5 p-2.5 border-t border-theme-gray relative">
+    <div className="flex gap-2.5 p-2.5 border-t border-theme-gray1 relative">
       <ModeSelector />
       <AutoApproveConfig onSettingsChange={handleAutoApproveSettingsChange} />
     </div>

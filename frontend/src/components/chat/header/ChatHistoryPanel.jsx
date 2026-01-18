@@ -324,7 +324,7 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
     return (
         <div className="relative">
             <button
-                className="flex items-center justify-center w-8 h-8 bg-theme-black border border-theme-gray rounded-small cursor-pointer transition-all hover:border-theme-green hover:bg-theme-gray text-theme-gray hover:text-theme-green"
+                className="flex items-center justify-center w-8 h-8 bg-theme-black border border-theme-gray1 rounded-small cursor-pointer transition-all hover:border-theme-green hover:bg-theme-gray1 text-theme-gray1 hover:text-theme-green"
                 onClick={() => setIsVisible(!isVisible)}
                 title="历史会话"
             >
@@ -332,18 +332,18 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
             </button>
             
             {isVisible && (
-                <div className="absolute top-full right-0 mt-1 w-[320px] max-h-[500px] bg-theme-black border border-theme-gray rounded-small shadow-deep z-[1000] flex flex-col overflow-hidden">
-                    <div className="flex items-center justify-between p-3 border-b border-theme-gray">
+                <div className="absolute top-full right-0 mt-1 w-[320px] max-h-[500px] bg-theme-black border border-theme-gray1 rounded-small shadow-deep z-[1000] flex flex-col overflow-hidden">
+                    <div className="flex items-center justify-between p-3 border-b border-theme-gray1">
                         <h3 className="text-theme-white text-[16px] font-medium m-0">对话历史</h3>
-                        <button className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[20px] hover:text-theme-white transition-colors" onClick={handleClosePanel}>
+                        <button className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray1 cursor-pointer text-[20px] hover:text-theme-white transition-colors" onClick={handleClosePanel}>
                             &times;
                         </button>
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {loading ? (
-                            <p className="flex items-center justify-center p-4 text-theme-gray text-[14px]">正在加载历史对话...</p>
+                            <p className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">正在加载历史对话...</p>
                         ) : !history || !Array.isArray(history) || history.length === 0 ? (
-                            <p className="flex items-center justify-center p-4 text-theme-gray text-[14px]">暂无历史对话。</p>
+                            <p className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">暂无历史对话。</p>
                         ) : (
                             <ul className="list-none m-0 p-0">
                                 {history.map((session, index) => {
@@ -358,27 +358,27 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
                                     const formattedDate = createdAt ? new Date(createdAt).toLocaleString('zh-CN') : '未知时间';
                                     
                                     return (
-                                        <li key={sessionId} className="flex items-center justify-between p-2.5 border-b border-theme-gray last:border-b-0 hover:bg-theme-gray transition-colors">
+                                        <li key={sessionId} className="flex items-center justify-between p-2.5 border-b border-theme-gray1 last:border-b-0 hover:bg-theme-gray1 transition-colors">
                                             <div
                                                 className="flex-1 cursor-pointer"
                                                 onClick={() => handleSelectConversation(sessionId)}
                                             >
                                                 <div className="text-theme-white text-[14px] mb-1">{preview || `会话: ${sessionId}`}</div>
-                                                <div className="flex items-center gap-2 text-theme-gray text-[12px]">
+                                                <div className="flex items-center gap-2 text-theme-gray1 text-[12px]">
                                                     <span>{messageCount} 条消息</span>
                                                     <span>{formattedDate}</span>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <button
-                                                    className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[12px] hover:text-theme-green transition-colors"
+                                                    className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray1 cursor-pointer text-[12px] hover:text-theme-green transition-colors"
                                                     onClick={() => handleRollbackClick(sessionId)}
                                                     title="回档此会话"
                                                 >
                                                     <FontAwesomeIcon icon={faUndo} />
                                                 </button>
                                                 <button
-                                                    className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[16px] hover:text-red-500 transition-colors"
+                                                    className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray1 cursor-pointer text-[16px] hover:text-red-500 transition-colors"
                                                     onClick={() => handleDeleteConversation(sessionId)}
                                                     title="删除此会话"
                                                 >
@@ -405,19 +405,19 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
             {/* 回档模态框 */}
             {showRollbackModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000]">
-                    <div className="bg-theme-black border border-theme-gray rounded-small shadow-deep w-[500px] max-h-[80vh] flex flex-col overflow-hidden">
-                        <div className="flex items-center justify-between p-3 border-b border-theme-gray">
+                    <div className="bg-theme-black border border-theme-gray1 rounded-small shadow-deep w-[500px] max-h-[80vh] flex flex-col overflow-hidden">
+                        <div className="flex items-center justify-between p-3 border-b border-theme-gray1">
                             <h3 className="text-theme-white text-[16px] font-medium m-0">消息回档</h3>
-                            <button className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray cursor-pointer text-[20px] hover:text-theme-white transition-colors" onClick={handleCloseRollbackModal}>
+                            <button className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray1 cursor-pointer text-[20px] hover:text-theme-white transition-colors" onClick={handleCloseRollbackModal}>
                                 &times;
                             </button>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto p-3">
                             {checkpointsLoading ? (
-                                <div className="flex items-center justify-center p-4 text-theme-gray text-[14px]">正在加载存档点...</div>
+                                <div className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">正在加载存档点...</div>
                             ) : checkpoints.length === 0 ? (
-                                <div className="flex items-center justify-center p-4 text-theme-gray text-[14px]">该会话暂无存档点</div>
+                                <div className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">该会话暂无存档点</div>
                             ) : (
                                 <>
                                     <div className="mb-4">
@@ -426,10 +426,10 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
                                             {checkpoints.map((checkpoint) => (
                                                 <div
                                                     key={checkpoint.checkpoint_id}
-                                                    className={`p-2.5 cursor-pointer transition-all border border-theme-gray rounded-small mb-2 ${selectedCheckpoint?.index === checkpoint.index ? 'bg-theme-green/10 border-theme-green' : 'hover:bg-theme-gray'}`}
+                                                    className={`p-2.5 cursor-pointer transition-all border border-theme-gray1 rounded-small mb-2 ${selectedCheckpoint?.index === checkpoint.index ? 'bg-theme-green/10 border-theme-green' : 'hover:bg-theme-gray1'}`}
                                                     onClick={() => setSelectedCheckpoint(checkpoint)}
                                                 >
-                                                    <div className="flex items-center gap-2 text-theme-gray text-[12px] mb-1">
+                                                    <div className="flex items-center gap-2 text-theme-gray1 text-[12px] mb-1">
                                                         <span>#{checkpoint.index}</span>
                                                         <span>{Array.isArray(checkpoint.next_node) ? checkpoint.next_node.join(', ') : checkpoint.next_node}</span>
                                                         <span>{checkpoint.last_message_type}</span>
@@ -450,20 +450,20 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
                                             onChange={(e) => setRollbackMessage(e.target.value)}
                                             placeholder="请输入回档后的新消息内容..."
                                             rows={3}
-                                            className="w-full p-2.5 bg-theme-gray border border-theme-gray rounded-small text-theme-white text-[14px] outline-none resize-none placeholder:text-theme-gray"
+                                            className="w-full p-2.5 bg-theme-gray1 border border-theme-gray1 rounded-small text-theme-white text-[14px] outline-none resize-none placeholder:text-theme-gray1"
                                         />
                                     </div>
                                     
                                     <div className="flex gap-2">
                                         <button
-                                            className="flex-1 p-2.5 bg-theme-green text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-green/80 disabled:bg-theme-gray disabled:text-theme-gray disabled:cursor-not-allowed"
+                                            className="flex-1 p-2.5 bg-theme-green text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-green/80 disabled:bg-theme-gray1 disabled:text-theme-gray1 disabled:cursor-not-allowed"
                                             onClick={handleConfirmRollback}
                                             disabled={checkpointsLoading || !selectedCheckpoint || !rollbackMessage.trim()}
                                         >
                                             {checkpointsLoading ? '回档中...' : '确认回档'}
                                         </button>
                                         <button
-                                            className="flex-1 p-2.5 bg-theme-gray text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-gray/80"
+                                            className="flex-1 p-2.5 bg-theme-gray1 text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-gray1/80"
                                             onClick={handleCloseRollbackModal}
                                         >
                                             取消

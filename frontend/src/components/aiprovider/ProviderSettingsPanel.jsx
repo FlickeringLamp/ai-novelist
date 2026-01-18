@@ -326,43 +326,43 @@ const ProviderSettingsPanel = () => {
     <div className="w-full">
       <PanelGroup direction="horizontal" className="pt-2.5">
         {/* 左侧提供商列表面板 */}
-        <Panel defaultSize={25} minSize={0} maxSize={100} className="border border-theme-gray flex flex-col h-[932px]">
+        <Panel defaultSize={25} minSize={0} maxSize={100} className="border border-theme-gray1 flex flex-col h-[932px]">
           <div className="overflow-y-auto flex-1 p-1.25">
             {providers.map((provider, index) => (
               <div
                 key={index}
-                className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray ${selectedProviderId === provider ? 'border border-theme-green text-theme-green' : ''}`}
+                className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray1 ${selectedProviderId === provider ? 'border border-theme-green text-theme-green' : ''}`}
                 onClick={() => handleProviderClick(provider)}
               >
                 {provider}
               </div>
             ))}
             {/* 自定义提供商按钮 */}
-            <div className="m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray hover:bg-theme-gray" onClick={() => setShowCustomProviderModal(true)}>
+            <div className="m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray1 hover:bg-theme-gray1" onClick={() => setShowCustomProviderModal(true)}>
               + 自定义提供商
             </div>
           </div>
         </Panel>
-        <PanelResizeHandle className="w-1.25 bg-theme-gray cursor-col-resize relative transition-colors hover:bg-theme-gray after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-0.5 after:h-5 after:bg-theme-gray after:rounded-[1px]" />
+        <PanelResizeHandle className="w-1.25 bg-theme-gray1 cursor-col-resize relative transition-colors hover:bg-theme-gray1 after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-0.5 after:h-5 after:bg-theme-gray1 after:rounded-[1px]" />
         {/* 右侧模型列表面板 */}
-        <Panel className='border border-theme-gray flex flex-col h-[932px]'>
+        <Panel className='border border-theme-gray1 flex flex-col h-[932px]'>
           {selectedProviderId && (
-            <div className='block mx-auto my-5 bg-theme-gray p-2.5 rounded-small w-[80%]'>
+            <div className='block mx-auto my-5 bg-theme-gray1 p-2.5 rounded-small w-[80%]'>
               <form onSubmit={handleSubmit}>
-                <label htmlFor="api-input" className="block mx-auto my-2.5 mb-1.25 text-theme-gray w-[80%] text-left">API Key:</label>
+                <label htmlFor="api-input" className="block mx-auto my-2.5 mb-1.25 text-theme-gray1 w-[80%] text-left">API Key:</label>
                 <input
                   type='password'
                   id='api-input'
-                  className="block mx-auto my-2.5 border-0 h-[25px] w-[80%] bg-theme-gray"
+                  className="block mx-auto my-2.5 border-0 h-[25px] w-[80%] bg-theme-gray1"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="请输入 API Key"
                 />
-                <label htmlFor="url-input" className="block mx-auto my-2.5 mb-1.25 text-theme-gray w-[80%] text-left">Base URL:</label>
+                <label htmlFor="url-input" className="block mx-auto my-2.5 mb-1.25 text-theme-gray1 w-[80%] text-left">Base URL:</label>
                 <input
                   type='text'
                   id='url-input'
-                  className="block mx-auto my-2.5 border-0 h-[25px] w-[80%] bg-theme-gray"
+                  className="block mx-auto my-2.5 border-0 h-[25px] w-[80%] bg-theme-gray1"
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
                   placeholder="请输入 Base URL"
@@ -434,11 +434,11 @@ const ProviderSettingsPanel = () => {
       {/* 自定义提供商模态框 */}
       {showCustomProviderModal && (
         <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex justify-center items-center z-[1000]">
-          <div className="bg-theme-gray rounded-medium shadow-medium w-[400px] max-w-[90vw] text-theme-gray">
-            <div className="flex justify-between items-center px-5 py-3.75 border-b border-theme-gray">
+          <div className="bg-theme-gray1 rounded-medium shadow-medium w-[400px] max-w-[90vw] text-theme-gray1">
+            <div className="flex justify-between items-center px-5 py-3.75 border-b border-theme-gray1">
               <h3 className="m-0 text-theme-white text-lg">添加自定义提供商</h3>
               <button
-                className="bg-none border-none text-xl text-theme-gray cursor-pointer p-1.25 hover:text-theme-white"
+                className="bg-none border-none text-xl text-theme-gray1 cursor-pointer p-1.25 hover:text-theme-white"
                 onClick={() => setShowCustomProviderModal(false)}
               >
                 ×
@@ -446,11 +446,11 @@ const ProviderSettingsPanel = () => {
             </div>
             <form onSubmit={handleCustomProviderSubmit} className="px-5 py-5">
               <div className="mb-3.75">
-                <label htmlFor="provider-name" className="block mb-1.25 text-theme-gray">提供商名称:</label>
+                <label htmlFor="provider-name" className="block mb-1.25 text-theme-gray1">提供商名称:</label>
                 <input
                   type="text"
                   id="provider-name"
-                  className="w-full p-2 bg-theme-gray text-theme-gray border border-theme-gray rounded-small box-border focus:outline-none focus:border-theme-green"
+                  className="w-full p-2 bg-theme-gray1 text-theme-gray1 border border-theme-gray1 rounded-small box-border focus:outline-none focus:border-theme-green"
                   value={customProviderName}
                   onChange={(e) => setCustomProviderName(e.target.value)}
                   placeholder="例如: 我的提供商"

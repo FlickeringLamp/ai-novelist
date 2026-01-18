@@ -76,7 +76,7 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-4 text-theme-gray text-[14px]">
+      <div className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">
         <p>正在加载自动批准配置...</p>
       </div>
     );
@@ -91,15 +91,15 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
   return (
     <div className="relative flex w-full z-[100] box-border">
       <div
-        className="flex items-center justify-center w-full p-2 p-2.5-[12px] bg-theme-black border border-theme-gray rounded-small cursor-pointer transition-all min-h-[36px] box-border hover:border-theme-green hover:bg-theme-gray"
+        className="flex items-center justify-center w-full p-2 p-2.5-[12px] bg-theme-black border border-theme-gray1 rounded-small cursor-pointer transition-all min-h-[36px] box-border hover:border-theme-green hover:bg-theme-gray1"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <span className="text-theme-white text-[14px] font-medium whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">{getDisplayStatusText()}</span>
-        <span className="text-theme-gray text-[12px] ml-2 transition-transform">{isExpanded ? '▲' : '▶'}</span>
+        <span className="text-theme-gray1 text-[12px] ml-2 transition-transform">{isExpanded ? '▲' : '▶'}</span>
       </div>
 
       {isExpanded && (
-        <div className="absolute bottom-full left-[-10px] right-[-150px] bg-theme-black border border-theme-gray rounded-small shadow-deep z-[1000] mb-1 overflow-hidden">
+        <div className="absolute bottom-full left-[-10px] right-[-150px] bg-theme-black border border-theme-gray1 rounded-small shadow-deep z-[1000] mb-1 overflow-hidden">
           <div className="p-3">
             <div className="mb-4">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -111,7 +111,7 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
                 />
                 <span className="text-theme-white text-[14px]">启用自动批准</span>
               </label>
-              <div className="text-theme-gray text-[12px] mt-2">
+              <div className="text-theme-gray1 text-[12px] mt-2">
                 启用后，工具调用将在1秒后自动批准，无需手动确认
               </div>
             </div>

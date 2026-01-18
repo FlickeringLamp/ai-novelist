@@ -4,7 +4,7 @@
     "module": "ESNext",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "jsx": "react-jsx",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "allowJs": true,
     "checkJs": true,
@@ -21,6 +21,5 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "build"]
 }

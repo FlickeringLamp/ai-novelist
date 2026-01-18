@@ -122,7 +122,7 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
     return (
       <div className="p-5 max-h-[600px] overflow-y-auto">
         <div className="flex justify-center items-center h-[200px]">
-          <p className="text-theme-gray text-base">正在加载工具配置...</p>
+          <p className="text-theme-gray1 text-base">正在加载工具配置...</p>
         </div>
       </div>
     );
@@ -130,12 +130,12 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
 
   return (
     <div className="p-5 max-h-[600px] overflow-y-auto">
-      <div className="mb-5 pb-4 border-b border-theme-gray">
+      <div className="mb-5 pb-4 border-b border-theme-gray1">
         <h4 className="m-0 text-theme-white text-lg font-semibold">工具配置</h4>
       </div>
 
-      <div className="mb-6 p-4 bg-theme-gray rounded-medium border-l-4 border-theme-green">
-        <p className="m-0 text-theme-gray text-sm leading-relaxed">
+      <div className="mb-6 p-4 bg-theme-gray1 rounded-medium border-l-4 border-theme-green">
+        <p className="m-0 text-theme-gray1 text-sm leading-relaxed">
           在此配置模式下AI可以使用的工具。启用工具后，AI将能够调用这些工具来完成相关任务。
         </p>
       </div>
@@ -143,11 +143,11 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
       {/* 工具分类列表 */}
       <div className="flex flex-col gap-5">
         {Object.entries(toolConfig.tool_categories).map(([categoryName, tools]) => (
-          <div key={categoryName} className="bg-theme-black border border-theme-gray rounded-medium p-5 shadow-light">
+          <div key={categoryName} className="bg-theme-black border border-theme-gray1 rounded-medium p-5 shadow-light">
             <div className="flex justify-between items-center mb-4">
               <h5 className="m-0 text-theme-white text-base font-semibold">{getCategoryDisplayName(categoryName)}</h5>
               <button
-                className="px-3 py-1.5 bg-theme-gray text-theme-white border border-theme-gray rounded-small text-xs cursor-pointer transition-all hover:bg-theme-gray"
+                className="px-3 py-1.5 bg-theme-gray1 text-theme-white border border-theme-gray1 rounded-small text-xs cursor-pointer transition-all hover:bg-theme-gray1"
                 onClick={() => toggleToolCategory(categoryName)}
                 title={isCategoryAllEnabled(categoryName) ? '禁用所有' : '启用所有'}
               >
@@ -163,7 +163,7 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
 
             <div className="flex flex-col gap-3">
               {tools.map(toolName => (
-                <div key={toolName} className="flex flex-col gap-1.5 p-3 bg-theme-gray rounded-small border border-theme-gray transition-all hover:bg-theme-gray hover:border-theme-green">
+                <div key={toolName} className="flex flex-col gap-1.5 p-3 bg-theme-gray1 rounded-small border border-theme-gray1 transition-all hover:bg-theme-gray1 hover:border-theme-green">
                   <label className="flex items-center gap-2.5 cursor-pointer m-0 font-medium text-theme-white">
                     <input
                       type="checkbox"
@@ -171,14 +171,14 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
                       onChange={() => toggleTool(toolName)}
                       className="hidden"
                     />
-                    <span className={`w-4.5 h-4.5 border-2 border-theme-gray rounded-small relative transition-all ${toolConfig.enabled_tools.includes(toolName) ? 'bg-theme-green border-theme-green' : ''}`}>
+                    <span className={`w-4.5 h-4.5 border-2 border-theme-gray1 rounded-small relative transition-all ${toolConfig.enabled_tools.includes(toolName) ? 'bg-theme-green border-theme-green' : ''}`}>
                       {toolConfig.enabled_tools.includes(toolName) && (
                         <span className="absolute left-1.25 top-0.5 w-1 h-2.5 border-solid border-white border-r-0 border-t-0 transform rotate-45"></span>
                       )}
                     </span>
                     <span className="text-sm font-medium">{getToolDisplayName(toolName)}</span>
                   </label>
-                  <div className="text-xs text-theme-gray ml-7 leading-relaxed">
+                  <div className="text-xs text-theme-gray1 ml-7 leading-relaxed">
                     {getToolDescription(toolName)}
                   </div>
                 </div>
@@ -189,11 +189,11 @@ const ToolConfigTab = ({ mode, modeType, onToolConfigChange }) => {
       </div>
 
       {/* 已启用的工具统计 */}
-      <div className="mt-6 p-5 bg-theme-gray rounded-medium border border-theme-gray">
+      <div className="mt-6 p-5 bg-theme-gray1 rounded-medium border border-theme-gray1">
         <h5 className="m-0 mb-3 text-theme-white text-base font-semibold">已启用工具统计</h5>
         <div className="flex flex-col gap-2">
-          <p className="m-0 text-theme-gray text-sm">总共启用: <strong className="text-theme-white">{toolConfig.enabled_tools.length}</strong> 个工具</p>
-          <p className="m-0 text-theme-gray text-sm">可用工具总数: <strong className="text-theme-white">{toolConfig.all_available_tools.length}</strong> 个</p>
+          <p className="m-0 text-theme-gray1 text-sm">总共启用: <strong className="text-theme-white">{toolConfig.enabled_tools.length}</strong> 个工具</p>
+          <p className="m-0 text-theme-gray1 text-sm">可用工具总数: <strong className="text-theme-white">{toolConfig.all_available_tools.length}</strong> 个</p>
         </div>
       </div>
     </div>

@@ -58,7 +58,7 @@ const UnifiedModal = ({
 
   return (
     <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex justify-center items-center z-[1000]">
-      <div className="bg-theme-gray rounded-medium shadow-medium px-5 py-3.75 max-w-[500px] w-[400px] text-theme-gray">
+      <div className="bg-theme-gray1 rounded-medium shadow-medium px-5 py-3.75 max-w-[500px] w-[400px] text-theme-gray1">
         <p className="m-0">{message}</p>
         <div className="flex justify-end gap-2.5 mt-5">
           <button

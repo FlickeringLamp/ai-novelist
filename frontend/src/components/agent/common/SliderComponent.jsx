@@ -42,7 +42,7 @@ const SliderComponent = ({
   return (
     <div className={`mb-5 ${className}`}>
       {label && (
-        <label className="block mb-2 font-medium text-theme-gray">
+        <label className="block mb-2 font-medium text-theme-gray1">
           {label}
         </label>
       )}
@@ -56,7 +56,7 @@ const SliderComponent = ({
           step={step}
           value={value}
           onChange={handleChange}
-          className="slider-input flex-1 h-1.5 rounded-sm bg-theme-gray outline-none appearance-none cursor-pointer"
+          className="slider-input flex-1 h-1.5 rounded-sm bg-theme-gray1 outline-none appearance-none cursor-pointer"
           style={{
             background: `linear-gradient(to right, var(--color-green) var(--slider-progress, 50%), var(--color-gray) var(--slider-progress, 50%))`
           }}
@@ -70,7 +70,7 @@ const SliderComponent = ({
       </div>
 
       {description && (
-        <div className="text-xs text-theme-gray mt-1 leading-relaxed">
+        <div className="text-xs text-theme-gray1 mt-1 leading-relaxed">
           {description}
         </div>
       )}

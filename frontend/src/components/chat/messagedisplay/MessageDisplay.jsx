@@ -50,7 +50,7 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
         const isCollapsed = (isTool || isSystem || msg.role === 'tool_request' || isSummary) && collapsedTools[messageId];
         
         return (
-          <div key={messageId} className={`flex flex-col max-w-[80%] p-2.5-[10px] p-2.5-[15px] rounded-medium break-words overflow-wrap break-word ${isUser ? 'self-end bg-theme-green text-theme-white' : isSystem ? 'self-start bg-theme-gray text-theme-white border-l-4 border-theme-green' : isTool ? 'self-start bg-theme-gray text-theme-white border-l-4 border-theme-green' : msg.role === 'tool_request' ? 'self-start bg-theme-gray text-theme-white border-l-4 border-theme-green' : isSummary ? 'self-start bg-theme-gray text-theme-white border-l-4 border-theme-green rounded-medium my-2' : 'self-start bg-theme-gray text-theme-white'}`}>
+          <div key={messageId} className={`flex flex-col max-w-[80%] p-2.5-[10px] p-2.5-[15px] rounded-medium break-words overflow-wrap break-word ${isUser ? 'self-end bg-theme-green text-theme-white' : isSystem ? 'self-start bg-theme-gray1 text-theme-white border-l-4 border-theme-green' : isTool ? 'self-start bg-theme-gray1 text-theme-white border-l-4 border-theme-green' : msg.role === 'tool_request' ? 'self-start bg-theme-gray1 text-theme-white border-l-4 border-theme-green' : isSummary ? 'self-start bg-theme-gray1 text-theme-white border-l-4 border-theme-green rounded-medium my-2' : 'self-start bg-theme-gray1 text-theme-white'}`}>
             <div className="font-bold mb-1.25 text-[0.9em]">
               {isUser ? '用户' : isSystem ? '系统' : isTool ? '工具' : msg.role === 'tool_request' ? '工具请求' : isSummary ? '📝 对话总结' : 'AI'}
             </div>
@@ -84,7 +84,7 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
                         <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
                           <span className="font-bold text-theme-green">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
                           {toolCall.function?.arguments && (
-                            <div className="mt-1 text-[0.8em] text-theme-gray whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
+                            <div className="mt-1 text-[0.8em] text-theme-gray1 whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
                               参数: {JSON.stringify(toolCall.function.arguments, null, 2)}
                             </div>
                           )}
@@ -144,12 +144,12 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
                         <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
                           <span className="font-bold text-theme-green">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
                           {toolCall.args && (
-                            <div className="mt-1 text-[0.8em] text-theme-gray whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
+                            <div className="mt-1 text-[0.8em] text-theme-gray1 whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
                               参数: {JSON.stringify(toolCall.args, null, 2)}
                             </div>
                           )}
                           {toolCall.function?.arguments && (
-                            <div className="mt-1 text-[0.8em] text-theme-gray whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
+                            <div className="mt-1 text-[0.8em] text-theme-gray1 whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
                               参数: {JSON.stringify(JSON.parse(toolCall.function.arguments), null, 2)}
                             </div>
                           )}
@@ -193,7 +193,7 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
       
       {/* 显示当前正在输入的AI消息 - 流式传输时显示 */}
       {currentAiMessage && (
-        <div className="flex flex-col max-w-[80%] p-2.5-[10px] p-2.5-[15px] rounded-medium break-words overflow-wrap break-word self-start bg-theme-gray text-theme-white">
+        <div className="flex flex-col max-w-[80%] p-2.5-[10px] p-2.5-[15px] rounded-medium break-words overflow-wrap break-word self-start bg-theme-gray1 text-theme-white">
           <div className="font-bold mb-1.25 text-[0.9em]">AI</div>
           <div className="leading-[1.4] overflow-wrap break-word break-words">
             <ReactMarkdownMessageRenderer value={currentAiMessage} />

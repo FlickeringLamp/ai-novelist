@@ -245,7 +245,7 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
       
       {/* 工具调用请求区域 */}
       {interruptInfo && (
-        <div className="bg-theme-gray rounded-medium shadow-light">
+        <div className="bg-theme-gray1 rounded-medium shadow-light">
           {/* 只有非简化中断信息才显示工具描述 */}
           {!interruptInfo.isSimpleInterrupt && (
             <div className="bg-theme-black">
@@ -297,7 +297,7 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
         )}
         <button
           type="submit"
-          className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-gray disabled:text-theme-gray disabled:cursor-not-allowed"
+          className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-gray1 disabled:text-theme-gray1 disabled:cursor-not-allowed"
           disabled={!message.trim() || disabled}
         >
           <FontAwesomeIcon icon={faPaperPlane} />

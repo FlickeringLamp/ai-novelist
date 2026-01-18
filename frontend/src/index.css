@@ -1,14 +1,32 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* ===== CSS 变量定义 - 支持动态主题 ===== */
+@theme {
+  /* 基础颜色 - 使用 CSS 变量以支持动态主题 */
+  --color-theme-black: var(--color-black);
+  --color-theme-green: var(--color-green);
+  --color-theme-white: var(--color-white);
+  --color-theme-gray1: var(--color-gray1);
+  --color-theme-gray2: var(--color-gray2);
+  --color-theme-gray3: var(--color-gray3);
+
+  /* 圆角配置 */
+  --radius-small: 4px;
+  --radius-medium: 8px;
+
+  /* 阴影配置 */
+  --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-deep: 0 8px 12px rgba(0, 0, 0, 0.5);
+}
+
 :root {
   /* 四种基础颜色 - 默认值 */
-  --color-black: #000000;    /* 纯黑：项目底色 */
-  --color-green: #00AD62;    /* 绿色：特色色 */
-  --color-gray: #333333;     /* 灰色：hover、activate 状态 */
-  --color-white: #FFFFFF;    /* 纯白色：字体 */
+  --color-black: #000000;    /* 纯黑：底色，用于面 */
+  --color-green: #00AD62;    /* 绿色：普通状态，用于小件 */
+  --color-white: #FFFFFF;    /* 纯白色：普通状态，多用于字体 */
+  --color-gray1: #333333;    /* 浅灰色：特殊状态,多用于小件/字体 */
+  --color-gray2: #222222;    /* 灰色：特殊状态,多用于面 */ 
+  --color-gray3: #111111;    /* 深灰色：普通状态，多用于深色条带 */
 }
 
 /* ===== 全局基础样式 ===== */
@@ -67,3 +85,4 @@ h1, h2 {
     background: var(--color-green);
   }
 }
+

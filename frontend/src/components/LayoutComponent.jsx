@@ -29,7 +29,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
         </div>
         
         {/* 细长的普通灰色分隔线 */}
-        <div className="w-[1px] bg-theme-gray flex-shrink-0"></div>
+        <div className="w-[1px] bg-theme-gray1 flex-shrink-0"></div>
         
         {/* 章节面板 */}
         <Panel
@@ -41,7 +41,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
         >
           {chapterPanel}
         </Panel>
-        <PanelResizeHandle className="w-[5px] bg-theme-gray cursor-ew-resize flex-shrink-0 relative hover:bg-theme-green" />
+        <PanelResizeHandle className="w-[1px] bg-theme-gray1 cursor-ew-resize flex-shrink-0 relative" />
         
         {/* 编辑器面板 */}
         <Panel
@@ -52,7 +52,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
         >
           {editorPanel}
         </Panel>
-        <PanelResizeHandle className="w-[5px] bg-theme-gray cursor-ew-resize flex-shrink-0 relative hover:bg-theme-green" />
+        <PanelResizeHandle className="w-[1px] bg-theme-gray1 cursor-ew-resize flex-shrink-0 relative" />
         
         {/* 聊天面板 */}
         <Panel

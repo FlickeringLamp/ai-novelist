@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 // 默认主题配置
 const defaultTheme = {
   black: '#000000',    // 纯黑：项目底色
-  green: '#00AD62',    // 绿色：特色色
+  green: '#36ed51',    // 绿色：特色色
   gray: '#333333',     // 灰色：hover、activate 状态
   white: '#FFFFFF',    // 纯白色：字体
 };

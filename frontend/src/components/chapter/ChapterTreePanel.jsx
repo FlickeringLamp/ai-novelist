@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGear, faFolder, faFile, faPlus } from '@fortawesome/free-solid-svg-icons';
-import CombinedIcon from '../others/CombinedIcon';
+import { faGear, faFolder, faFile, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
 import ContextMenu from './ContextMenu.jsx';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.js';
@@ -150,26 +149,42 @@ function ChapterTreePanel() {
       });
     }
   };
-
   const handleChapterClick = (fileId) => {
     dispatch(addTab(fileId.id));
     dispatch(setActiveTab(fileId.id))
     console.log("当前总标签页：",tab,"，当前活跃标签页：",activeTabId)
   }
 
+  const handleToggleCollapse = (itemId) => {
+    setCollapsedChapters(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  }
+
+  const handleCollapseAll = () => {
+    setCollapsedChapters({});
+  }
+
+  // 按钮样式
+  const commonBtnStyle = "text-theme-white border border-theme-gray1 p-2 rounded-small cursor-pointer text-base flex items-center gap-1 hover:border-theme-green hover:text-theme-green";
+
 
   return (
-    <div className="bg-theme-black text-theme-gray flex flex-col border-r border-theme-gray h-full">
-      <div className="flex justify-end gap-2.5 border-b border-theme-gray h-[5%] flex-shrink-0 items-center bg-theme-gray w-full">
-        <button className="bg-theme-gray text-theme-gray border border-theme-gray p-1 rounded-small cursor-pointer text-sm flex items-center gap-1 hover:bg-theme-gray hover:border-theme-green hover:text-theme-green" onClick={() => handleCreateItem(false)} title="新建文件">
-          <CombinedIcon baseIcon={faFile} overlayIcon={faPlus} size="sm" />
+    <div className="bg-theme-black text-theme-gray2 flex flex-col h-full">
+      <div className="flex justify-center gap-2.5 border-b border-theme-gray1 h-[5%] flex-shrink-0 items-center bg-theme-gray3 w-full">
+        <button className={commonBtnStyle} onClick={() => handleCreateItem(false)} title="新建文件">
+          <FontAwesomeIcon icon={faFile} />
         </button>
-        <button className="bg-theme-gray text-theme-gray border border-theme-gray p-1 rounded-small cursor-pointer text-sm flex items-center gap-1 hover:bg-theme-gray hover:border-theme-green hover:text-theme-green" onClick={() => handleCreateItem(true)} title="新建文件夹">
-          <CombinedIcon baseIcon={faFolder} overlayIcon={faPlus} size="sm" />
+        <button className={commonBtnStyle} onClick={() => handleCreateItem(true)} title="新建文件夹">
+          <FontAwesomeIcon icon={faFolder} />
+        </button>
+        <button className={commonBtnStyle} onClick={handleCollapseAll} title="折叠所有">
+          <FontAwesomeIcon icon={faFolderOpen} />
         </button>
       </div>
 
-      <div className="flex flex-col h-[85%] flex-shrink-0 bg-theme-gray w-full">
+      <div className="flex flex-col h-[90%] flex-shrink-0 bg-theme-gray2 w-full">
         <div className="flex-grow overflow-y-auto p-2.5" onContextMenu={(e) => handleContextMenu(e, null, false, null, '')}>
           {chapters.length === 0 ? (
             <p className="p-2.5 text-center text-theme-green">暂无文件</p>
@@ -178,6 +193,7 @@ function ChapterTreePanel() {
               {renderChapterTree(chapters, 0, {
                 handleContextMenu,
                 handleChapterClick,
+                handleToggleCollapse,
                 collapsedChapters
               })}
             </ul>
@@ -198,8 +214,8 @@ function ChapterTreePanel() {
       />
 
       {/* 设置按钮区域 */}
-      <div className="h-[10%] flex-shrink-0 flex justify-end items-end p-2.5 bg-theme-gray w-full">
-        <button className="bg-transparent text-theme-gray border-none p-0 rounded-0 text-lg cursor-pointer flex items-center justify-center transition-colors hover:bg-transparent hover:border-transparent hover:text-theme-green" title="设置">
+      <div className="h-[5%] flex-shrink-0 flex justify-end items-end p-2.5 bg-theme-gray3 w-full">
+        <button className="bg-transparent text-theme-white border-none p-0 rounded-0 text-lg cursor-pointer flex items-center justify-center transition-colors hover:bg-transparent hover:border-transparent hover:text-theme-green" title="设置">
           <FontAwesomeIcon icon={faGear} />
         </button>
       </div>

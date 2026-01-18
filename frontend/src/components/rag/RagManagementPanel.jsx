@@ -156,15 +156,15 @@ const RagSettingsPanel = () =>{
 
   return(
     <div className='w-full h-[932px] p-2.5'>
-      <div className='flex border-b border-theme-gray'>
+      <div className='flex border-b border-theme-gray1'>
         <button
-          className={`px-4 py-2 border border-theme-gray bg-theme-gray text-theme-gray cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'embedding' ? 'bg-theme-green text-white' : ''}`}
+          className={`px-4 py-2 border border-theme-gray1 bg-theme-gray1 text-theme-gray1 cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'embedding' ? 'bg-theme-green text-white' : ''}`}
           onClick={() => setActiveTab('embedding')}
         >
           嵌入配置
         </button>
         <button
-          className={`px-4 py-2 border border-theme-gray bg-theme-gray text-theme-gray cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'knowledge' ? 'bg-theme-green text-white' : ''}`}
+          className={`px-4 py-2 border border-theme-gray1 bg-theme-gray1 text-theme-gray1 cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'knowledge' ? 'bg-theme-green text-white' : ''}`}
           onClick={() => setActiveTab('knowledge')}
         >
           RAG知识库
@@ -176,12 +176,12 @@ const RagSettingsPanel = () =>{
           <div className='flex flex-col'>
             <PanelGroup direction="horizontal" className="h-[85%]">
               {/* 左侧提供商列表面板 */}
-              <Panel defaultSize={25} minSize={20} maxSize={40} className="border border-theme-gray flex flex-col">
+              <Panel defaultSize={25} minSize={20} maxSize={40} className="border border-theme-gray1 flex flex-col">
                 <div className="overflow-y-auto flex-1 p-1.25">
                   {providers.map((provider, index) => (
                     <div
                       key={index}
-                      className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray ${selectedProviderId === provider ? "border border-theme-green text-theme-green":""}`}
+                      className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray1 ${selectedProviderId === provider ? "border border-theme-green text-theme-green":""}`}
                       onClick={() => handleProviderClick(provider)}
                     >
                       {provider}
@@ -189,22 +189,22 @@ const RagSettingsPanel = () =>{
                   ))}
                 </div>
               </Panel>
-              <PanelResizeHandle className="w-1.25 bg-theme-gray cursor-col-resize relative transition-colors hover:bg-theme-gray after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-0.5 after:h-5 after:bg-theme-gray after:rounded-[1px]" />
+              <PanelResizeHandle className="w-1.25 bg-theme-gray1 cursor-col-resize relative transition-colors hover:bg-theme-gray1 after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-0.5 after:h-5 after:bg-theme-gray1 after:rounded-[1px]" />
               {/* 右侧模型列表面板 */}
-              <Panel className='border border-theme-gray flex flex-col'>
-                <div className="p-2.5 border-b border-theme-gray">
+              <Panel className='border border-theme-gray1 flex flex-col'>
+                <div className="p-2.5 border-b border-theme-gray1">
                   <h3>模型列表</h3>
                 </div>
                 <div className='overflow-y-auto flex-1 p-1.25'>
                   {embeddingModels.length === 0 ? (
-                    <div className='text-theme-gray text-center'>
+                    <div className='text-theme-gray1 text-center'>
                       未找到此提供商的嵌入模型
                     </div>
                   ) : (
                     embeddingModels.map((embeddingModel,index)=>(
                       <div
                         key={index}
-                        className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray ${selectedEmbeddingModelId === embeddingModel.id?'border border-theme-green text-theme-green':''}`}
+                        className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray1 ${selectedEmbeddingModelId === embeddingModel.id?'border border-theme-green text-theme-green':''}`}
                         onClick={()=> handleEmbeddingModelClick(embeddingModel.id)}
                       >
                         {embeddingModel.id}
@@ -214,15 +214,15 @@ const RagSettingsPanel = () =>{
                 </div>
 
                 {/* 嵌入维度显示框 */}
-                <div className="border border-theme-gray rounded-small m-2.5 p-2.5">
-                  <div className="p-2.5 border-b border-theme-gray mb-2.5">
+                <div className="border border-theme-gray1 rounded-small m-2.5 p-2.5">
+                  <div className="p-2.5 border-b border-theme-gray1 mb-2.5">
                     <h3>嵌入维度</h3>
                   </div>
-                  <div className="p-2.5 text-center rounded-small bg-theme-gray">
+                  <div className="p-2.5 text-center rounded-small bg-theme-gray1">
                     {embeddingDimensions ? (
                       <div className="text-theme-green text-xl">{embeddingDimensions}</div>
                     ) : (
-                      <div className="text-theme-gray">请选择模型</div>
+                      <div className="text-theme-gray1">请选择模型</div>
                     )}
                   </div>
                 </div>
@@ -233,14 +233,14 @@ const RagSettingsPanel = () =>{
 
         {activeTab === 'knowledge' && (
           <div className='flex flex-col'>
-            <div className='border border-theme-gray rounded-small p-2.5 mb-2.5'>
+            <div className='border border-theme-gray1 rounded-small p-2.5 mb-2.5'>
               <h3 className="m-0 mb-2.5">切分设置</h3>
               <form onSubmit={handleSubmit}>
                 <label htmlFor='chunk_size' className="block m-2.5">切分长度:</label>
                 <input
                   type='text'
                   id='chunk_size'
-                  className='block m-2.5 p-2 border border-theme-gray rounded-small bg-theme-gray text-theme-gray'
+                  className='block m-2.5 p-2 border border-theme-gray1 rounded-small bg-theme-gray1 text-theme-gray1'
                   value={chunkSize}
                   onChange={(e) => setChunkSize(e.target.value)}
                   placeholder='请输入切分长度'
@@ -249,7 +249,7 @@ const RagSettingsPanel = () =>{
                 <input
                   type='text'
                   id='chunk_overlap'
-                  className='block m-2.5 p-2 border border-theme-gray rounded-small bg-theme-gray text-theme-gray'
+                  className='block m-2.5 p-2 border border-theme-gray1 rounded-small bg-theme-gray1 text-theme-gray1'
                   value={chunkOverlap}
                   onChange={(e) => setChunkOverlap(e.target.value)}
                   placeholder='请输入重叠长度'
@@ -258,7 +258,7 @@ const RagSettingsPanel = () =>{
               </form>
             </div>
 
-            <div className='border border-theme-gray rounded-small p-2.5 mb-2.5'>
+            <div className='border border-theme-gray1 rounded-small p-2.5 mb-2.5'>
               <h3 className="m-0 mb-2.5">文件上传</h3>
               <input
                 type='file'
@@ -280,12 +280,12 @@ const RagSettingsPanel = () =>{
               )}
             </div>
 
-            <div className='border border-theme-gray rounded-small p-2.5'>
+            <div className='border border-theme-gray1 rounded-small p-2.5'>
               <h3 className="m-0 mb-2.5">文件列表</h3>
               {ragFile.map((file,index)=>(
                 <div
                   key={index}
-                  className='border border-theme-gray rounded-small p-2.5 mb-2.5 flex justify-between items-center'
+                  className='border border-theme-gray1 rounded-small p-2.5 mb-2.5 flex justify-between items-center'
                 >
                   <div className='flex flex-col gap-1'>
                     {renamingFileId === file.id ? (
@@ -295,7 +295,7 @@ const RagSettingsPanel = () =>{
                           value={newFileName}
                           onChange={(e) => setNewFileName(e.target.value)}
                           placeholder="输入新文件名"
-                          className="p-2 border border-theme-gray rounded-small bg-theme-gray text-theme-gray"
+                          className="p-2 border border-theme-gray1 rounded-small bg-theme-gray1 text-theme-gray1"
                         />
                         <button className="m-2.5 px-3 py-1 bg-theme-green text-white border-none rounded-small cursor-pointer" onClick={() => handleRenameFile(file.id)}>确认</button>
                         <button className="m-2.5 px-3 py-1 bg-gray-600 text-white border-none rounded-small cursor-pointer" onClick={cancelRenameFile}>取消</button>
