@@ -7,8 +7,8 @@ import AgentPanel from './agent/AgentPanel';
 
 function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
   const [activePanel, setActivePanel] = useState(null); // 'api' | 'rag' | 'agent' | null
-  const [leftPanelSize, setLeftPanelSize] = useState(20);
-  const [rightPanelSize, setRightPanelSize] = useState(20);
+  const [leftPanelSize, setLeftPanelSize] = useState(15);
+  const [rightPanelSize, setRightPanelSize] = useState(25);
 
   // 处理左侧面板尺寸变化
   const handleLeftPanelChange = (size) => {
@@ -23,13 +23,10 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
   return (
     <div className="flex-grow flex h-full">
       <PanelGroup direction="horizontal" className="flex-grow flex h-full overflow-hidden min-h-0">
-        {/* 左侧组件栏 - 固定宽度图标栏，不能拖动 */}
-        <div className="bg-theme-black p-0 w-[50px] flex-shrink-0 overflow-hidden">
+        {/* 左侧组件栏 - 固定宽度 */}
+        <div className="bg-theme-black p-0 w-[50px] flex-shrink-0 overflow-hidden border-r border-theme-gray3">
           <SidebarComponent activePanel={activePanel} setActivePanel={setActivePanel} />
         </div>
-        
-        {/* 细长的普通灰色分隔线 */}
-        <div className="w-[1px] bg-theme-gray1 flex-shrink-0"></div>
         
         {/* 章节面板 */}
         <Panel
@@ -41,7 +38,8 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
         >
           {chapterPanel}
         </Panel>
-        <PanelResizeHandle className="w-[1px] bg-theme-gray1 cursor-ew-resize flex-shrink-0 relative" />
+        
+        <PanelResizeHandle className="w-[1px] bg-theme-gray3 cursor-ew-resize flex-shrink-0 relative" />
         
         {/* 编辑器面板 */}
         <Panel
@@ -52,7 +50,8 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
         >
           {editorPanel}
         </Panel>
-        <PanelResizeHandle className="w-[1px] bg-theme-gray1 cursor-ew-resize flex-shrink-0 relative" />
+
+        <PanelResizeHandle className="w-[1px] bg-theme-gray3 cursor-ew-resize flex-shrink-0 relative" />
         
         {/* 聊天面板 */}
         <Panel
@@ -68,15 +67,17 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }) {
 
       {/* 设置面板 - 全屏覆盖 */}
       {activePanel && (
-        <div className="fixed top-0 left-[50px] right-0 bottom-0 bg-theme-black z-[1000] overflow-auto">
+        <div className="fixed top-0 left-[51px] right-0 bottom-0 bg-theme-black z-[1000] overflow-auto">
           {activePanel === 'api' && (
             <ProviderSettingsPanel
+            // @ts-ignore
               isOpen={true}
               onClose={() => setActivePanel(null)}
             />
           )}
           {activePanel === 'rag' && (
             <RagManagementPanel
+            // @ts-ignore
               isOpen={true}
               onClose={() => setActivePanel(null)}
             />

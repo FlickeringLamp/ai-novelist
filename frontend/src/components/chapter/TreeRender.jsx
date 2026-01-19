@@ -8,7 +8,8 @@ const renderChapterTree = (items, level = 0, props) => {
     handleContextMenu,
     handleChapterClick,
     handleToggleCollapse,
-    collapsedChapters
+    collapsedChapters,
+    selectedItem
   } = props;
 
 
@@ -27,12 +28,12 @@ const renderChapterTree = (items, level = 0, props) => {
         {/* 垂直引导线 */}
         {level > 0 && (
           <div
-            className="tree-guide-line absolute top-0 bottom-0 w-px bg-theme-white"
+            className="tree-guide-line absolute top-0 bottom-0 w-px bg-theme-gray4"
             style={{ left: `${level * 20 - 10}px` }}
           />
         )}
         <div
-          className={`chapter-item-content ${isFolder && level > 0 ? 'nested-folder-content' : ''} cursor-pointer text-theme-white hover:text-theme-green hover:bg-theme-gray1`}
+          className={`chapter-item-content ${isFolder && level > 0 ? 'nested-folder-content' : ''} cursor-pointer ${selectedItem.state === 'selected' && selectedItem.id === itemId ? 'bg-theme-gray2 text-theme-green' : 'text-theme-white hover:text-theme-green hover:bg-theme-gray2'}`}
           style={{ paddingLeft: `${level * 20}px` }}
           onClick={() => {
             if (isFolder) {
@@ -43,7 +44,8 @@ const renderChapterTree = (items, level = 0, props) => {
           }}
           onContextMenu={(e) => {
             e.stopPropagation();
-            const parentPath = isFolder ? itemId : (itemId.includes('/') ? itemId.substring(0, itemId.lastIndexOf('/')) : '');
+            const parentPath = itemId.includes('/') ? itemId.substring(0, itemId.lastIndexOf('/')) : '';
+            console.log("当前parentPath是:",parentPath)
             handleContextMenu(e, itemId, isFolder, itemTitle, parentPath);
           }}
         >

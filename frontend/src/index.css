@@ -8,6 +8,8 @@
   --color-theme-gray1: var(--color-gray1);
   --color-theme-gray2: var(--color-gray2);
   --color-theme-gray3: var(--color-gray3);
+  --color-theme-gray4: var(--color-gray4);
+  --color-theme-gray5: var(--color-gray5);
 
   /* 圆角配置 */
   --radius-small: 4px;
@@ -20,13 +22,15 @@
 }
 
 :root {
-  /* 四种基础颜色 - 默认值 */
+  /* 基础颜色 - 默认值 */
   --color-black: #000000;    /* 纯黑：底色，用于面 */
   --color-green: #00AD62;    /* 绿色：普通状态，用于小件 */
   --color-white: #FFFFFF;    /* 纯白色：普通状态，多用于字体 */
-  --color-gray1: #333333;    /* 浅灰色：特殊状态,多用于小件/字体 */
-  --color-gray2: #222222;    /* 灰色：特殊状态,多用于面 */ 
-  --color-gray3: #111111;    /* 深灰色：普通状态，多用于深色条带 */
+  --color-gray1: #111111;    /* 焦浓重淡清 */
+  --color-gray2: #333333;
+  --color-gray3: #666666;
+  --color-gray4: #999999;
+  --color-gray5: #cccccc;
 }
 
 /* ===== 全局基础样式 ===== */

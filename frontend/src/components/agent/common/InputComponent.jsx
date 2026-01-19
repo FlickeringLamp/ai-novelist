@@ -66,7 +66,7 @@ const InputComponent = ({
   return (
     <div className={`mb-5 ${className}`}>
       {label && (
-        <label className="block mb-2 font-medium text-theme-gray1">
+        <label className="block mb-2 font-medium text-theme-white">
           {label}
         </label>
       )}
@@ -81,12 +81,12 @@ const InputComponent = ({
           min={min}
           max={max}
           step={step}
-          className="w-full px-3 py-2 bg-theme-gray1 border border-theme-gray1 rounded-small text-theme-white text-sm transition-all focus:outline-none focus:border-theme-green focus:ring-2 focus:ring-theme-green/10 hover:border-theme-gray1 placeholder:text-theme-gray1/60"
+          className="w-full px-3 py-2 bg-theme-gray1 border border-theme-gray1 rounded-small text-theme-white text-sm transition-all focus:outline-none focus:border-theme-green focus:ring-2 focus:ring-theme-green/10 hover:border-theme-gray1 placeholder:text-theme-white/60"
         />
       </div>
 
       {description && (
-        <div className="text-xs text-theme-gray1 mt-1 leading-relaxed">
+        <div className="text-xs text-theme-white mt-1 leading-relaxed">
           {description}
         </div>
       )}

@@ -158,13 +158,13 @@ const RagSettingsPanel = () =>{
     <div className='w-full h-[932px] p-2.5'>
       <div className='flex border-b border-theme-gray1'>
         <button
-          className={`px-4 py-2 border border-theme-gray1 bg-theme-gray1 text-theme-gray1 cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'embedding' ? 'bg-theme-green text-white' : ''}`}
+          className={`px-4 py-2 border border-theme-gray1 bg-theme-gray1 text-theme-white cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'embedding' ? 'bg-theme-green text-white' : ''}`}
           onClick={() => setActiveTab('embedding')}
         >
           嵌入配置
         </button>
         <button
-          className={`px-4 py-2 border border-theme-gray1 bg-theme-gray1 text-theme-gray1 cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'knowledge' ? 'bg-theme-green text-white' : ''}`}
+          className={`px-4 py-2 border border-theme-gray1 bg-theme-gray1 text-theme-white cursor-pointer rounded-tl-small rounded-tr-small ${activeTab === 'knowledge' ? 'bg-theme-green text-white' : ''}`}
           onClick={() => setActiveTab('knowledge')}
         >
           RAG知识库
@@ -197,7 +197,7 @@ const RagSettingsPanel = () =>{
                 </div>
                 <div className='overflow-y-auto flex-1 p-1.25'>
                   {embeddingModels.length === 0 ? (
-                    <div className='text-theme-gray1 text-center'>
+                    <div className='text-theme-white text-center'>
                       未找到此提供商的嵌入模型
                     </div>
                   ) : (
@@ -222,7 +222,7 @@ const RagSettingsPanel = () =>{
                     {embeddingDimensions ? (
                       <div className="text-theme-green text-xl">{embeddingDimensions}</div>
                     ) : (
-                      <div className="text-theme-gray1">请选择模型</div>
+                      <div className="text-theme-white">请选择模型</div>
                     )}
                   </div>
                 </div>
@@ -240,7 +240,7 @@ const RagSettingsPanel = () =>{
                 <input
                   type='text'
                   id='chunk_size'
-                  className='block m-2.5 p-2 border border-theme-gray1 rounded-small bg-theme-gray1 text-theme-gray1'
+                  className='block m-2.5 p-2 border border-theme-gray1 rounded-small bg-theme-gray1 text-theme-white'
                   value={chunkSize}
                   onChange={(e) => setChunkSize(e.target.value)}
                   placeholder='请输入切分长度'
@@ -249,7 +249,7 @@ const RagSettingsPanel = () =>{
                 <input
                   type='text'
                   id='chunk_overlap'
-                  className='block m-2.5 p-2 border border-theme-gray1 rounded-small bg-theme-gray1 text-theme-gray1'
+                  className='block m-2.5 p-2 border border-theme-gray1 rounded-small bg-theme-gray1 text-theme-white'
                   value={chunkOverlap}
                   onChange={(e) => setChunkOverlap(e.target.value)}
                   placeholder='请输入重叠长度'
@@ -295,7 +295,7 @@ const RagSettingsPanel = () =>{
                           value={newFileName}
                           onChange={(e) => setNewFileName(e.target.value)}
                           placeholder="输入新文件名"
-                          className="p-2 border border-theme-gray1 rounded-small bg-theme-gray1 text-theme-gray1"
+                          className="p-2 border border-theme-gray1 rounded-small bg-theme-gray1 text-theme-white"
                         />
                         <button className="m-2.5 px-3 py-1 bg-theme-green text-white border-none rounded-small cursor-pointer" onClick={() => handleRenameFile(file.id)}>确认</button>
                         <button className="m-2.5 px-3 py-1 bg-gray-600 text-white border-none rounded-small cursor-pointer" onClick={cancelRenameFile}>取消</button>

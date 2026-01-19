@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 
 function ContextMenu({
   contextMenu,
-  setContextMenu,
-  operateState,
-  setOperateState,
+  selectedItem,
+  setSelectedItem,
+  lastSelectedItem,
+  setLastSelectedItem,
+  handleCloseContextMenu,
   handleCreateItem,
   handleDeleteItem,
   handlePaste,
@@ -12,33 +14,30 @@ function ContextMenu({
 }) {
   const menuRef = useRef(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-
-  const handleCloseContextMenu = () => {
-    setContextMenu({ ...contextMenu, show: false });
-  };
+  const [adjustedY, setAdjustedY] = useState(contextMenu.y);
 
   const getContextMenuItems = () => {
     const items = [];
-    const isItemSelected = contextMenu.itemId !== null && contextMenu.itemId !== undefined;
-    const canPaste = operateState;
+    const isItemSelected = selectedItem.id !== null && selectedItem.id !== undefined;
+    const canPaste = lastSelectedItem.state !== null;
 
     if (isItemSelected) {
-      const isFolder = contextMenu.isFolder;
+      const isFolder = selectedItem.isFolder;
 
       items.push(
-        { label: '复制', onClick: () => { setOperateState('copying'); handleCloseContextMenu(); } },
-        { label: '剪切', onClick: () => { setOperateState('cutting'); handleCloseContextMenu(); } },
-        { label: '重命名', onClick: () => handleRenameItem() },
-        { label: '删除', onClick: () => handleDeleteItem(contextMenu.itemId) }
+        { label: '复制', onClick: () => { setLastSelectedItem({ ...selectedItem, state: 'copying' }); handleCloseContextMenu(); } },
+        { label: '剪切', onClick: () => { setLastSelectedItem({ ...selectedItem, state: 'cutting' }); handleCloseContextMenu(); } },
+        { label: '重命名', onClick: () => { setSelectedItem({ ...selectedItem, state: 'renaming' }); handleRenameItem(); } },
+        { label: '删除', onClick: () => handleDeleteItem(selectedItem.id) }
       );
       if (isFolder && canPaste) {
-        items.push({ label: '粘贴', onClick: () => handlePaste(contextMenu.itemId) });
+        items.push({ label: '粘贴', onClick: () => handlePaste(selectedItem.id) });
       }
 
       if (isFolder) {
         items.push(
-          { label: '新建文件', onClick: () => handleCreateItem(false, contextMenu.itemId) },
-          { label: '新建文件夹', onClick: () => handleCreateItem(true, contextMenu.itemId) }
+          { label: '新建文件', onClick: () => handleCreateItem(false, selectedItem.id) },
+          { label: '新建文件夹', onClick: () => handleCreateItem(true, selectedItem.id) }
         );
       }
     } else {
@@ -53,7 +52,6 @@ function ContextMenu({
 
     return items;
   };
-
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -96,7 +94,7 @@ function ContextMenu({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedIndex, contextMenu, operateState]);
+  }, [selectedIndex, contextMenu, selectedItem]);
 
   useEffect(() => {
     if (menuRef.current) {
@@ -104,21 +102,36 @@ function ContextMenu({
     }
   }, []);
 
+  useEffect(() => {
+    if (menuRef.current && contextMenu.show) {
+      const menu = menuRef.current;
+      const menuRect = menu.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      
+      // 检查下边界，如果超出则向上显示
+      if (contextMenu.y + menuRect.height > viewportHeight) {
+        setAdjustedY(contextMenu.y - menuRect.height);
+      } else {
+        setAdjustedY(contextMenu.y);
+      }
+    }
+  }, [contextMenu.show, contextMenu.y]);
+
   if (!contextMenu.show) return null;
 
   const items = getContextMenuItems();
 
   return (
     <ul
-      className="absolute bg-theme-black border border-theme-gray1 rounded-small shadow-medium list-none p-0 m-0 z-[1000] text-sm min-w-[120px]"
+      className="absolute bg-theme-gray1 border border-theme-gray3 rounded-small shadow-medium list-none p-0 m-0 z-[1000] text-sm min-w-[120px]"
       ref={menuRef}
-      style={{ top: contextMenu.y, left: contextMenu.x }}
+      style={{ top: adjustedY, left: contextMenu.x }}
       tabIndex={-1}
     >
       {items.map((item, index) => (
         <li
           key={index}
-          className={`p-2 cursor-pointer text-theme-white ${selectedIndex === index ? 'bg-theme-gray1 text-theme-green' : ''} hover:bg-theme-gray1 hover:text-theme-green active:bg-theme-gray1`}
+          className={`p-2 cursor-pointer ${selectedIndex === index ? 'bg-theme-gray2 text-theme-green' : 'text-theme-white hover:bg-theme-gray2 hover:text-theme-green'}`}
           onClick={() => {
             item.onClick();
             handleCloseContextMenu();

@@ -92,13 +92,13 @@ const FileListPopup = ({ onSelectFile, onClose, searchQuery }) => {
         value={localSearchQuery}
         onChange={handleSearchChange}
         onKeyDown={handleKeyDown}
-        className="w-full p-2.5 p-2.5-[12px] bg-transparent border-none border-b border-theme-gray1 text-theme-white text-[14px] outline-none box-border placeholder:text-theme-gray1"
+        className="w-full p-2.5 p-2.5-[12px] bg-transparent border-none border-b border-theme-gray1 text-theme-white text-[14px] outline-none box-border placeholder:text-theme-white"
       />
       
       {loading ? (
-        <div className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">加载中...</div>
+        <div className="flex items-center justify-center p-4 text-theme-white text-[14px]">加载中...</div>
       ) : filteredFiles.length === 0 ? (
-        <div className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">没有找到文件</div>
+        <div className="flex items-center justify-center p-4 text-theme-white text-[14px]">没有找到文件</div>
       ) : (
         <div className="flex-1 overflow-y-auto">
           {filteredFiles.map((file, index) => {

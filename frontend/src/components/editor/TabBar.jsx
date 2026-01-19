@@ -15,7 +15,7 @@ const TabBar = () => {
       {openTabs.map(tab => (
         <div
           key={tab}
-          className={`px-3 py-2 cursor-pointer transition-all border-r border-theme-gray1 whitespace-nowrap ${activeTabs.includes(tab) ? 'bg-theme-black text-theme-white border-t-2 border-t-theme-green' : 'text-theme-gray1 hover:bg-theme-gray1/80'}`}
+          className={`px-3 py-2 cursor-pointer transition-all border-r border-theme-gray1 whitespace-nowrap ${activeTabs.includes(tab) ? 'bg-theme-black text-theme-white border-t-2 border-t-theme-green' : 'text-theme-white hover:bg-theme-gray1/80'}`}
           onClick={() => dispatch(setActiveTab(tab))}
         >
           {getDisplayName(tab)}

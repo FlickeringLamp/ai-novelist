@@ -37,7 +37,7 @@ const SettingGroup = ({
       )}
 
       {description && !isCollapsed && (
-        <div className="text-sm text-theme-gray1 mb-4 leading-relaxed p-2 bg-theme-gray1 rounded-small border-l-3 border-theme-green">
+        <div className="text-sm text-theme-white mb-4 leading-relaxed p-2 bg-theme-gray1 rounded-small border-l-3 border-theme-green">
           {description}
         </div>
       )}

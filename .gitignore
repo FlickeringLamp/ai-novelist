@@ -35,6 +35,7 @@ backend/data
 test_files/
 archive/
 count_code.ps1
+.VSCodeCounter/
 
 # Lock files
 mcp-filesystem-server.lock

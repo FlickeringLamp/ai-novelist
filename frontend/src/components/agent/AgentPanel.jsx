@@ -345,7 +345,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                 onChange={(e) => handlePromptChange(selectedMode, e.target.value)}
                 placeholder={`输入${selectedModeDetail.name}模式的自定义提示词...`}
                 rows={4}
-                className="w-full p-2.5 bg-theme-gray1 border border-theme-gray1 rounded-small text-theme-white text-[14px] outline-none resize-none placeholder:text-theme-gray1"
+                className="w-full p-2.5 bg-theme-gray3 border border-theme-gray1 rounded-small text-theme-white text-[14px] outline-none resize-none placeholder:text-theme-gray1"
               />
             </div>
 
@@ -364,12 +364,12 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                 
                 {/* 显示已添加的文件 */}
                 <div className="flex flex-col gap-2">
-                  <h5 className="text-theme-gray1 text-[12px]">已添加的文件:</h5>
+                  <h5 className="text-theme-white text-[12px]">已添加的文件:</h5>
                   {selectedModeDetail.additionalInfo && selectedModeDetail.additionalInfo.content ? (
                     <div className="flex items-center justify-between p-2.5 bg-theme-gray1 border border-theme-gray1 rounded-small">
                       <span className="text-theme-white text-[12px] truncate flex-1">{selectedModeDetail.additionalInfo.content.path}</span>
                       <button
-                        className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray1 cursor-pointer text-[12px] hover:text-red-500 transition-colors"
+                        className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-white cursor-pointer text-[12px] hover:text-red-500 transition-colors"
                         onClick={() => {
                           handleAdditionalInfoChange(selectedMode, {});
                         }}
@@ -378,7 +378,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                       </button>
                     </div>
                   ) : (
-                    <div className="text-theme-gray1 text-[12px] p-2.5">暂无附加文件</div>
+                    <div className="text-theme-white text-[12px] p-2.5">暂无附加文件</div>
                   )}
                 </div>
               </div>
@@ -420,7 +420,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                   placeholder="搜索模式..."
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  className="flex-1 p-2.5 bg-transparent border border-theme-gray1 rounded-small text-theme-white text-[12px] outline-none placeholder:text-theme-gray1"
+                  className="flex-1 p-2.5 bg-transparent border border-theme-gray1 rounded-small text-theme-white text-[12px] outline-none placeholder:text-theme-white"
                 />
               </div>
             </div>
@@ -434,11 +434,11 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                 >
                   <div className="flex flex-col gap-1">
                     <div className="text-theme-white text-[14px] font-medium">{mode.name}</div>
-                    <div className="text-theme-gray1 text-[12px]">
+                    <div className="text-theme-white text-[12px]">
                       {mode.type === 'custom' ? '自定义模式' : '内置模式'}
                     </div>
                   </div>
-                  <div className="text-theme-gray1 text-[12px]">
+                  <div className="text-theme-white text-[12px]">
                     {customPrompts[mode.id] ? '已自定义' : '默认'}
                   </div>
                 </div>
@@ -471,7 +471,7 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-theme-white text-[14px] font-medium">{editingMode ? '编辑自定义模式' : '添加自定义模式'}</h3>
                   <button
-                    className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray1 cursor-pointer text-[20px] hover:text-theme-white transition-colors"
+                    className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-white cursor-pointer text-[20px] hover:text-theme-white transition-colors"
                     onClick={() => {
                       setShowCustomModeForm(false);
                       setEditingMode(null);
@@ -489,12 +489,12 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                       value={newModeName}
                       onChange={(e) => setNewModeName(e.target.value)}
                       placeholder="输入自定义模式名称..."
-                      className="w-full p-2.5 bg-theme-gray1 border border-theme-gray1 rounded-small text-theme-white text-[14px] outline-none placeholder:text-theme-gray1"
+                      className="w-full p-2.5 bg-theme-gray1 border border-theme-gray1 rounded-small text-theme-white text-[14px] outline-none placeholder:text-theme-white"
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
-                      className="flex-1 p-2.5 bg-theme-green text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-green/80 disabled:bg-theme-gray1 disabled:text-theme-gray1 disabled:cursor-not-allowed"
+                      className="flex-1 p-2.5 bg-theme-green text-theme-white border-none rounded-small cursor-pointer text-[14px] transition-all hover:bg-theme-green/80 disabled:bg-theme-gray1 disabled:text-theme-white disabled:cursor-not-allowed"
                       onClick={editingMode ? handleEditCustomModeUI : handleAddCustomModeUI}
                       disabled={!newModeName.trim()}
                     >
@@ -520,14 +520,14 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                   {selectedModeDetail.type === 'custom' && (
                     <div className="flex gap-1">
                       <button
-                        className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray1 cursor-pointer text-[12px] hover:text-theme-green transition-colors"
+                        className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-white cursor-pointer text-[12px] hover:text-theme-green transition-colors"
                         onClick={startEditCustomMode}
                         title="编辑模式名称"
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
                       <button
-                        className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray1 cursor-pointer text-[12px] hover:text-red-500 transition-colors"
+                        className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-white cursor-pointer text-[12px] hover:text-red-500 transition-colors"
                         onClick={() => setShowDeleteConfirm(true)}
                         title="删除模式"
                       >
@@ -539,19 +539,19 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
                 {/* 标签页导航 */}
                 <div className="flex border-b border-theme-gray1">
                   <button
-                    className={`flex-1 p-2.5 bg-transparent border-none text-[12px] cursor-pointer transition-all ${activeTab === 'prompt' ? 'text-theme-green border-b-2 border-b-theme-green' : 'text-theme-gray1 hover:text-theme-white'}`}
+                    className={`flex-1 p-2.5 bg-transparent border-none text-[12px] cursor-pointer transition-all ${activeTab === 'prompt' ? 'text-theme-green border-b-2 border-b-theme-green' : 'text-theme-white hover:text-theme-white'}`}
                     onClick={() => setActiveTab('prompt')}
                   >
                     提示词设置
                   </button>
                   <button
-                    className={`flex-1 p-2.5 bg-transparent border-none text-[12px] cursor-pointer transition-all ${activeTab === 'ai' ? 'text-theme-green border-b-2 border-b-theme-green' : 'text-theme-gray1 hover:text-theme-white'}`}
+                    className={`flex-1 p-2.5 bg-transparent border-none text-[12px] cursor-pointer transition-all ${activeTab === 'ai' ? 'text-theme-green border-b-2 border-b-theme-green' : 'text-theme-white hover:text-theme-white'}`}
                     onClick={() => setActiveTab('ai')}
                   >
                     聊天参数
                   </button>
                   <button
-                    className={`flex-1 p-2.5 bg-transparent border-none text-[12px] cursor-pointer transition-all ${activeTab === 'tools' ? 'text-theme-green border-b-2 border-b-theme-green' : 'text-theme-gray1 hover:text-theme-white'}`}
+                    className={`flex-1 p-2.5 bg-transparent border-none text-[12px] cursor-pointer transition-all ${activeTab === 'tools' ? 'text-theme-green border-b-2 border-b-theme-green' : 'text-theme-white hover:text-theme-white'}`}
                     onClick={() => setActiveTab('tools')}
                   >
                     工具配置

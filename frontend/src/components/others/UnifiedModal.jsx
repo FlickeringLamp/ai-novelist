@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const UnifiedModal = ({
   message,
-  showCancelButton = false,
   confirmText = '确定',
   cancelText = '取消',
   onConfirm,
@@ -12,73 +11,77 @@ const UnifiedModal = ({
   const cancelButtonRef = useRef(null);
   const [focusedButton, setFocusedButton] = useState('confirm');
 
+  // 初始焦点设置
   useEffect(() => {
-    // 只在双按钮模式下管理焦点
-    if (showCancelButton) {
-      if (focusedButton === 'confirm') {
-        confirmButtonRef.current?.focus();
-      } else {
-        cancelButtonRef.current?.focus();
-      }
-    }
-  }, [focusedButton, showCancelButton]);
+    confirmButtonRef.current?.focus();
+  }, []);
 
+  // 处理键盘事件（使用 document.addEventListener 在捕获阶段拦截）
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (showCancelButton) {
-        // 双按钮模式：支持左右箭头切换焦点
-        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-          event.preventDefault();
-          setFocusedButton((prev) => (prev === 'confirm' ? 'cancel' : 'confirm'));
-        } else if (event.key === 'Enter') {
-          event.preventDefault();
-          if (focusedButton === 'confirm') {
-            onConfirm();
-          } else {
-            onCancel();
-          }
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
+      // 支持左右箭头切换焦点
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        event.stopPropagation();
+        setFocusedButton((prev) => (prev === 'confirm' ? 'cancel' : 'confirm'));
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (focusedButton === 'confirm') {
+          onConfirm();
+        } else {
           onCancel();
         }
-      } else {
-        // 单按钮模式：Enter 或 Esc 都关闭
-        if (event.key === 'Enter' || event.key === 'Escape') {
-          event.preventDefault();
-          onConfirm();
-        }
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        onCancel();
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    // 在捕获阶段监听，避免浏览器默认行为干扰
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
+    
+    // 清理函数：移除事件监听器
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
-  }, [focusedButton, showCancelButton, onConfirm, onCancel]);
+  }, [focusedButton, onConfirm, onCancel]);
+
+  // 根据焦点状态更新焦点（使用 ref 安全操作 DOM）
+  useEffect(() => {
+    if (focusedButton === 'confirm') {
+      confirmButtonRef.current?.focus();
+    } else {
+      cancelButtonRef.current?.focus();
+    }
+  }, [focusedButton]);
 
   return (
     <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex justify-center items-center z-[1000]">
-      <div className="bg-theme-gray1 rounded-medium shadow-medium px-5 py-3.75 max-w-[500px] w-[400px] text-theme-gray1">
+      <div className="bg-theme-gray1 rounded-medium shadow-medium px-5 py-3.75 max-w-[500px] w-[400px] text-theme-white">
         <p className="m-0">{message}</p>
         <div className="flex justify-end gap-2.5 mt-5">
           <button
             ref={confirmButtonRef}
+            type="button"
             onClick={onConfirm}
-            className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-theme-green text-white hover:bg-theme-green ${showCancelButton && focusedButton === 'confirm' ? 'border-2 border-theme-white shadow-light' : ''}`}
+            onFocus={() => setFocusedButton('confirm')}
+            className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-theme-green text-white hover:bg-theme-green ${focusedButton === 'confirm' ? 'border-2 border-theme-white shadow-light' : ''}`}
             tabIndex={0}
           >
             {confirmText}
           </button>
-          {showCancelButton && (
-            <button
-              ref={cancelButtonRef}
-              onClick={onCancel}
-              className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-700 ${focusedButton === 'cancel' ? 'border-2 border-theme-white shadow-light' : ''}`}
-              tabIndex={0}
-            >
-              {cancelText}
-            </button>
-          )}
+          <button
+            ref={cancelButtonRef}
+            type="button"
+            onClick={onCancel}
+            onFocus={() => setFocusedButton('cancel')}
+            className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-700 ${focusedButton === 'cancel' ? 'border-2 border-theme-white shadow-light' : ''}`}
+            tabIndex={0}
+          >
+            {cancelText}
+          </button>
         </div>
       </div>
     </div>

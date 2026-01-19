@@ -147,7 +147,7 @@ const AdvancedSettings = ({
 
         <div className="mt-5 flex gap-2.5">
           <button
-            className="px-4 py-2 bg-theme-gray1 text-theme-green border border-theme-green rounded-small cursor-pointer text-sm transition-all hover:bg-theme-green hover:text-theme-black disabled:bg-theme-gray1/50 disabled:text-theme-gray1 disabled:border-theme-gray1 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-theme-gray1 text-theme-green border border-theme-green rounded-small cursor-pointer text-sm transition-all hover:bg-theme-green hover:text-theme-black disabled:bg-theme-gray1/50 disabled:text-theme-white disabled:border-theme-gray1 disabled:cursor-not-allowed"
             onClick={handleReset}
           >
             重置默认值

@@ -150,8 +150,8 @@ const ModelSelectorPanel = () => {
           <span className="text-theme-white text-[14px] font-medium whitespace-nowrap overflow-hidden text-ellipsis">{selectedModel}</span>
         ) : (
           <>
-            <FontAwesomeIcon icon={faRobot} className="text-theme-gray1" />
-            <span className="text-theme-gray1 text-[14px]">选择模型</span>
+            <FontAwesomeIcon icon={faRobot} className="text-theme-white" />
+            <span className="text-theme-white text-[14px]">选择模型</span>
           </>
         )}
       </button>
@@ -161,16 +161,16 @@ const ModelSelectorPanel = () => {
           {/* 搜索和过滤区域 */}
           <div className="p-3 border-b border-theme-gray1">
             <div className="flex items-center gap-2 mb-3">
-              <FontAwesomeIcon icon={faSearch} className="text-theme-gray1 text-[12px]" />
+              <FontAwesomeIcon icon={faSearch} className="text-theme-white text-[12px]" />
               <input
                 type="text"
                 placeholder="搜索模型名称或提供商..."
                 value={searchText}
                 onChange={handleSearchChange}
-                className="flex-1 p-2.5 bg-transparent border border-theme-gray1 rounded-small text-theme-white text-[14px] outline-none placeholder:text-theme-gray1"
+                className="flex-1 p-2.5 bg-transparent border border-theme-gray1 rounded-small text-theme-white text-[14px] outline-none placeholder:text-theme-white"
               />
               <button
-                className="flex items-center justify-center w-8 h-8 bg-transparent border-none text-theme-gray1 cursor-pointer transition-all hover:text-theme-green disabled:text-theme-gray1 disabled:cursor-not-allowed"
+                className="flex items-center justify-center w-8 h-8 bg-transparent border-none text-theme-white cursor-pointer transition-all hover:text-theme-green disabled:text-theme-white disabled:cursor-not-allowed"
                 onClick={handleRefreshModels}
                 title="刷新模型列表"
                 disabled={refreshing}
@@ -181,12 +181,12 @@ const ModelSelectorPanel = () => {
             
             {/* 提供商筛选 */}
             <div className="flex items-center gap-2">
-              <span className="text-theme-gray1 text-[12px]">提供商：</span>
+              <span className="text-theme-white text-[12px]">提供商：</span>
               <div className="flex flex-wrap gap-1">
                 {providers().map(provider => (
                   <button
                     key={provider}
-                    className={`px-2 py-1 border border-theme-gray1 rounded-small text-[12px] cursor-pointer transition-all ${selectedProvider === provider ? 'bg-theme-green text-theme-white border-theme-green' : 'text-theme-gray1 hover:bg-theme-gray1'}`}
+                    className={`px-2 py-1 border border-theme-gray1 rounded-small text-[12px] cursor-pointer transition-all ${selectedProvider === provider ? 'bg-theme-green text-theme-white border-theme-green' : 'text-theme-white hover:bg-theme-gray1'}`}
                     onClick={() => handleProviderSelect(provider)}
                   >
                     {provider}
@@ -199,11 +199,11 @@ const ModelSelectorPanel = () => {
           {/* 模型列表 */}
           <div className="flex-1 overflow-y-auto p-2">
             {loading ? (
-              <div className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">
+              <div className="flex items-center justify-center p-4 text-theme-white text-[14px]">
                 正在加载模型列表...
               </div>
             ) : filteredModels().length === 0 ? (
-              <div className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">
+              <div className="flex items-center justify-center p-4 text-theme-white text-[14px]">
                 {searchText || selectedProvider ? '没有找到匹配的模型' : '暂无可用模型'}
               </div>
             ) : (
@@ -216,7 +216,7 @@ const ModelSelectorPanel = () => {
                   >
                     <div className="flex flex-col gap-1">
                       <div className="text-theme-white text-[14px] font-medium truncate">{model.id}</div>
-                      <div className="text-theme-gray1 text-[12px]">{model.provider}</div>
+                      <div className="text-theme-white text-[12px]">{model.provider}</div>
                     </div>
                   </div>
                 ))}
@@ -225,7 +225,7 @@ const ModelSelectorPanel = () => {
             
             {/* 搜索结果统计 */}
             {searchText && (
-              <div className="mt-2 text-center text-theme-gray1 text-[12px]">
+              <div className="mt-2 text-center text-theme-white text-[12px]">
                 找到 {filteredModels().length} 个匹配的模型
               </div>
             )}

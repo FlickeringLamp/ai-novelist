@@ -42,7 +42,7 @@ const SliderComponent = ({
   return (
     <div className={`mb-5 ${className}`}>
       {label && (
-        <label className="block mb-2 font-medium text-theme-gray1">
+        <label className="block mb-2 font-medium text-theme-white">
           {label}
         </label>
       )}
@@ -70,7 +70,7 @@ const SliderComponent = ({
       </div>
 
       {description && (
-        <div className="text-xs text-theme-gray1 mt-1 leading-relaxed">
+        <div className="text-xs text-theme-white mt-1 leading-relaxed">
           {description}
         </div>
       )}

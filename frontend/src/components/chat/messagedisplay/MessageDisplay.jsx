@@ -84,7 +84,7 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
                         <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
                           <span className="font-bold text-theme-green">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
                           {toolCall.function?.arguments && (
-                            <div className="mt-1 text-[0.8em] text-theme-gray1 whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
+                            <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
                               参数: {JSON.stringify(toolCall.function.arguments, null, 2)}
                             </div>
                           )}
@@ -144,12 +144,12 @@ const MessageDisplay = ({ messages, currentAiMessage, isLoading }) => {
                         <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
                           <span className="font-bold text-theme-green">{toolCall.name || toolCall.function?.name || '未知工具'}</span>
                           {toolCall.args && (
-                            <div className="mt-1 text-[0.8em] text-theme-gray1 whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
+                            <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
                               参数: {JSON.stringify(toolCall.args, null, 2)}
                             </div>
                           )}
                           {toolCall.function?.arguments && (
-                            <div className="mt-1 text-[0.8em] text-theme-gray1 whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
+                            <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words overflow-wrap break-word break-words overflow-hidden w-full">
                               参数: {JSON.stringify(JSON.parse(toolCall.function.arguments), null, 2)}
                             </div>
                           )}

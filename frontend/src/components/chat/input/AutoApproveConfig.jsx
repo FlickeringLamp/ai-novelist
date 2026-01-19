@@ -76,7 +76,7 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-4 text-theme-gray1 text-[14px]">
+      <div className="flex items-center justify-center p-4 text-theme-white text-[14px]">
         <p>正在加载自动批准配置...</p>
       </div>
     );
@@ -95,7 +95,7 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <span className="text-theme-white text-[14px] font-medium whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">{getDisplayStatusText()}</span>
-        <span className="text-theme-gray1 text-[12px] ml-2 transition-transform">{isExpanded ? '▲' : '▶'}</span>
+        <span className="text-theme-white text-[12px] ml-2 transition-transform">{isExpanded ? '▲' : '▶'}</span>
       </div>
 
       {isExpanded && (
@@ -111,7 +111,7 @@ const AutoApproveConfig = ({ onSettingsChange }) => {
                 />
                 <span className="text-theme-white text-[14px]">启用自动批准</span>
               </label>
-              <div className="text-theme-gray1 text-[12px] mt-2">
+              <div className="text-theme-white text-[12px] mt-2">
                 启用后，工具调用将在1秒后自动批准，无需手动确认
               </div>
             </div>

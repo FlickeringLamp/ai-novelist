@@ -63,10 +63,7 @@ async def generate_unique_name(target_dir: str, is_folder: bool = False) -> str:
 
     while True:
         counter += 1
-        if counter == 1:
-            current_name = f"{base_name}{ext_name}"
-        else:
-            current_name = f"{base_name}-副本{counter-1}{ext_name}"
+        current_name = f"{base_name}{counter}{ext_name}"
 
         full_path = os.path.join(target_dir, current_name)
 
@@ -136,13 +133,13 @@ async def rename_file(old_path: str, new_name: str):
 
 async def move_file(source_path: str, target_path: str):
     """移动文件或文件夹"""
+    print("前端传入了",source_path,target_path)
     full_source = Path(settings.NOVEL_DIR) / source_path
     full_target = Path(settings.NOVEL_DIR) / target_path
+    print("完整原路径，",full_source,"  完整目标路径，",full_target)
     
-    if os.path.isdir(full_target):
-        target_path = os.path.join(full_target, os.path.basename(full_source))
     
-    shutil.move(full_source, target_path)
+    shutil.move(full_source, full_target)
 
 
 async def copy_file(source_path: str, target_path: str):
@@ -151,7 +148,7 @@ async def copy_file(source_path: str, target_path: str):
     full_target_dir = Path(settings.NOVEL_DIR) / target_path # 目标目录
     source_name = os.path.basename(full_source)
     full_target_path = os.path.join(full_target_dir, source_name) # 最终形成的新路径（目标目录+文件名/文件夹名）
-
+    print("完整来源路径:",full_source,"完整目标路径：",full_target_dir)
     # 检查目标路径是否已存在
     if os.path.exists(full_target_path):
         raise FileExistsError(f"目标路径已存在: {full_target_path}")

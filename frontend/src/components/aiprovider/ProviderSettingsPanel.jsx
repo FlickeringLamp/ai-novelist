@@ -349,7 +349,7 @@ const ProviderSettingsPanel = () => {
           {selectedProviderId && (
             <div className='block mx-auto my-5 bg-theme-gray1 p-2.5 rounded-small w-[80%]'>
               <form onSubmit={handleSubmit}>
-                <label htmlFor="api-input" className="block mx-auto my-2.5 mb-1.25 text-theme-gray1 w-[80%] text-left">API Key:</label>
+                <label htmlFor="api-input" className="block mx-auto my-2.5 mb-1.25 text-theme-white w-[80%] text-left">API Key:</label>
                 <input
                   type='password'
                   id='api-input'
@@ -358,7 +358,7 @@ const ProviderSettingsPanel = () => {
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="请输入 API Key"
                 />
-                <label htmlFor="url-input" className="block mx-auto my-2.5 mb-1.25 text-theme-gray1 w-[80%] text-left">Base URL:</label>
+                <label htmlFor="url-input" className="block mx-auto my-2.5 mb-1.25 text-theme-white w-[80%] text-left">Base URL:</label>
                 <input
                   type='text'
                   id='url-input'
@@ -434,11 +434,11 @@ const ProviderSettingsPanel = () => {
       {/* 自定义提供商模态框 */}
       {showCustomProviderModal && (
         <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex justify-center items-center z-[1000]">
-          <div className="bg-theme-gray1 rounded-medium shadow-medium w-[400px] max-w-[90vw] text-theme-gray1">
+          <div className="bg-theme-gray1 rounded-medium shadow-medium w-[400px] max-w-[90vw] text-theme-white">
             <div className="flex justify-between items-center px-5 py-3.75 border-b border-theme-gray1">
               <h3 className="m-0 text-theme-white text-lg">添加自定义提供商</h3>
               <button
-                className="bg-none border-none text-xl text-theme-gray1 cursor-pointer p-1.25 hover:text-theme-white"
+                className="bg-none border-none text-xl text-theme-white cursor-pointer p-1.25 hover:text-theme-white"
                 onClick={() => setShowCustomProviderModal(false)}
               >
                 ×
@@ -446,11 +446,11 @@ const ProviderSettingsPanel = () => {
             </div>
             <form onSubmit={handleCustomProviderSubmit} className="px-5 py-5">
               <div className="mb-3.75">
-                <label htmlFor="provider-name" className="block mb-1.25 text-theme-gray1">提供商名称:</label>
+                <label htmlFor="provider-name" className="block mb-1.25 text-theme-white">提供商名称:</label>
                 <input
                   type="text"
                   id="provider-name"
-                  className="w-full p-2 bg-theme-gray1 text-theme-gray1 border border-theme-gray1 rounded-small box-border focus:outline-none focus:border-theme-green"
+                  className="w-full p-2 bg-theme-gray1 text-theme-white border border-theme-gray1 rounded-small box-border focus:outline-none focus:border-theme-green"
                   value={customProviderName}
                   onChange={(e) => setCustomProviderName(e.target.value)}
                   placeholder="例如: 我的提供商"

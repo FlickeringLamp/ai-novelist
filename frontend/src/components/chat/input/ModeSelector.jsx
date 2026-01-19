@@ -125,7 +125,7 @@ const ModeSelector = () => {
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <span className="text-theme-white text-[14px] font-medium whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">{getDisplayModeName()}</span>
-        <span className="text-theme-gray1 text-[12px] ml-2 transition-transform">{isExpanded ? '▲' : '▶'}</span>
+        <span className="text-theme-white text-[12px] ml-2 transition-transform">{isExpanded ? '▲' : '▶'}</span>
       </div>
 
       {isExpanded && (
@@ -137,7 +137,7 @@ const ModeSelector = () => {
             value={searchText}
             onChange={handleSearchChange}
             onClick={handleSearchClick}
-            className="w-full p-2.5 p-2.5-[12px] bg-transparent border-none border-b border-theme-gray1 text-theme-white text-[14px] outline-none box-border placeholder:text-theme-gray1"
+            className="w-full p-2.5 p-2.5-[12px] bg-transparent border-none border-b border-theme-gray1 text-theme-white text-[14px] outline-none box-border placeholder:text-theme-white"
             autoFocus
           />
           
@@ -150,7 +150,7 @@ const ModeSelector = () => {
                 onClick={() => handleModeSelect(mode.id)}
               >
                 <div className="font-medium text-theme-white text-[14px] mb-0.5">{mode.name}</div>
-                <div className="text-[0.8em] text-theme-gray1">
+                <div className="text-[0.8em] text-theme-white">
                   {mode.type === 'custom' ? '自定义模式' : '内置模式'}
                 </div>
               </div>
@@ -163,17 +163,17 @@ const ModeSelector = () => {
               <button
                 disabled={page === 0}
                 onClick={() => setPage(page - 1)}
-                className="bg-transparent border-none text-theme-white cursor-pointer p-1 p-2.5-[8px] rounded-small transition-all hover:bg-theme-gray1 disabled:text-theme-gray1 disabled:cursor-not-allowed"
+                className="bg-transparent border-none text-theme-white cursor-pointer p-1 p-2.5-[8px] rounded-small transition-all hover:bg-theme-gray1 disabled:text-theme-white disabled:cursor-not-allowed"
               >
                 <FontAwesomeIcon icon={faAngleLeft} />
               </button>
-              <span className="text-[0.8em] text-theme-gray1 mx-3">
+              <span className="text-[0.8em] text-theme-white mx-3">
                 {page + 1} / {totalPages}
               </span>
               <button
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage(page + 1)}
-                className="bg-transparent border-none text-theme-white cursor-pointer p-1 p-2.5-[8px] rounded-small transition-all hover:bg-theme-gray1 disabled:text-theme-gray1 disabled:cursor-not-allowed"
+                className="bg-transparent border-none text-theme-white cursor-pointer p-1 p-2.5-[8px] rounded-small transition-all hover:bg-theme-gray1 disabled:text-theme-white disabled:cursor-not-allowed"
               >
                 <FontAwesomeIcon icon={faAngleRight} />
               </button>
@@ -182,7 +182,7 @@ const ModeSelector = () => {
 
           {/* 搜索结果统计 */}
           {searchText && (
-            <div className="p-2 p-2.5-[12px] text-[0.8em] text-theme-gray1 text-center border-t border-theme-gray1 bg-theme-gray1">
+            <div className="p-2 p-2.5-[12px] text-[0.8em] text-theme-white text-center border-t border-theme-gray1 bg-theme-gray1">
               找到 {filteredModes.length} 个匹配的模式
             </div>
           )}

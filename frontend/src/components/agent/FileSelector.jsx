@@ -104,11 +104,11 @@ const FileSelector = ({ onFileContentAdd }) => {
           {item.isFolder && (
             <FontAwesomeIcon
               icon={expandedFolders[item.id] ? faFolder : faFolder}
-              className="text-theme-gray1 text-[12px]"
+              className="text-theme-white text-[12px]"
             />
           )}
           {!item.isFolder && (
-            <FontAwesomeIcon icon={faFile} className="text-theme-gray1 text-[12px]" />
+            <FontAwesomeIcon icon={faFile} className="text-theme-white text-[12px]" />
           )}
           <span className="text-theme-white text-[12px]">{item.title}</span>
         </div>
@@ -125,29 +125,29 @@ const FileSelector = ({ onFileContentAdd }) => {
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <h4 className="text-theme-white text-[12px] font-medium">选择文件</h4>
-        <button className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-gray1 cursor-pointer text-[12px] hover:text-theme-green transition-colors" onClick={fetchFiles} title="刷新文件列表">
+        <button className="flex items-center justify-center w-6 h-6 bg-transparent border-none text-theme-white cursor-pointer text-[12px] hover:text-theme-green transition-colors" onClick={fetchFiles} title="刷新文件列表">
           <FontAwesomeIcon icon={faSearch} />
         </button>
       </div>
       
       <div className="flex">
         <div className="relative flex-1">
-          <FontAwesomeIcon icon={faSearch} className="absolute left-2 top-1/2 transform -translate-y-1/2 text-theme-gray1 text-[12px]" />
+          <FontAwesomeIcon icon={faSearch} className="absolute left-2 top-1/2 transform -translate-y-1/2 text-theme-white text-[12px]" />
           <input
             type="text"
             placeholder="搜索文件..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-2 py-2 bg-transparent border border-theme-gray1 rounded-small text-theme-white text-[12px] outline-none placeholder:text-theme-gray1"
+            className="w-full pl-8 pr-2 py-2 bg-transparent border border-theme-gray1 rounded-small text-theme-white text-[12px] outline-none placeholder:text-theme-white"
           />
         </div>
       </div>
 
       <div className="max-h-[200px] overflow-y-auto border border-theme-gray1 rounded-small">
         {isLoading ? (
-          <div className="flex items-center justify-center p-4 text-theme-gray1 text-[12px]">加载中...</div>
+          <div className="flex items-center justify-center p-4 text-theme-white text-[12px]">加载中...</div>
         ) : filteredFiles.length === 0 ? (
-          <div className="flex items-center justify-center p-4 text-theme-gray1 text-[12px]">没有找到文件</div>
+          <div className="flex items-center justify-center p-4 text-theme-white text-[12px]">没有找到文件</div>
         ) : (
           renderFileTree(filteredFiles)
         )}

@@ -297,7 +297,7 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
         )}
         <button
           type="submit"
-          className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-gray1 disabled:text-theme-gray1 disabled:cursor-not-allowed"
+          className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-white disabled:text-theme-white disabled:cursor-not-allowed"
           disabled={!message.trim() || disabled}
         >
           <FontAwesomeIcon icon={faPaperPlane} />
