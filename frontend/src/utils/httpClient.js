@@ -14,15 +14,11 @@ const api = {
     const data = await response.json();
     if (!response.ok) {
       // 处理FastAPI的验证错误（422错误）
-      if (Array.isArray(data.detail)) {
-        const errorMessages = data.detail.map(error => {
-          const field = error.loc ? error.loc.join('.') : 'unknown';
-          return `${field}: ${error.msg}`;
-        }).join('; ');
-        throw new Error(errorMessages || '请求参数验证失败');
+      if (response.status === 422) {
+        throw new Error('请求参数验证失败');
       }
       // 处理其他类型的错误，优先使用 detail 字段
-      throw new Error(data.detail || data.error || '请求失败');
+      throw new Error(data.detail || '请求失败');
     }
     return data;
   },

@@ -122,24 +122,38 @@ async def delete_file(file_path: str):
     else:
         os.remove(full_path)
 
-
 async def rename_file(old_path: str, new_name: str):
     """重命名文件或文件夹"""
     full_old_path = Path(settings.NOVEL_DIR) / old_path
     parent_dir = os.path.dirname(full_old_path)
     new_path = os.path.join(parent_dir, new_name)
+    # 检查目标路径是否已存在
+    if os.path.exists(new_path):
+        raise HTTPException(
+            status_code=400,
+            detail=f"目标已存在: {new_path}"
+        )
     os.rename(full_old_path, new_path)
 
 
+# 经测试，copy_file如果出现错误，尤其是“文件/文件夹已存在”时，控制台显示错误，但是并不会被FastAPI正确处理，只会显示TypeError。所以直接在函数内提前验证，及时抛出错误。
+# move_file则可以被捕获错误，但最好统一成copy_file的形式（问题根源可能是shutil的move和copy方法不同）
+
 async def move_file(source_path: str, target_path: str):
     """移动文件或文件夹"""
-    print("前端传入了",source_path,target_path)
     full_source = Path(settings.NOVEL_DIR) / source_path
-    full_target = Path(settings.NOVEL_DIR) / target_path
-    print("完整原路径，",full_source,"  完整目标路径，",full_target)
-    
-    
-    shutil.move(full_source, full_target)
+    full_target_dir = Path(settings.NOVEL_DIR) / target_path
+    source_name = os.path.basename(full_source)
+    full_target_path = os.path.join(full_target_dir, source_name)
+    print("完整来源路径:",full_source,"完整目标路径：",full_target_dir)
+    # 检查目标路径是否已存在
+    if os.path.exists(full_target_path):
+        raise HTTPException(
+            status_code=400,
+            detail=f"目标已存在: {full_target_path}"
+        )
+
+    shutil.move(full_source, full_target_path)
 
 
 async def copy_file(source_path: str, target_path: str):
@@ -151,7 +165,10 @@ async def copy_file(source_path: str, target_path: str):
     print("完整来源路径:",full_source,"完整目标路径：",full_target_dir)
     # 检查目标路径是否已存在
     if os.path.exists(full_target_path):
-        raise FileExistsError(f"目标路径已存在: {full_target_path}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"目标已存在: {full_target_path}"
+        )
 
     if os.path.isdir(full_source):
         shutil.copytree(full_source, full_target_path)

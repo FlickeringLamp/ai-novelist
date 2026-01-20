@@ -1,30 +1,41 @@
 import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGear, faFolder, faFile, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
+import { useDispatch } from 'react-redux';
+import { collapseAll } from '../../store/file.js';
 import ContextMenu from './ContextMenu.jsx';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.js';
-import renderChapterTree from './TreeRender.jsx';
-import { useDispatch, useSelector } from 'react-redux'
-import { addTab, setActiveTab } from '../../store/file_editor.js';
+import ChapterTreeItem from './TreeRender.jsx';
 
 
 function ChapterTreePanel() {
-  //@ts-ignore
-  const tab = useSelector((state)=>state.file_editor.tabId)
-  //@ts-ignore
-  const activeTabId = useSelector((state)=>state.file_editor.activeTabId)
-  const dispatch = useDispatch()
-  //@ts-ignore
+  const dispatch = useDispatch();
   const [chapters, setChapters] = useState([]); // 整个章节列表
+  //@ts-ignore
+  /*
+   * 以下是两个item状态的思路
+   * 首先，文件操作分为三类：
+   * 1. 一个对象的操作，比如新建，删除，重命名
+   * 2. 需要两个对象的操作，比如复制粘贴，剪切粘贴
+   * 3. 特殊状态：选中，这个状态主要出现在右键项目后，具体操作完成前，用于强调被选中的文件，呈现更加醒目的视觉效果
+   * 单对象操作，只用selectedItem即可，两对象操作，需要读取lastSelectedItem和selectedItem的状态
+  */
+  const [selectedItem, setSelectedItem] = useState({
+    state: null, // 'selected' | 'renaming' | null
+    id: null,
+    isFolder: false,
+    itemTitle: null,
+    itemParentPath: null
+  });
   const [lastSelectedItem, setLastSelectedItem] = useState({
     state: null, // 'copying' | 'cutting' | null
     id: null,
     isFolder: false,
     itemTitle: null,
     itemParentPath: null
-  }); // 保存复制/剪切的源项目信息
-  const [collapsedChapters, setCollapsedChapters] = useState({}); // 管理文件夹展开/折叠状态，不存在或false应该为关闭
+  });
+  // 消息模态框状态
   const [modal, setModal] = useState({
     show: false,
     message: '',
@@ -35,14 +46,6 @@ function ChapterTreePanel() {
     show: false,
     x: 0,
     y: 0
-  });
-  // 选中的项目状态
-  const [selectedItem, setSelectedItem] = useState({
-    state: null, // 'selected' | 'copying' | 'cutting' | 'renaming' | null
-    id: null,
-    isFolder: false,
-    itemTitle: null,
-    itemParentPath: null
   });
 
   // 获取章节列表
@@ -59,7 +62,8 @@ function ChapterTreePanel() {
   useEffect(() => {
     fetchChapters();
   }, []);
-  // 用来调出，关闭右键菜单的函数。
+
+
   const handleContextMenu = (event, itemId, isFolder, itemTitle, itemParentPath) => {
     event.preventDefault();
     setSelectedItem({
@@ -84,19 +88,11 @@ function ChapterTreePanel() {
   };
 
 
-  // 确认删除
   const handleConfirmDelete = async () => {
     try {
       setModal({ show: false, message: "", onConfirm: null });
-      await httpClient.delete(`/api/file/delete/${selectedItem.id}`);
-      setSelectedItem({
-        state: null,
-        id: null,
-        isFolder: false,
-        itemTitle: null,
-        itemParentPath: null
-      });
       handleCloseContextMenu();
+      await httpClient.delete(`/api/file/delete/${selectedItem.id}`);
       await fetchChapters();
     } catch (error) {
       setModal({show: false, message: "", onConfirm: null })
@@ -116,12 +112,22 @@ function ChapterTreePanel() {
   // 统一的新建函数
   const handleCreateItem = async (isFolder, parentPath = '') => {
     try {
-      await httpClient.post('/api/file/items', {
+      const result = await httpClient.post('/api/file/items', {
         parent_path: parentPath,
         is_folder: isFolder
       });
       handleCloseContextMenu();
       await fetchChapters();
+      // 自动进入重命名状态
+      if (result && result.id) {
+        setSelectedItem({
+          state: 'renaming',
+          id: result.id,
+          isFolder: isFolder,
+          itemTitle: result.title,
+          itemParentPath: parentPath
+        });
+      }
     } catch (error) {
       console.error('创建失败:', error);
       setModal({ show: true, message: error.toString(), onConfirm: null });
@@ -157,58 +163,18 @@ function ChapterTreePanel() {
     }
   };
   const handleRenameItem = () => {
-    const newItemName = prompt('请输入新名称:', selectedItem.itemTitle);
-    if (newItemName && newItemName !== selectedItem.itemTitle) {
-      const oldPath = selectedItem.id;
-      const newPath = selectedItem.itemParentPath
-        ? `${selectedItem.itemParentPath}/${newItemName}`
-        : newItemName;
-
-      httpClient.post('/api/file/move', {
-        source_path: oldPath,
-        target_path: newPath
-      }).then(() => {
-        setSelectedItem({
-          state: null,
-          id: null,
-          isFolder: false,
-          itemTitle: null,
-          itemParentPath: null
-        });
-        handleCloseContextMenu();
-        fetchChapters();
-      }).catch(error => {
-        console.error('重命名失败:', error);
-        setModal({ show: true, message: error.toString(), onConfirm: null });
-      });
-    } else {
-      // 用户取消重命名或输入相同名称时，清除选中状态
-      setSelectedItem({
-        state: null,
-        id: null,
-        isFolder: false,
-        itemTitle: null,
-        itemParentPath: null
-      });
-      handleCloseContextMenu();
-    }
+    // 设置为重命名状态，TreeRender组件会显示输入框
+    setSelectedItem({
+      state: 'renaming',
+      id: selectedItem.id,
+      isFolder: selectedItem.isFolder,
+      itemTitle: selectedItem.itemTitle,
+      itemParentPath: selectedItem.itemParentPath
+    });
+    handleCloseContextMenu();
   };
-  const handleChapterClick = (fileId) => {
-    dispatch(addTab(fileId.id));
-    dispatch(setActiveTab(fileId.id))
-    console.log("当前总标签页：",tab,"，当前活跃标签页：",activeTabId)
-  }
 
-  const handleToggleCollapse = (itemId) => {
-    setCollapsedChapters(prev => ({
-      ...prev,
-      [itemId]: !prev[itemId]
-    }));
-  }
 
-  const handleCollapseAll = () => {
-    setCollapsedChapters({});
-  }
 
   // 按钮样式
   const commonBtnStyle = "text-theme-white border border-theme-gray1 p-2 rounded-small cursor-pointer text-base flex items-center gap-1 hover:border-theme-green hover:text-theme-green";
@@ -223,7 +189,7 @@ function ChapterTreePanel() {
         <button className={commonBtnStyle} onClick={() => handleCreateItem(true)} title="新建文件夹">
           <FontAwesomeIcon icon={faFolder} />
         </button>
-        <button className={commonBtnStyle} onClick={handleCollapseAll} title="折叠所有">
+        <button className={commonBtnStyle} onClick={() => dispatch(collapseAll())} title="折叠所有">
           <FontAwesomeIcon icon={faFolderOpen} />
         </button>
       </div>
@@ -234,13 +200,22 @@ function ChapterTreePanel() {
             <p className="p-2.5 text-center text-theme-green">暂无文件</p>
           ) : (
             <ul className="list-none p-0 m-0">
-              {renderChapterTree(chapters, 0, {
-                handleContextMenu,
-                handleChapterClick,
-                handleToggleCollapse,
-                collapsedChapters,
-                selectedItem
-              })}
+              {chapters.map(item => (
+                <ChapterTreeItem
+                  key={item.id}
+                  item={item}
+                  level={0}
+                  props={{
+                    handleContextMenu,
+                    selectedItem,
+                    lastSelectedItem,
+                    setSelectedItem,
+                    fetchChapters,
+                    modal,
+                    setModal
+                  }}
+                />
+              ))}
             </ul>
           )}
         </div>

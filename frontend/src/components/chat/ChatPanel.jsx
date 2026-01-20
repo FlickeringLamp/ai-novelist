@@ -6,6 +6,8 @@ import MessageInput from './input/MessageInput'
 import MessageDisplay from './messagedisplay/MessageDisplay'
 import AutoApproveConfig from './input/AutoApproveConfig'
 import httpClient from '../../utils/httpClient.js'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFileLines, faPlus } from '@fortawesome/free-solid-svg-icons';
 
 // 处理流式响应的辅助函数
 const handleStreamResponse = (response) => {
@@ -748,25 +750,23 @@ const handleAutoApproveSettingsChange = (newSettings) => {
 
 return(
   <div className="flex flex-col h-full">
-    <div className="flex justify-between items-center p-2.5 border-b border-theme-gray1 gap-2">
-      <div className="flex gap-2">
-        <ChatHistoryPanel onLoadHistory={handleLoadHistory} />
-        <ModelSelectorPanel />
-        <button
-          className="bg-theme-green text-theme-white rounded-full w-[30px] h-[30px] text-lg font-bold flex items-center justify-center hover:bg-theme-gray1 disabled:bg-theme-gray1 disabled:cursor-not-allowed disabled:opacity-60"
-          onClick={handleSummarizeConversation}
-          disabled={isLoading}
-          title="总结对话"
-        >
-          📝
-        </button>
-      </div>
+    <div className="flex justify-center items-center p-2.5 border-b border-theme-gray1 gap-10">
+      <ChatHistoryPanel onLoadHistory={handleLoadHistory} />
+      <ModelSelectorPanel />
+      <button
+        className="bg-theme-black text-theme-white rounded-full w-[30px] h-[30px] text-lg font-bold flex items-center justify-center hover:text-theme-green disabled:bg-theme-gray1 disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={handleSummarizeConversation}
+        disabled={isLoading}
+        title="总结对话"
+      >
+        <FontAwesomeIcon icon={faFileLines} />
+      </button>
       <button
         className="bg-theme-black text-theme-white rounded-full w-[30px] h-[30px] text-lg font-bold flex items-center justify-center hover:bg-theme-green"
         onClick={handleCreateNewThread}
         title="创建新会话"
       >
-        ×
+        <FontAwesomeIcon icon={faPlus} />
       </button>
     </div>
     

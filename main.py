@@ -114,7 +114,7 @@ async def global_exception_handler(request, exc):
     """全局异常处理器"""
     return JSONResponse(
         status_code=500,
-        content=str(exc)
+        content={"detail": str(exc)}
     )
 
 @app.exception_handler(HTTPException)
@@ -122,7 +122,7 @@ async def http_exception_handler(request, exc):
     """HTTP异常处理器"""
     return JSONResponse(
         status_code=exc.status_code,
-        content=exc.detail
+        content={"detail": str(exc.detail)}
     )
 
 
