@@ -16,7 +16,7 @@ const UnifiedModal = ({
     confirmButtonRef.current?.focus();
   }, []);
 
-  // 处理键盘事件（使用 document.addEventListener 在捕获阶段拦截）
+  // 处理键盘事件（只在 modal 显示时监听）
   useEffect(() => {
     const handleKeyDown = (event) => {
       // 支持左右箭头切换焦点

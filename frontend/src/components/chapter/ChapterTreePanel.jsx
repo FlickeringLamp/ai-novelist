@@ -63,6 +63,12 @@ function ChapterTreePanel() {
     fetchChapters();
   }, []);
 
+  // 看看每次的数据长啥样
+  useEffect(()=>{
+    console.log("选中的项目信息",selectedItem)
+    console.log("上一个被选中的项目信息",lastSelectedItem)
+  },[selectedItem,lastSelectedItem])
+
 
   const handleContextMenu = (event, itemId, isFolder, itemTitle, itemParentPath) => {
     event.preventDefault();
@@ -85,28 +91,6 @@ function ChapterTreePanel() {
       x: 0,
       y: 0
     })
-  };
-
-
-  const handleConfirmDelete = async () => {
-    try {
-      setModal({ show: false, message: "", onConfirm: null });
-      handleCloseContextMenu();
-      await httpClient.delete(`/api/file/delete/${selectedItem.id}`);
-      await fetchChapters();
-    } catch (error) {
-      setModal({show: false, message: "", onConfirm: null })
-      console.error('删除失败:', error);
-      setModal({ show: true, message: error.toString(), onConfirm: null });
-    }
-  };
-  // 文件操作处理函数
-  const handleDeleteItem = async (itemId) => {
-    setModal({
-      show: true,
-      message: `确定要删除 "${itemId}" 吗？`,
-      onConfirm: handleConfirmDelete
-    });
   };
 
   // 统一的新建函数
@@ -132,46 +116,6 @@ function ChapterTreePanel() {
       console.error('创建失败:', error);
       setModal({ show: true, message: error.toString(), onConfirm: null });
     }
-  };
-  const handlePaste = async (targetFolderId) => {
-    if (!lastSelectedItem.state) return;
-
-    try {
-      if (lastSelectedItem.state === 'cutting') {
-        await httpClient.post('/api/file/move', {
-          source_path: lastSelectedItem.id,
-          target_path: targetFolderId
-        });
-      } else if (lastSelectedItem.state === 'copying') {
-        await httpClient.post('/api/file/copy', {
-          source_path: lastSelectedItem.id,
-          target_path: targetFolderId
-        });
-      }
-      setLastSelectedItem({
-        state: null,
-        id: null,
-        isFolder: false,
-        itemTitle: null,
-        itemParentPath: null
-      });
-      handleCloseContextMenu();
-      await fetchChapters();
-    } catch (error) {
-      console.error('粘贴失败:', error);
-      setModal({ show: true, message: error.toString(), onConfirm: null });
-    }
-  };
-  const handleRenameItem = () => {
-    // 设置为重命名状态，TreeRender组件会显示输入框
-    setSelectedItem({
-      state: 'renaming',
-      id: selectedItem.id,
-      isFolder: selectedItem.isFolder,
-      itemTitle: selectedItem.itemTitle,
-      itemParentPath: selectedItem.itemParentPath
-    });
-    handleCloseContextMenu();
   };
 
 
@@ -211,7 +155,6 @@ function ChapterTreePanel() {
                     lastSelectedItem,
                     setSelectedItem,
                     fetchChapters,
-                    modal,
                     setModal
                   }}
                 />
@@ -229,9 +172,8 @@ function ChapterTreePanel() {
         setLastSelectedItem={setLastSelectedItem}
         handleCloseContextMenu={handleCloseContextMenu}
         handleCreateItem={handleCreateItem}
-        handleDeleteItem={handleDeleteItem}
-        handlePaste={handlePaste}
-        handleRenameItem={handleRenameItem}
+        fetchChapters={fetchChapters}
+        setModal={setModal}
       />
 
       {/* 设置按钮区域 */}

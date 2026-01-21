@@ -447,3 +447,4 @@ def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> s
             return f"【工具结果】：应用差异失败: {str(e)} ;**【用户信息】：{choice_data}**"
     else:
         return f"【工具结果】：用户取消了工具 ;**【用户信息】：{choice_data}**"
+

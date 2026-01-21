@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
-import getDisplayName from '../../utils/getDisplayName';
+import DisplayNameHelper from '../../utils/DisplayNameHelper';
 import { useDispatch, useSelector } from 'react-redux'
 import { addTab, setActiveTab } from '../../store/file_editor.js';
 import { toggleCollapse } from '../../store/file.js';
@@ -24,7 +24,6 @@ function ChapterTreeItem({ item, level, props }) {
     lastSelectedItem,
     setSelectedItem,
     fetchChapters,
-    modal,
     setModal
   } = props;
 
@@ -32,7 +31,7 @@ function ChapterTreeItem({ item, level, props }) {
   const itemTitle = item.title || '';
   const isFolder = item.isFolder || item.type === 'folder';
   const hasChildren = item.children && item.children.length > 0;
-  const displayName = getDisplayName(itemTitle, isFolder);
+  const displayName = new DisplayNameHelper(itemTitle, isFolder).removeSuffix().getValue();
 
   const inputRef = useRef(null);
   const [editingValue, setEditingValue] = useState('');
@@ -40,9 +39,7 @@ function ChapterTreeItem({ item, level, props }) {
   // 进入编辑模式时，自动聚焦并选中输入框
   useEffect(() => {
     if (selectedItem.state === 'renaming' && selectedItem.id === itemId) {
-      // 只有文件才移除 .md 后缀作为编辑值
-      const nameWithoutExt = (!isFolder && itemTitle.endsWith('.md')) ? itemTitle.slice(0, -3) : itemTitle;
-      setEditingValue(nameWithoutExt);
+      setEditingValue(displayName);
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
@@ -50,7 +47,7 @@ function ChapterTreeItem({ item, level, props }) {
         }
       }, 0);
     }
-  }, [selectedItem.state, selectedItem.id, itemId, itemTitle, isFolder]);
+  }, [selectedItem]);
 
   const handleSaveRename = async () => {
     if (editingValue && editingValue.trim() !== '') {

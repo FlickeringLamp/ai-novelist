@@ -24,7 +24,7 @@
 :root {
   /* 基础颜色 - 默认值 */
   --color-black: #000000;    /* 纯黑：底色，用于面 */
-  --color-green: #00AD62;    /* 绿色：普通状态，用于小件 */
+  --color-green: #34eb5c;    /* 绿色：普通状态，用于小件 */
   --color-white: #FFFFFF;    /* 纯白色：普通状态，多用于字体 */
   --color-gray1: #111111;    /* 焦浓重淡清 */
   --color-gray2: #333333;
@@ -67,26 +67,3 @@ code {
 h1, h2 {
   color: var(--color-white);
 }
-
-/* ===== 自定义滚动条样式 ===== */
-@layer utilities {
-  .scrollbar-custom::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .scrollbar-custom::-webkit-scrollbar-track {
-    background: var(--color-black);
-    border-radius: 10px;
-  }
-
-  .scrollbar-custom::-webkit-scrollbar-thumb {
-    background: var(--color-gray);
-    border-radius: 10px;
-  }
-
-  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
-    background: var(--color-green);
-  }
-}
-

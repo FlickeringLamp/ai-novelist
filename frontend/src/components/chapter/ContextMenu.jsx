@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import httpClient from '../../utils/httpClient.js';
 
 function ContextMenu({
   contextMenu,
@@ -8,9 +9,8 @@ function ContextMenu({
   setLastSelectedItem,
   handleCloseContextMenu,
   handleCreateItem,
-  handleDeleteItem,
-  handlePaste,
-  handleRenameItem
+  fetchChapters,
+  setModal
 }) {
   const menuRef = useRef(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -116,6 +116,69 @@ function ContextMenu({
       }
     }
   }, [contextMenu.show, contextMenu.y]);
+
+  const handleRenameItem = () => {
+    // 设置为重命名状态，TreeRender组件会显示输入框
+    setSelectedItem({
+      state: 'renaming',
+      id: selectedItem.id,
+      isFolder: selectedItem.isFolder,
+      itemTitle: selectedItem.itemTitle,
+      itemParentPath: selectedItem.itemParentPath
+    });
+    handleCloseContextMenu();
+  };
+
+  const handlePaste = async (targetFolderId) => {
+    if (!lastSelectedItem.state) return;
+
+    try {
+      if (lastSelectedItem.state === 'cutting') {
+        await httpClient.post('/api/file/move', {
+          source_path: lastSelectedItem.id,
+          target_path: targetFolderId
+        });
+      } else if (lastSelectedItem.state === 'copying') {
+        await httpClient.post('/api/file/copy', {
+          source_path: lastSelectedItem.id,
+          target_path: targetFolderId
+        });
+      }
+      setLastSelectedItem({
+        state: null,
+        id: null,
+        isFolder: false,
+        itemTitle: null,
+        itemParentPath: null
+      });
+      handleCloseContextMenu();
+      await fetchChapters();
+    } catch (error) {
+      console.error('粘贴失败:', error);
+      setModal({ show: true, message: error.toString(), onConfirm: null });
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      setModal({ show: false, message: "", onConfirm: null });
+      handleCloseContextMenu();
+      await httpClient.delete(`/api/file/delete/${selectedItem.id}`);
+      await fetchChapters();
+    } catch (error) {
+      setModal({show: false, message: "", onConfirm: null })
+      console.error('删除失败:', error);
+      setModal({ show: true, message: error.toString(), onConfirm: null });
+    }
+  };
+
+  const handleDeleteItem = async (itemId) => {
+    setModal({
+      show: true,
+      message: `确定要删除 "${itemId}" 吗？`,
+      onConfirm: handleConfirmDelete
+    });
+  };
 
   if (!contextMenu.show) return null;
 

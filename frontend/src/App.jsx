@@ -1,3 +1,4 @@
+import './App.css';
 import { ThemeProvider } from './context/ThemeContext';
 import LayoutComponent from './components/LayoutComponent';
 import EditorPanel from './components/editor/EditorPanel';
