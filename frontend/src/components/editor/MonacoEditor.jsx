@@ -2,6 +2,8 @@ import React, { forwardRef, useRef, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import loader from '@monaco-editor/loader';
 import { useTheme } from '../../context/ThemeContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateTabContent } from '../../store/editor';
 
 
 // 配置 Monaco Editor 使用本地资源
@@ -32,6 +34,7 @@ const defineTheme = (monaco, themeColors) => {
       'editorCursor.foreground': themeColors.green, // 光标颜色
       'editor.lineHighlightBackground': themeColors.gray2, // 当前行高亮色
       'editorLineNumber.foreground': themeColors.gray5, // 行号颜色
+      'editorLineNumber.activeForeground': themeColors.green, // 选中行行号颜色
       'editor.selectionBackground': themeColors.green + '85', // 选中背景（添加透明度）
       'editor.inactiveSelectionBackground': themeColors.gray3, // 非活动窗口选中文本背景色
     }
@@ -40,10 +43,16 @@ const defineTheme = (monaco, themeColors) => {
 // 基础 Monaco 编辑器组件
 const MonacoEditor = forwardRef((props, ref) => {
   // @ts-ignore
-  const { value = '', onChange, onInstanceReady = null } = props;
+  const { onChange, onInstanceReady = null } = props;
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
   const { theme } = useTheme();
+  const dispatch = useDispatch();
+  
+  // @ts-ignore
+  const tabs = useSelector((state) => state.editor.tabs);
+  const activeTab = tabs.find(tab => tab.isActived);
+  const value = activeTab?.content || '';
 
   // 编辑器挂载处理，在挂载后执行
   const handleEditorDidMount = (editor, monaco) => {
@@ -51,12 +60,20 @@ const MonacoEditor = forwardRef((props, ref) => {
     defineTheme(monaco, theme);
     // 应用主题
     monaco.editor.setTheme('theme-green');
-    // 保存实例到ref,方便供 “传递给Editor的回调函数”外 的函数访问
+    // 保存实例到ref,方便供 "传递给Editor的回调函数"外 的函数访问
     monacoRef.current = monaco;
     // 如果有实例初始化完毕回调，调用回调
     if (onInstanceReady) {
       onInstanceReady(editor);
     }
+  };
+
+  // 处理编辑器内容变化
+  const handleEditorChange = (newValue) => {
+    if (activeTab) {
+      dispatch(updateTabContent({ id: activeTab.id, content: newValue || '' }));
+    }
+    onChange(newValue);
   };
 
   // 监听主题变化并更新编辑器主题
@@ -110,7 +127,7 @@ const MonacoEditor = forwardRef((props, ref) => {
         }}
         theme="theme-green"
         value={value}
-        onChange={onChange}
+        onChange={handleEditorChange}
         onMount={(editor, monaco) => {
           editorRef.current = editor;
           handleEditorDidMount(editor, monaco);

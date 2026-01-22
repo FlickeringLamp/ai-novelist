@@ -1,14 +1,12 @@
 import DisplayNameHelper from "../../utils/DisplayNameHelper";
 import { useSelector, useDispatch } from 'react-redux';
-import { setActiveTab, decreaseTab } from "../../store/file_editor";
+import { exchangeActiveTab, decreaseTab, addActiveTab } from "../../store/editor";
 import { useRef, useEffect } from 'react';
 
 // 标签栏组件
 const TabBar = () => {
   //@ts-ignore
-  const openTabs = useSelector((state)=>state.file_editor.tabId)
-  //@ts-ignore
-  const activeTabs = useSelector((state)=>state.file_editor.activeTabId)
+  const tabs = useSelector((state)=>state.editor.tabs)
   const dispatch = useDispatch()
   const scrollContainerRef = useRef(null);
 
@@ -36,18 +34,26 @@ const TabBar = () => {
         ref={scrollContainerRef}
         className="flex overflow-x-auto border-b border-theme-gray3 h-[60%]"
       >
-        {openTabs.map(tab => (
+        {tabs.map(tab => (
           <div
-            key={tab}
-            className={`px-3 cursor-pointer transition-all border-r border-theme-gray3 whitespace-nowrap flex items-center gap-2 ${activeTabs.includes(tab) ? 'bg-theme-gray2 text-theme-green border-t-1 border-t-theme-green' : 'text-theme-white hover:bg-theme-gray2'}`}
-            onClick={() => dispatch(setActiveTab(tab))}
+            key={tab.id}
+            className={`px-3 cursor-pointer transition-all border-r border-theme-gray3 whitespace-nowrap flex items-center gap-2 ${tab.isActived ? 'bg-theme-gray2 text-theme-green border-t-1 border-t-theme-green' : 'text-theme-white hover:bg-theme-gray2'}`}
+            onClick={() => {
+              const activeTab = tabs.find(t => t.isActived);
+              
+              if (!activeTab) {
+                dispatch(addActiveTab(tab.id));
+              } else if (activeTab.id !== tab.id) {
+                dispatch(exchangeActiveTab([activeTab.id, tab.id]));
+              }
+            }}
           >
-            {new DisplayNameHelper(tab).getLastDisplayName().removeSuffix().getValue()}
+            {new DisplayNameHelper(tab.id).getLastDisplayName().removeSuffix().getValue()}
             <button
               className="hover:bg-theme-gray3 rounded px-1 text-xs"
               onClick={(e) => {
                 e.stopPropagation();
-                dispatch(decreaseTab(tab));
+                dispatch(decreaseTab(tab.id));
               }}
             >
               ×
@@ -58,7 +64,10 @@ const TabBar = () => {
       <div
         className="text-sm text-theme-gray5 whitespace-nowrap px-3"
       >
-        {new DisplayNameHelper(activeTabs).removeSuffix().getValue()}
+        {(() => {
+          const activeTab = tabs.find(tab => tab.isActived);
+          return activeTab ? new DisplayNameHelper(activeTab.id).removeSuffix().getValue() : '';
+        })()}
       </div>
     </div>
   )

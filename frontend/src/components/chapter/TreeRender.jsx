@@ -2,7 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
 import DisplayNameHelper from '../../utils/DisplayNameHelper';
 import { useDispatch, useSelector } from 'react-redux'
-import { addTab, setActiveTab } from '../../store/file_editor.js';
+import { addTab, exchangeActiveTab, addActiveTab } from '../../store/editor.js';
 import { toggleCollapse } from '../../store/file.js';
 import { useEffect, useRef, useState } from 'react';
 import httpClient from '../../utils/httpClient.js';
@@ -12,9 +12,7 @@ import httpClient from '../../utils/httpClient.js';
 function ChapterTreeItem({ item, level, props }) {
   const dispatch = useDispatch();
   //@ts-ignore
-  const tab = useSelector((state) => state.file_editor.tabId);
-  //@ts-ignore
-  const activeTabId = useSelector((state) => state.file_editor.activeTabId);
+  const tabs = useSelector((state) => state.editor.tabs);
   //@ts-ignore
   const collapsedChapters = useSelector((state) => state.file.collapsedChapters);
 
@@ -114,10 +112,22 @@ function ChapterTreeItem({ item, level, props }) {
     dispatch(toggleCollapse(itemId));
   };
 
-  const handleChapterClick = (item) => {
-    dispatch(addTab(item.id));
-    dispatch(setActiveTab(item.id));
-    console.log("当前总标签页：", tab, "，当前活跃标签页：", activeTabId);
+  const handleChapterClick = async (item) => {
+    try {
+      const response = await httpClient.get(`/api/file/read/${item.id}`);
+      // @ts-ignore
+      dispatch(addTab({ id: response.id, content: response.content }));
+      const activeTab = tabs.find(t => t.isActived);
+      
+      if (!activeTab) {
+        dispatch(addActiveTab(item.id));
+      } else if (activeTab.id !== item.id) {
+        dispatch(exchangeActiveTab([activeTab.id, item.id]));
+      }
+      console.log("当前总标签页：", tabs, "，当前活跃标签页：", tabs.find(t => t.isActived));
+    } catch (error) {
+      console.error('获取文件内容失败:', error);
+    }
   };
 
   return (
