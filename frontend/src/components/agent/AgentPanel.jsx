@@ -570,19 +570,19 @@ const AgentPanel = ({ isOpen = true, onClose }) => {
       {showDeleteConfirm && (
         <UnifiedModal
           message={`确定要删除自定义模式 "${selectedModeDetail.name}" 吗？此操作不可撤销。`}
-          showCancelButton={true}
-          confirmText="确定"
-          cancelText="取消"
-          onConfirm={handleDeleteCustomModeUI}
-          onCancel={() => setShowDeleteConfirm(false)}
+          buttons={[
+            { text: '确定', onClick: handleDeleteCustomModeUI, className: 'bg-theme-green' },
+            { text: '取消', onClick: () => setShowDeleteConfirm(false), className: 'bg-theme-gray3' }
+          ]}
         />
       )}
       {/* 通知模态框 */}
       {notification.isOpen && (
         <UnifiedModal
           message={notification.message}
-          onConfirm={handleNotificationClose}
-          onCancel={handleNotificationClose}
+          buttons={[
+            { text: '确定', onClick: handleNotificationClose, className: 'bg-theme-green' }
+          ]}
         />
       )}
     </div>

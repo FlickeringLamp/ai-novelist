@@ -5,7 +5,7 @@ import fileReducer from './file.js'
 
 export const store = configureStore({
   reducer: {
-    editor: tabReducer,
-    file: fileReducer
+    tabSlice: tabReducer,
+    fileSlice: fileReducer
   },
 })

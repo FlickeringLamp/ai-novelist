@@ -2,7 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
 import DisplayNameHelper from '../../utils/DisplayNameHelper';
 import { useDispatch, useSelector } from 'react-redux'
-import { addTab, exchangeActiveTab, addActiveTab } from '../../store/editor.js';
+import { addTab, exchangeActiveTab, addActiveTab, updateTabId } from '../../store/editor.js';
 import { toggleCollapse } from '../../store/file.js';
 import { useEffect, useRef, useState } from 'react';
 import httpClient from '../../utils/httpClient.js';
@@ -12,9 +12,9 @@ import httpClient from '../../utils/httpClient.js';
 function ChapterTreeItem({ item, level, props }) {
   const dispatch = useDispatch();
   //@ts-ignore
-  const tabs = useSelector((state) => state.editor.tabs);
+  const tabs = useSelector((state) => state.tabSlice.tabsA);
   //@ts-ignore
-  const collapsedChapters = useSelector((state) => state.file.collapsedChapters);
+  const collapsedChapters = useSelector((state) => state.fileSlice.collapsedChapters);
 
   const {
     handleContextMenu,
@@ -68,6 +68,11 @@ function ChapterTreeItem({ item, level, props }) {
           old_path: itemId,
           new_name: finalName
         });
+        // 计算新的文件路径
+        const parentPath = itemId.includes('/') ? itemId.substring(0, itemId.lastIndexOf('/')) : '';
+        const newId = parentPath ? `${parentPath}/${finalName}` : finalName;
+        // 更新标签栏中的标签id（如果该文件在标签栏中打开）
+        dispatch(updateTabId({ oldId: itemId, newId: newId }));
         // 重置选中状态
         setSelectedItem({
           state: null,

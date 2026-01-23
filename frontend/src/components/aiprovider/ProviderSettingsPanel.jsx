@@ -426,8 +426,9 @@ const ProviderSettingsPanel = () => {
       {showNotification && (
         <UnifiedModal
           message={notificationMessage}
-          onConfirm={() => setShowNotification(false)}
-          onCancel={() => setShowNotification(false)}
+          buttons={[
+            { text: '确定', onClick: () => setShowNotification(false), className: 'bg-theme-green' }
+          ]}
         />
       )}
 
@@ -474,9 +475,10 @@ const ProviderSettingsPanel = () => {
       {showDeleteConfirmModal && (
         <UnifiedModal
           message={`确定要删除提供商 "${providerToDelete}" 吗？此操作不可撤销。`}
-          showCancelButton={true}
-          onConfirm={confirmDeleteProvider}
-          onCancel={cancelDeleteProvider}
+          buttons={[
+            { text: '确定', onClick: confirmDeleteProvider, className: 'bg-theme-green' },
+            { text: '取消', onClick: cancelDeleteProvider, className: 'bg-theme-gray3' }
+          ]}
         />
       )}
     </div>

@@ -19,18 +19,27 @@
 }
 
 /* 定义上下飘动动画 */
-@keyframes float {
+@keyframes float1 {
   0%, 100% {
-    transform: translateY(0);
+    transform: translateY(0.25vw);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(-0.25vw);
+  }
+}
+/* 反向飘动 */
+@keyframes float2 {
+  0%, 100% {
+    transform: translateY(-0.25vw);
+  }
+  50% {
+    transform: translateY(0.25vw);
   }
 }
 
 /* 应用动画 */
 .auto-rotate1 {
-  animation: rotate 20s linear infinite;
+  animation: rotate 40s linear infinite;
   transform-origin: center;
 }
 
@@ -40,7 +49,7 @@
 }
 
 .auto-rotate3 {
-  animation: rotate-reverse 10s linear infinite;
+  animation: rotate-reverse 20s linear infinite;
   transform-origin: center;
 }
 
@@ -49,7 +58,12 @@
   transform-origin:center ;
 }
 
-.float-animation {
-  animation: float 3300ms ease-in-out infinite;
+.float-animation1 {
+  animation: float1 6600ms ease-in-out infinite;
+  transform-origin: center;
+}
+
+.float-animation2{
+  animation: float2 6600ms ease-in-out infinite;
   transform-origin: center;
 }

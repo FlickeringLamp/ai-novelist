@@ -10,18 +10,24 @@ const EditorLogo = () => {
         <div className="relative flex items-center justify-center auto-rotate1">
           <FontAwesomeIcon
             icon={faHexagon}
-            className='text-[300px] text-theme-green'
+            className='text-[15vw] text-theme-green'
           />
             <div className="absolute inset-0 flex items-center justify-center auto-rotate3">
               <FontAwesomeIcon
                 icon={faHexagon}
-                className='text-[299px] text-theme-gray1'
+                className='text-[14.9vw] text-theme-gray1'
               />
               <div className="absolute inset-0 flex items-center justify-center auto-rotate1">
                 <FontAwesomeIcon
                   icon={faFire}
-                  className="text-[150px] text-theme-green float-animation"
+                  className="text-[6.5vw] text-theme-green float-animation1"
                 />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <FontAwesomeIcon
+                    icon={faFire}
+                    className="text-[6.3vw] text-theme-gray1 float-animation2"
+                  />
+                </div>
               </div>
             </div>
         </div>

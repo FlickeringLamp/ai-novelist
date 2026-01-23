@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import TabBar from './TabBar.jsx';
 import MonacoEditor from './MonacoEditor.jsx';
@@ -8,16 +8,28 @@ import EditorLogo from './EditorLogo.jsx';
 // 主编辑器面板组件
 function EditorPanel() {
   const [charCount, setCharCount] = useState(0);
-  // @ts-ignore
-  const tabs = useSelector((state) => state.editor.tabs);
+  //@ts-ignore
+  const tabs = useSelector((state) => state.tabSlice.tabsA);
   const activeTab = tabs.find(tab => tab.isActived);
   const hasActiveTab = !!activeTab;
 
   const handleEditorChange = (value) => {
     if (value !== undefined) {
-      setCharCount(value.length);
+      // 过滤掉所有空白字符（空格、换行符、制表符等）
+      const nonWhitespaceCount = value.replace(/\s/g, '').length;
+      setCharCount(nonWhitespaceCount);
     }
   };
+
+  // 当activeTab变化时，重新计算字数
+  useEffect(() => {
+    if (activeTab && activeTab.content !== undefined) {
+      const nonWhitespaceCount = activeTab.content.replace(/\s/g, '').length;
+      setCharCount(nonWhitespaceCount);
+    } else {
+      setCharCount(0);
+    }
+  }, [activeTab]);
 
   return (
     <div
@@ -38,9 +50,11 @@ function EditorPanel() {
           <EditorLogo />
         )}
       </div>
-      <div className='h-[2%]'>
-        <StatusBar charCount={charCount}/>
-      </div>
+      {hasActiveTab && (
+        <div className='h-[2%]'>
+          <StatusBar charCount={charCount}/>
+        </div>
+      )}
     </div>
   );
 }

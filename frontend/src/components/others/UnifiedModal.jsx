@@ -1,41 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-const UnifiedModal = ({
-  message,
-  confirmText = '确定',
-  cancelText = '取消',
-  onConfirm,
-  onCancel
-}) => {
-  const confirmButtonRef = useRef(null);
-  const cancelButtonRef = useRef(null);
-  const [focusedButton, setFocusedButton] = useState('confirm');
+const UnifiedModal = ({ message, buttons }) => {
+  const buttonRefs = useRef([]);
+  const [focusedButtonIndex, setFocusedButtonIndex] = useState(0);
 
   // 初始焦点设置
   useEffect(() => {
-    confirmButtonRef.current?.focus();
+    buttonRefs.current[0]?.focus();
   }, []);
 
-  // 处理键盘事件（只在 modal 显示时监听）
+  // 处理键盘事件
   useEffect(() => {
     const handleKeyDown = (event) => {
       // 支持左右箭头切换焦点
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      if (event.key === 'ArrowLeft') {
         event.preventDefault();
         event.stopPropagation();
-        setFocusedButton((prev) => (prev === 'confirm' ? 'cancel' : 'confirm'));
+        setFocusedButtonIndex((prev) => (prev === 0 ? buttons.length - 1 : prev - 1));
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        event.stopPropagation();
+        setFocusedButtonIndex((prev) => (prev === buttons.length - 1 ? 0 : prev + 1));
       } else if (event.key === 'Enter') {
         event.preventDefault();
         event.stopPropagation();
-        if (focusedButton === 'confirm') {
-          onConfirm();
-        } else {
-          onCancel();
-        }
+        buttons[focusedButtonIndex].onClick();
       } else if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        onCancel();
+        // 默认按最后一个按钮（通常是取消）
+        buttons[buttons.length - 1].onClick();
       }
     };
 
@@ -46,42 +40,33 @@ const UnifiedModal = ({
     return () => {
       document.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
-  }, [focusedButton, onConfirm, onCancel]);
+  }, [focusedButtonIndex, buttons]);
 
-  // 根据焦点状态更新焦点（使用 ref 安全操作 DOM）
+  // 根据焦点状态更新焦点
   useEffect(() => {
-    if (focusedButton === 'confirm') {
-      confirmButtonRef.current?.focus();
-    } else {
-      cancelButtonRef.current?.focus();
-    }
-  }, [focusedButton]);
+    buttonRefs.current[focusedButtonIndex]?.focus();
+  }, [focusedButtonIndex]);
 
   return (
     <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex justify-center items-center z-[1000]">
       <div className="bg-theme-gray1 rounded-medium shadow-medium px-5 py-3.75 max-w-[500px] w-[400px] text-theme-white">
         <p className="m-0">{message}</p>
         <div className="flex justify-end gap-2.5 mt-5">
-          <button
-            ref={confirmButtonRef}
-            type="button"
-            onClick={onConfirm}
-            onFocus={() => setFocusedButton('confirm')}
-            className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-theme-green text-white hover:bg-theme-green ${focusedButton === 'confirm' ? 'border-2 border-theme-white shadow-light' : ''}`}
-            tabIndex={0}
-          >
-            {confirmText}
-          </button>
-          <button
-            ref={cancelButtonRef}
-            type="button"
-            onClick={onCancel}
-            onFocus={() => setFocusedButton('cancel')}
-            className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-700 ${focusedButton === 'cancel' ? 'border-2 border-theme-white shadow-light' : ''}`}
-            tabIndex={0}
-          >
-            {cancelText}
-          </button>
+          {buttons.map((button, index) => (
+            <button
+              key={index}
+              ref={(el) => {
+                buttonRefs.current[index] = el;
+              }}
+              type="button"
+              onClick={button.onClick}
+              onFocus={() => setFocusedButtonIndex(index)}
+              className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm text-white hover:opacity-90 ${button.className || 'bg-gray-600'} ${focusedButtonIndex === index ? 'border-2 border-theme-white shadow-light' : ''}`}
+              tabIndex={0}
+            >
+              {button.text}
+            </button>
+          ))}
         </div>
       </div>
     </div>

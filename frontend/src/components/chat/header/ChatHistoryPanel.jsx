@@ -395,8 +395,10 @@ const ChatHistoryPanel = ({ onLoadHistory }) => {
                     {showConfirmationModal && (
                         <ConfirmationModal
                             message={confirmationMessage}
-                            onConfirm={handleConfirmDelete}
-                            onCancel={handleCancelDelete}
+                            buttons={[
+                                { text: '确定', onClick: handleConfirmDelete, className: 'bg-theme-green' },
+                                { text: '取消', onClick: handleCancelDelete, className: 'bg-theme-gray3' }
+                            ]}
                         />
                     )}
                 </div>

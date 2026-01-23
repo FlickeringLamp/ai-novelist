@@ -187,8 +187,9 @@ function ChapterTreePanel() {
       {modal.show && (
         <UnifiedModal
           message={modal.message}
-          onConfirm={modal.onConfirm || (() => setModal({ show: false, message: '', onConfirm: null }))}
-          onCancel={() => setModal({ show: false, message: '', onConfirm: null })}
+          buttons={[
+            { text: '确定', onClick: modal.onConfirm || (() => setModal({ show: false, message: '', onConfirm: null })), className: 'bg-theme-green' }
+          ]}
         />
       )}
 

@@ -1,9 +1,11 @@
-import React, { forwardRef, useRef, useEffect } from 'react';
+import React, { forwardRef, useRef, useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import loader from '@monaco-editor/loader';
 import { useTheme } from '../../context/ThemeContext';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateTabContent } from '../../store/editor';
+import { updateTabContent, saveTabContent } from '../../store/editor';
+import api from '../../utils/httpClient';
+import UnifiedModal from '../others/UnifiedModal';
 
 
 // 配置 Monaco Editor 使用本地资源
@@ -50,9 +52,11 @@ const MonacoEditor = forwardRef((props, ref) => {
   const dispatch = useDispatch();
   
   // @ts-ignore
-  const tabs = useSelector((state) => state.editor.tabs);
+  const tabs = useSelector((state) => state.tabSlice.tabsA);
   const activeTab = tabs.find(tab => tab.isActived);
   const value = activeTab?.content || '';
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorModal, setErrorModal] = useState(null);
 
   // 编辑器挂载处理，在挂载后执行
   const handleEditorDidMount = (editor, monaco) => {
@@ -76,6 +80,21 @@ const MonacoEditor = forwardRef((props, ref) => {
     onChange(newValue);
   };
 
+  // 保存当前标签页内容
+  const handleSave = async () => {
+    if (!activeTab || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      await api.put(`/api/file/update/${encodeURIComponent(activeTab.id)}`, { content: activeTab.content });
+      dispatch(saveTabContent({ id: activeTab.id }));
+    } catch (error) {
+      setErrorModal(`保存失败: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // 监听主题变化并更新编辑器主题
   useEffect(() => {
     if (monacoRef.current) {
@@ -86,7 +105,14 @@ const MonacoEditor = forwardRef((props, ref) => {
 
   // 处理编辑器容器的键盘事件，阻止冒泡到全局监听器
   const handleKeyDown = (e) => {
-    e.stopPropagation();
+    // 检测 Ctrl+S 或 Cmd+S (Mac)
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSave();
+    } else {
+      e.stopPropagation();
+    }
   };
   // 定义暴露给父组件的ref
   React.useImperativeHandle(ref, () => ({
@@ -115,7 +141,36 @@ const MonacoEditor = forwardRef((props, ref) => {
   }));
 
   return (
-    <div onKeyDown={handleKeyDown} style={{ height: '100%' }}>
+    <div onKeyDown={handleKeyDown} style={{ height: '100%', position: 'relative' }}>
+      {/* 保存状态提示 */}
+      {isSaving && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          background: theme.green,
+          color: theme.white,
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          zIndex: 1000
+        }}>
+          保存中...
+        </div>
+      )}
+      
+      {/* 错误提示模态框 */}
+      {errorModal && (
+        <UnifiedModal
+          message={errorModal}
+          buttons={[
+            { text: '确定', onClick: () => {
+              setErrorModal(null);
+            }, className: 'bg-theme-green' }
+          ]}
+        />
+      )}
+      
       {/* {似乎Editor并不支持onKeyDown作为prop，所以需要套一层div} */}
       <Editor
         height="100%"
