@@ -1,6 +1,8 @@
 {
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     // File Layout
     "rootDir": "./src",
     "outDir": "./dist",
@@ -11,6 +13,14 @@
     "target": "ES2020",
     "moduleResolution": "bundler",
     "types": [],
+    "allowJs": true,
+    "checkJs": true,
+    
+    // Path Mapping
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
@@ -41,5 +51,6 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  "exclude": ["e2e", "dist", "node_modules", "build", "playwright.config.js", "postcss.config.js", "vite.config.js"]
 }
