@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import ChatHistoryPanel from './header/ChatHistoryPanel.jsx'
-import ModelSelectorPanel from './header/ModelSelectorPanel.jsx'
+import ChatHistoryPanel from './header/ChatHistoryPanel.tsx'
+import ModelSelectorPanel from './header/ModelSelectorPanel.tsx'
 import ModeSelector from './input/ModeSelector'
 import MessageInput from './input/MessageInput'
 import MessageDisplay from './messagedisplay/MessageDisplay'
-import AutoApproveConfig from './input/AutoApproveConfig.js'
-import httpClient from '../../utils/httpClient.js'
+import AutoApproveConfig from './input/AutoApproveConfig.tsx'
+import httpClient from '../../utils/httpClient.ts'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileLines, faPlus } from '@fortawesome/free-solid-svg-icons';
 

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import TabBar from './TabBar.jsx';
-import MonacoEditor from './MonacoEditor.jsx';
-import StatusBar from './StatusBar.jsx';
-import EditorLogo from './EditorLogo.jsx';
+import TabBar from './TabBar.tsx';
+import MonacoEditor from './MonacoEditor.tsx';
+import StatusBar from './StatusBar.tsx';
+import EditorLogo from '../others/Logo.tsx';
 import type { RootState } from '../../store/editor.ts';
 
 interface Tab {

@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFire, faHexagon } from '@fortawesome/free-solid-svg-icons';
-import './EditorLogo.css';
+import './Logo.css';
 
 // 这里使用Tailwind会有诡异抽动，故选择使用css实现
 const EditorLogo = () => {

@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit'
 import tabReducer from './editor.ts'
-import fileReducer from './file.js'
+import fileReducer from './file.ts'
 
 
 export const store = configureStore({

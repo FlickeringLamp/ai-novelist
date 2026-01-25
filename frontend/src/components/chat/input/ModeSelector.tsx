@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngleLeft, faAngleRight } from '@fortawesome/free-solid-svg-icons';
-import httpClient from '../../../utils/httpClient.js';
+import httpClient from '../../../utils/httpClient.ts';
 
 interface Mode {
   id: string;

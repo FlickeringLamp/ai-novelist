@@ -1,11 +1,11 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
-import DisplayNameHelper from '../../utils/DisplayNameHelper.js';
+import DisplayNameHelper from '../../utils/DisplayNameHelper.ts';
 import { useDispatch, useSelector } from 'react-redux'
 import { addTab, setActiveTab, updateTabId, getActiveTabBar } from '../../store/editor.ts';
-import { toggleCollapse } from '../../store/file.js';
+import { toggleCollapse } from '../../store/file.ts';
 import { useEffect, useRef, useState } from 'react';
-import httpClient from '../../utils/httpClient.js';
+import httpClient from '../../utils/httpClient.ts';
 
 // 类型定义
 interface ChapterItem {

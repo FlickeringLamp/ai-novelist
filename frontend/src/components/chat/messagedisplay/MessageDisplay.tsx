@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import ReactMarkdownMessageRenderer from './ReactMarkdownMessageRenderer.js';
+import ReactMarkdownMessageRenderer from './ReactMarkdownMessageRenderer.tsx';
 
 interface ToolCall {
   name?: string;

@@ -13,8 +13,6 @@
     "target": "ES2020",
     "moduleResolution": "bundler",
     "types": [],
-    "allowJs": true,
-    "checkJs": true,
     
     // Path Mapping
     "baseUrl": ".",
@@ -52,5 +50,5 @@
     "moduleDetection": "force",
     "skipLibCheck": true,
   },
-  "exclude": ["e2e", "dist", "node_modules", "build", "playwright.config.js", "postcss.config.js", "vite.config.js"]
+  "exclude": ["e2e", "dist", "node_modules", "build", "vite.config.ts", "playwright.config.js", "postcss.config.js"]
 }

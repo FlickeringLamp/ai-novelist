@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
-import httpClient from '../../../utils/httpClient.js';
-import ConfirmationModal from '../../others/UnifiedModal.js';
+import httpClient from '../../../utils/httpClient.ts';
+import ConfirmationModal from '../../others/UnifiedModal.tsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock, faUndo } from '@fortawesome/free-solid-svg-icons';
 

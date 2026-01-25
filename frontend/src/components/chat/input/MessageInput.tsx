@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import FileListPopup from './FileListPopup.js';
-import httpClient from '../../../utils/httpClient.js';
+import FileListPopup from './FileListPopup.tsx';
+import httpClient from '../../../utils/httpClient.ts';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import httpClient from '../../../utils/httpClient.js';
+import httpClient from '../../../utils/httpClient.ts';
 
 interface AutoApproveSettings {
   enabled: boolean;

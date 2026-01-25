@@ -64,6 +64,33 @@ export const tabSlice = createSlice({
     name: 'tabSlice',
     initialState: editorState,
     reducers: {
+        // 标签栏操作
+        // 添加新标签栏（分屏，指定一个标签后向右拆分）
+        addTabBar: (state: Draft<EditorState>, action: PayloadAction<{ sourceTabId: string }>) => {
+            const { sourceTabId } = action.payload;
+            const sourceTabBar = state.tabBars[state.activeTabBarId]!;
+            const sourceTab = sourceTabBar.tabs.find(tab => tab.id === sourceTabId)!;
+
+            // 创建新标签栏
+            const tabBarId = autoCreateBarId(state);
+            state.tabBars[tabBarId] = {
+                tabs: [{
+                    id: sourceTab.id,
+                    content: sourceTab.content
+                }],
+                activeTabId: sourceTab.id
+            };
+
+            // 设置为活跃标签栏
+            state.activeTabBarId = tabBarId;
+        },
+
+        // 设置活跃标签栏，在具体组件中，任何标签操作，应该先用Bar的reducer，再使用Tab的reducer（如有）
+        setActiveTabBar: (state: Draft<EditorState>, action: PayloadAction<{ tabBarId: string }>) => {
+            const { tabBarId } = action.payload;
+            state.activeTabBarId = tabBarId;
+        },
+
         // 标签操作
         // 添加标签到指定标签栏
         addTab: (state: Draft<EditorState>, action: PayloadAction<{ id: string; content: string }>) => {
@@ -152,32 +179,6 @@ export const tabSlice = createSlice({
             delete state.backUp[oldId];
         },
 
-        // 标签栏操作
-        // 添加新标签栏（分屏，指定一个标签后向右拆分）
-        addTabBar: (state: Draft<EditorState>, action: PayloadAction<{ sourceTabId: string }>) => {
-            const { sourceTabId } = action.payload;
-            const sourceTabBar = state.tabBars[state.activeTabBarId]!;
-            const sourceTab = sourceTabBar.tabs.find(tab => tab.id === sourceTabId)!;
-
-            // 创建新标签栏
-            const tabBarId = autoCreateBarId(state);
-            state.tabBars[tabBarId] = {
-                tabs: [{
-                    id: sourceTab.id,
-                    content: sourceTab.content
-                }],
-                activeTabId: sourceTab.id
-            };
-
-            // 设置为活跃标签栏
-            state.activeTabBarId = tabBarId;
-        },
-
-        // 设置活跃标签栏，在具体组件中，任何标签操作，应该先用Bar的reducer，再使用Tab的reducer（如有）
-        setActiveTabBar: (state: Draft<EditorState>, action: PayloadAction<{ tabBarId: string }>) => {
-            const { tabBarId } = action.payload;
-            state.activeTabBarId = tabBarId;
-        },
         // 关闭其他标签（仅限当前活跃标签栏）
         closeOtherTabs: (state: Draft<EditorState>, action: PayloadAction<{ tabId: string }>) => {
             const { tabId } = action.payload;

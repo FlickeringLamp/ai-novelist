@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFile, faFolder, faSearch, faPlus } from '@fortawesome/free-solid-svg-icons';
-import httpClient from '../../utils/httpClient.js';
+import httpClient from '../../utils/httpClient.ts';
 
 interface FileItem {
   id: string;

@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGear, faFolder, faFile, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch } from 'react-redux';
-import { collapseAll } from '../../store/file.js';
-import ContextMenu from './ContextMenu.jsx';
+import { collapseAll } from '../../store/file.ts';
+import ContextMenu from './ContextMenu.tsx';
 import UnifiedModal from '../others/UnifiedModal';
-import httpClient from '../../utils/httpClient.js';
+import httpClient from '../../utils/httpClient.ts';
 import ChapterTreeItem from './TreeRender.tsx';
 
 interface ChapterItem {
