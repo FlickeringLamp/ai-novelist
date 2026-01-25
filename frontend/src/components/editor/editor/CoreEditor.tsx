@@ -2,16 +2,11 @@ import React, { forwardRef, useRef, useEffect, useState } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import loader from '@monaco-editor/loader';
 import type * as Monaco from 'monaco-editor';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../../context/ThemeContext.tsx';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateTabContent, saveTabContent, getActiveTabBar } from '../../store/editor';
-import api from '../../utils/httpClient';
-import UnifiedModal from '../others/UnifiedModal';
-
-interface Tab {
-  id: string;
-  content: string;
-}
+import { updateTabContent, saveTabContent, getTabBar, type RootState } from '../../../store/editor.ts';
+import api from '../../../utils/httpClient.ts';
+import UnifiedModal from '../../others/UnifiedModal';
 
 interface ThemeColors {
   green: string;
@@ -24,7 +19,7 @@ interface ThemeColors {
 
 interface MonacoEditorProps {
   onChange?: (value: string | undefined) => void;
-  onInstanceReady?: (editor: Monaco.editor.IStandaloneCodeEditor) => void;
+  tabBarId?: string;
 }
 
 
@@ -63,17 +58,17 @@ const defineTheme = (monaco: typeof Monaco, themeColors: ThemeColors) => {
   });
 };
 // 基础 Monaco 编辑器组件
-const MonacoEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
-  const { onChange, onInstanceReady = null } = props;
+const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
+  const { onChange, tabBarId } = props;
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const { theme } = useTheme();
   const dispatch = useDispatch();
-  
-  const activeTabBar = useSelector(getActiveTabBar);
-  const tabs = activeTabBar?.tabs || [];
-  const activeTab = tabs.find((tab: Tab) => tab.id === activeTabBar?.activeTabId);
-  const value = activeTab?.content || '';
+
+  const tabBar = useSelector((state: RootState) => getTabBar(state, tabBarId!));
+  const activeTab = tabBar?.tabs.find((tab: string) => tab === tabBar?.activeTabId);
+  const currentData = useSelector((state: RootState) => state.tabSlice.currentData);
+  const value = activeTab ? (currentData[activeTab] || '') : '';
   const [isSaving, setIsSaving] = useState(false);
   const [errorModal, setErrorModal] = useState<string | null>(null);
 
@@ -85,16 +80,12 @@ const MonacoEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
     monaco.editor.setTheme('theme-green');
     // 保存实例到ref,方便供 "传递给Editor的回调函数"外 的函数访问
     monacoRef.current = monaco;
-    // 如果有实例初始化完毕回调，调用回调
-    if (onInstanceReady) {
-      onInstanceReady(editor);
-    }
   };
 
   // 处理编辑器内容变化
   const handleEditorChange = (newValue: string | undefined) => {
     if (activeTab) {
-      dispatch(updateTabContent({ id: activeTab.id, content: newValue || '' }));
+      dispatch(updateTabContent({ id: activeTab, content: newValue || '' }));
     }
     onChange?.(newValue);
   };
@@ -102,11 +93,12 @@ const MonacoEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
   // 保存当前标签页内容
   const handleSave = async () => {
     if (!activeTab || isSaving) return;
-    
+
     setIsSaving(true);
     try {
-      await api.put(`/api/file/update/${encodeURIComponent(activeTab.id)}`, { content: activeTab.content });
-      dispatch(saveTabContent({ id: activeTab.id }));
+      const content = currentData[activeTab] || '';
+      await api.put(`/api/file/update/${encodeURIComponent(activeTab)}`, { content });
+      dispatch(saveTabContent({ id: activeTab }));
     } catch (error: any) {
       setErrorModal(`保存失败: ${error.message}`);
     } finally {
@@ -221,4 +213,4 @@ const MonacoEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
   );
 });
 
-export default MonacoEditor
+export default CoreEditor

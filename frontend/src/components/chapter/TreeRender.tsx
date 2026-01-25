@@ -140,10 +140,8 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
   const handleChapterClick = async (item: ChapterItem) => {
     try {
       const response = await httpClient.get(`/api/file/read/${item.id}`);
-      // @ts-ignore
       dispatch(addTab({ id: response.id, content: response.content }));
       dispatch(setActiveTab({ tabId: item.id }));
-      console.log("当前总标签页：", tabs, "，当前活跃标签页：", tabs.find((t: any) => t.isActived));
     } catch (error) {
       console.error('获取文件内容失败:', error);
     }

@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGear, faFolder, faFile, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch } from 'react-redux';
 import { collapseAll } from '../../store/file.ts';
-import ContextMenu from './ContextMenu.tsx';
+import ChapterContextMenu from './FileContextMenu.tsx';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.ts';
 import ChapterTreeItem from './TreeRender.tsx';
@@ -20,7 +20,6 @@ interface ChapterItem {
 function ChapterTreePanel() {
   const dispatch = useDispatch();
   const [chapters, setChapters] = useState<ChapterItem[]>([]); // 整个章节列表
-  //@ts-ignore
   /*
    * 以下是两个item状态的思路
    * 首先，文件操作分为三类：
@@ -172,7 +171,7 @@ function ChapterTreePanel() {
         </div>
       </div>
       {/* 右键菜单 */}
-      <ContextMenu
+      <ChapterContextMenu
         contextMenu={contextMenu}
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}

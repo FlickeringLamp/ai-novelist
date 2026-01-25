@@ -1,8 +1,8 @@
 @layer utilities {
   /* 滚动条样式 - 只支持WebKit (Chrome, Edge)，firefox对滑动条自定义样式支持不高 */
   ::-webkit-scrollbar {
-    width: 1px;
-    height: 1px;
+    width: 3px;
+    height: 3px;
   }
 
   ::-webkit-scrollbar-track {

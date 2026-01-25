@@ -1,20 +1,20 @@
 import { createSlice, type PayloadAction, type Draft} from "@reduxjs/toolkit";
 
-// 标签定义
-interface Tab {
-    id: string;
-    content: string;
-}
-
 interface TabBar {
-    tabs: Tab[];
+    tabs: string[];
     activeTabId: string | null;
 }
 
 export interface EditorState {
-    tabBars: Record<string, TabBar>; // id → content
+    tabBars: Record<string, TabBar>;
     activeTabBarId: string;
+    currentData: Record<string, string>; // id → content，用户实时操作的数据
     backUp: Record<string, string>; // id → content，备份用的，主要功能是对比，显示脏数据情况，后续可能用于ai编辑操作
+}
+
+// 定义 RootState 类型
+export interface RootState {
+    tabSlice: EditorState;
 }
 
 // 声明使用（创建初始状态）
@@ -26,10 +26,11 @@ const editorState: EditorState = {
         }
     },
     activeTabBarId: 'bar1',
+    currentData: {},
     backUp: {}
 };
 
-// 自动生成标签栏ID
+// 其他给reducer用的辅助函数
 const autoCreateBarId = (state: EditorState): string => {
     const baseName = "bar";
     let counter = 0;
@@ -50,10 +51,9 @@ const autoCreateBarId = (state: EditorState): string => {
  */
 
 /**
- * 同理
- * 标签栏，也没有必要关
+ * 标签栏也没必要关
  * 假如清空了一个标签栏的所有标签，但是偏要保留bar（如bar1,bar2,bar3），会怎样呢？
- * 没有任何问题
+ * 在显示上没有任何问题
  * 每次分屏都是创建一个新的标签栏
  * 只要前端检测到标签栏有内容再渲染，就没有任何视觉和使用时的干扰
  * 这样的话，各种移除标签栏的代码就是徒增代码复杂度，却没有实质的使用体验变化
@@ -66,23 +66,19 @@ export const tabSlice = createSlice({
     reducers: {
         // 标签栏操作
         // 添加新标签栏（分屏，指定一个标签后向右拆分）
-        addTabBar: (state: Draft<EditorState>, action: PayloadAction<{ sourceTabId: string }>) => {
-            const { sourceTabId } = action.payload;
-            const sourceTabBar = state.tabBars[state.activeTabBarId]!;
-            const sourceTab = sourceTabBar.tabs.find(tab => tab.id === sourceTabId)!;
+        addTabBar: (state: Draft<EditorState>, action: PayloadAction<{ sourceTabId: string; tabBarId: string }>) => {
+            const { sourceTabId, tabBarId } = action.payload;
+            const sourceTabBar = state.tabBars[tabBarId]!;
 
             // 创建新标签栏
-            const tabBarId = autoCreateBarId(state);
-            state.tabBars[tabBarId] = {
-                tabs: [{
-                    id: sourceTab.id,
-                    content: sourceTab.content
-                }],
-                activeTabId: sourceTab.id
+            const newTabBarId = autoCreateBarId(state);
+            state.tabBars[newTabBarId] = {
+                tabs: [sourceTabId],
+                activeTabId: sourceTabId
             };
 
             // 设置为活跃标签栏
-            state.activeTabBarId = tabBarId;
+            state.activeTabBarId = newTabBarId;
         },
 
         // 设置活跃标签栏，在具体组件中，任何标签操作，应该先用Bar的reducer，再使用Tab的reducer（如有）
@@ -97,11 +93,9 @@ export const tabSlice = createSlice({
             const { id, content } = action.payload;
             const focusTabBar = state.tabBars[state.activeTabBarId]!; // 活跃标签栏有且必须只有一个，不可能为空
 
-            if (!focusTabBar.tabs.find(tab => tab.id === id)) {
-                focusTabBar.tabs.push({
-                    id,
-                    content
-                });
+            if (!focusTabBar.tabs.find(tab => tab === id)) {
+                focusTabBar.tabs.push(id);
+                state.currentData[id] = content;
                 state.backUp[id] = content;
             }
         },
@@ -110,7 +104,7 @@ export const tabSlice = createSlice({
             const { tabId } = action.payload;
             const focusTabBar = state.tabBars[state.activeTabBarId]!;
 
-            const tabIndex = focusTabBar.tabs.findIndex(tab => tab.id === tabId);
+            const tabIndex = focusTabBar.tabs.findIndex(tab => tab === tabId);
             if (tabIndex === -1) return;
 
             const isActiveTab = focusTabBar.activeTabId === tabId;
@@ -126,13 +120,13 @@ export const tabSlice = createSlice({
 
                 if (newActiveIndex !== -1) {
                     const newActiveTab = focusTabBar.tabs[newActiveIndex]!;
-                    focusTabBar.activeTabId = newActiveTab.id;
+                    focusTabBar.activeTabId = newActiveTab;
                 } else {
                     focusTabBar.activeTabId = null;
                 }
             }
 
-            focusTabBar.tabs = focusTabBar.tabs.filter(tab => tab.id !== tabId);
+            focusTabBar.tabs = focusTabBar.tabs.filter(tab => tab !== tabId);
         },
         // 设置活跃标签
         setActiveTab: (state: Draft<EditorState>, action: PayloadAction<{ tabId: string }>) => {
@@ -143,16 +137,12 @@ export const tabSlice = createSlice({
         // 更新标签内容
         updateTabContent: (state: Draft<EditorState>, action: PayloadAction<{ id: string; content: string }>) => {
             const { id, content } = action.payload;
-            const focusTabBar = state.tabBars[state.activeTabBarId]!;
-            const tab = focusTabBar.tabs.find(tab => tab.id === id)!; // 本就是前端指名道姓要的tab id，不可能不存在
-            tab.content = content;
+            state.currentData[id] = content;
         },
         // 保存标签内容（同步用户操作的contentA->备份保存的contentB）
         saveTabContent: (state: Draft<EditorState>, action: PayloadAction<{ id: string }>) => {
             const { id } = action.payload;
-            const focusTabBar = state.tabBars[state.activeTabBarId]!;
-            const tab = focusTabBar.tabs.find(tab => tab.id === id)!;
-            state.backUp[id] = tab.content
+            state.backUp[id] = state.currentData[id]!;
         },
         // 重新排序标签
         reorderTabs: (state: Draft<EditorState>, action: PayloadAction<{ fromIndex: number; toIndex: number }>) => {
@@ -167,15 +157,20 @@ export const tabSlice = createSlice({
             const { oldId, newId } = action.payload;
             const focusTabBar = state.tabBars[state.activeTabBarId]!;
             // 更新标签id
-            const tab = focusTabBar.tabs.find(tab => tab.id === oldId)!;
-            tab.id = newId;
+            const tabIndex = focusTabBar.tabs.findIndex(tab => tab === oldId);
+            if (tabIndex !== -1) {
+                focusTabBar.tabs[tabIndex] = newId;
+            }
 
             // 如果此id是活跃标签，更新activeTabId
             if (focusTabBar.activeTabId === oldId) {
                 focusTabBar.activeTabId = newId;
             }
+            // 更新currentData中的标签id
+            state.currentData[newId] = state.currentData[oldId]!;
+            delete state.currentData[oldId];
             // 更新备份数据中的标签id
-            state.backUp[newId] = state.backUp[oldId]!; // 依旧逻辑问题，前端既然指名道姓，这个标签必定存在，否则根本不会显示在前端并被点击执行更新操作
+            state.backUp[newId] = state.backUp[oldId]!;
             delete state.backUp[oldId];
         },
 
@@ -183,22 +178,23 @@ export const tabSlice = createSlice({
         closeOtherTabs: (state: Draft<EditorState>, action: PayloadAction<{ tabId: string }>) => {
             const { tabId } = action.payload;
             const focusTabBar = state.tabBars[state.activeTabBarId]!;
-            focusTabBar.tabs = focusTabBar.tabs.filter(tab => tab.id === tabId);
+            focusTabBar.tabs = focusTabBar.tabs.filter(tab => tab === tabId);
             focusTabBar.activeTabId = tabId;
         },
         // 关闭所有已保存标签
         closeSavedTabs: (state: Draft<EditorState>) => {
             const focusTabBar = state.tabBars[state.activeTabBarId]!;
-            
+
             focusTabBar.tabs = focusTabBar.tabs.filter(tab => {
-                const backUpContent = state.backUp[tab.id];
-                return !( tab.content === backUpContent);
+                const backUpContent = state.backUp[tab];
+                const currentContent = state.currentData[tab];
+                return !(currentContent === backUpContent);
             });
 
             // 如果活跃标签被关闭，选择第一个标签
-            if (focusTabBar.tabs.length > 0 && !focusTabBar.tabs.find(tab => tab.id === focusTabBar.activeTabId)) {
+            if (focusTabBar.tabs.length > 0 && !focusTabBar.tabs.find(tab => tab === focusTabBar.activeTabId)) {
                 const firstTab = focusTabBar.tabs[0]!;
-                focusTabBar.activeTabId = firstTab.id;
+                focusTabBar.activeTabId = firstTab;
             }
         },
         // 关闭所有标签
@@ -227,50 +223,59 @@ export const {
 
 export default tabSlice.reducer;
 
-// 定义 RootState 类型
-export interface RootState {
-    tabSlice: EditorState;
-}
-
-// Selector：返回指定标签栏的标签
-export const getTabs = (state: RootState, tabBarId: string): Tab[] => {
+// 各种Selector
+// 返回指定标签栏的标签
+export const getTabs = (state: RootState, tabBarId: string): string[] => {
     const tabBar = state.tabSlice.tabBars[tabBarId];
     return tabBar ? tabBar.tabs : [];
 };
 
-// Selector：返回指定标签栏的活跃标签
-export const getActiveTab = (state: RootState, tabBarId: string): Tab | null => {
+// 返回指定标签栏的活跃标签
+export const getActiveTab = (state: RootState, tabBarId: string): string | null => {
     const tabBar = state.tabSlice.tabBars[tabBarId];
     if (!tabBar || !tabBar.activeTabId) return null;
-    return tabBar.tabs.find(tab => tab.id === tabBar.activeTabId) || null;
+    return tabBar.tabs.find(tab => tab === tabBar.activeTabId) || null;
 };
 
-// Selector：返回所有脏数据的 tab id 集合
+// 返回所有脏数据的 tab id 集合
+// 由于 "" && ... 会短路，内容不同，也不会被标记为脏数据，故应该使用!== undefined判断是否有值
 export const dirtyTabs = (state: RootState): Set<string> => {
     const dirtyTabs = new Set<string>();
     Object.values(state.tabSlice.tabBars).forEach(tabBar => {
         tabBar.tabs.forEach(tab => {
-            const backUpContent = state.tabSlice.backUp[tab.id];
-            if (backUpContent && tab.content !== backUpContent) {
-                dirtyTabs.add(tab.id);
+            const backUpContent = state.tabSlice.backUp[tab];
+            const currentContent = state.tabSlice.currentData[tab];
+            if (backUpContent !== undefined && currentContent !== backUpContent) {
+                dirtyTabs.add(tab);
             }
         });
     });
     return dirtyTabs;
 };
 
-// Selector：返回指定标签栏
+// 返回指定标签栏
 export const getTabBar = (state: RootState, tabBarId: string): TabBar | null => {
     return state.tabSlice.tabBars[tabBarId] || null;
 };
 
-// Selector：返回活跃标签栏
+// 返回活跃标签栏
 export const getActiveTabBar = (state: RootState): TabBar | null => {
     if (!state.tabSlice.activeTabBarId) return null;
     return state.tabSlice.tabBars[state.tabSlice.activeTabBarId] || null;
 };
 
-// Selector：返回所有标签栏
+// 返回所有标签栏
 export const getAllTabBars = (state: RootState): TabBar[] => {
     return Object.values(state.tabSlice.tabBars);
+};
+
+// 返回有内容的标签栏（tabs数组不为空）
+export const getTabBarsWithContent = (state: RootState): Record<string, TabBar> => {
+    const result: Record<string, TabBar> = {};
+    Object.entries(state.tabSlice.tabBars).forEach(([id, tabBar]) => {
+        if (tabBar.tabs.length > 0) {
+            result[id] = tabBar;
+        }
+    });
+    return result;
 };
