@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction, type Draft} from "@reduxjs/toolkit";
 
-interface TabBar {
+export interface TabBar {
     tabs: string[];
     activeTabId: string | null;
 }
@@ -233,6 +233,7 @@ export const getTabs = (state: RootState, tabBarId: string): string[] => {
 // 返回指定标签栏的活跃标签
 export const getActiveTab = (state: RootState, tabBarId: string): string | null => {
     const tabBar = state.tabSlice.tabBars[tabBarId];
+    if (!tabBar || !tabBar.activeTabId) {console.log("应该返回null")}
     if (!tabBar || !tabBar.activeTabId) return null;
     return tabBar.tabs.find(tab => tab === tabBar.activeTabId) || null;
 };

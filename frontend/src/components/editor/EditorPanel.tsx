@@ -6,11 +6,13 @@ import CloseTabConfirmModal from './tab/CloseTabConfirmModal.tsx';
 import ErrorModal from '../others/ErrorModal.tsx';
 import EditorContextMenu from './tab/TabContextMenu.tsx';
 import TabBar from './tab/TabBar.tsx';
+import EditorLogo from '../others/Logo.tsx';
 
 //（最外层容器）
 const EditorPanel = () => {
   const allState = useSelector((state:RootState)=> state.tabSlice);
   const tabBars = useSelector(getTabBarsWithContent);
+  const hasTabBars = Object.keys(tabBars).length > 0 // 为{}依然是true，只能判断键的数量
   const activeTabBarId = useSelector((state: RootState) => state.tabSlice.activeTabBarId);
   const dirtyTabIds = useSelector(dirtyTabs);
   const dispatch = useDispatch();
@@ -30,7 +32,9 @@ const EditorPanel = () => {
 
   useEffect(() => {
     // 检查当前活跃标签栏是否有内容
-    console.log("当前状态：", allState)
+    console.log("编辑器面板的状态正常:",allState)
+    console.log("hasTabBars:",hasTabBars)
+    console.log("tabBars:",tabBars)
     const currentTabBar = allState.tabBars[activeTabBarId];
     const hasContent = currentTabBar && currentTabBar.tabs.length > 0;
     
@@ -83,7 +87,7 @@ const EditorPanel = () => {
     <div className='h-full'>
       <div className="bg-theme-gray1 h-full flex flex-row">
         {/* 遍历所有"标签栏+地址栏+编辑器" */}
-        {Object.entries(tabBars).map(([tabBarId, tabBar]) => (
+        {hasTabBars ? (Object.entries(tabBars).map(([tabBarId, tabBar]) => (
           // 标签栏与编辑器垂直排列
           <div key={tabBarId} className="flex flex-col min-w-0" style={{ flex: 1 }}>
             {/* 标签栏和地址栏组件 */}
@@ -121,9 +125,16 @@ const EditorPanel = () => {
               onDraggedTabBarIdSet={setDraggedTabBarId}
             />
             {/* 编辑器区域 */}
-            <TabBarEditorArea tabBarId={tabBarId} />
+            <TabBarEditorArea 
+              tabBar={tabBar}
+              tabBarId={tabBarId}
+            />
           </div>
-        ))}
+        ))):(
+          <div className="flex-1 flex items-center justify-center">
+            <EditorLogo/>
+          </div>
+        )}
       </div>
 
       {/* 弹窗处理 */}

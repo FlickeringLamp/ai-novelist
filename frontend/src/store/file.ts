@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction} from "@reduxjs/toolkit";
 
-interface FileState {
+export interface FileState {
     collapsedChapters: Record<string, boolean>;
 }
 

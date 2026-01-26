@@ -25,6 +25,21 @@
 *   **LangGraph**: 基于图的AI工作流编排框架
 *   **LanceDB**: 向量数据库，提供语义搜索和知识库管理
 
+## Languages
+| language | files | code | comment | blank | total |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| TypeScript JSX | 37 | 6,076 | 517 | 745 | 7,338 |
+| Python | 38 | 3,151 | 1,012 | 764 | 4,927 |
+| TypeScript | 10 | 628 | 142 | 109 | 879 |
+| Markdown | 3 | 220 | 0 | 80 | 300 |
+| PostCSS | 4 | 155 | 12 | 26 | 193 |
+| JSON | 1 | 78 | 0 | 1 | 79 |
+| JavaScript | 3 | 75 | 44 | 12 | 131 |
+| JSON with Comments | 1 | 29 | 19 | 7 | 55 |
+| HTML | 1 | 14 | 0 | 1 | 15 |
+
+Total : 98 files,  10426 codes, 1746 comments, 1745 blanks, all 13917 lines
+
 ## 项目结构
 
 前端：

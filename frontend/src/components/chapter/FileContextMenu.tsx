@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ContextMenu, { type ContextMenuItem } from '../others/ContextMenu';
 import httpClient from '../../utils/httpClient';
 
@@ -48,6 +48,10 @@ function ChapterContextMenu({
   setModal
 }: ChapterContextMenuProps) {
   const [adjustedY, setAdjustedY] = useState(contextMenu.y);
+  // 监听看看,到底是什么导致右键空白区，item有值。
+  useEffect(()=>{
+    console.log("右键时，值为：",selectedItem)
+  })
 
   const handleRenameItem = () => {
     setSelectedItem({
@@ -113,7 +117,7 @@ function ChapterContextMenu({
 
   const getContextMenuItems = (): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [];
-    const isItemSelected = selectedItem.id !== null && selectedItem.id !== undefined;
+    const isItemSelected = selectedItem.id !== null && selectedItem.id !== undefined && selectedItem.id !== "";
     const canPaste = lastSelectedItem.state !== null;
 
     if (isItemSelected) {

@@ -34,7 +34,6 @@ backend/data
 *.bat
 test_files/
 archive/
-count_code.ps1
 .VSCodeCounter/
 
 # Lock files
