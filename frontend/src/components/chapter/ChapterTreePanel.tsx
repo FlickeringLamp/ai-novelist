@@ -16,7 +16,6 @@ interface ChapterItem {
   children?: ChapterItem[];
 }
 
-
 function ChapterTreePanel() {
   const dispatch = useDispatch();
   const [chapters, setChapters] = useState<ChapterItem[]>([]); // 整个章节列表
@@ -43,10 +42,11 @@ function ChapterTreePanel() {
     itemParentPath: null
   });
   // 消息模态框状态
-  const [modal, setModal] = useState<{ show: boolean; message: string; onConfirm: (() => void) | null }>({
+  const [modal, setModal] = useState<{ show: boolean; message: string; onConfirm: (() => void) | null; onCancel: (() => void) | null }>({
     show: false,
     message: '',
-    onConfirm: null
+    onConfirm: null,
+    onCancel: null
   });
   // 右键菜单状态
   const [contextMenu, setContextMenu] = useState({
@@ -62,7 +62,7 @@ function ChapterTreePanel() {
       setChapters(result || []);
     } catch (error) {
       console.error('获取章节列表失败：', error);
-      setModal({ show: true, message: (error as Error).toString(), onConfirm: null });
+      setModal({ show: true, message: (error as Error).toString(), onConfirm: null, onCancel: null });
     }
   };
   // 注册章节更新监听器和初始加载
@@ -121,7 +121,7 @@ function ChapterTreePanel() {
       }
     } catch (error) {
       console.error('创建失败:', error);
-      setModal({ show: true, message: (error as Error).toString(), onConfirm: null });
+      setModal({ show: true, message: (error as Error).toString(), onConfirm: null, onCancel: null });
     }
   };
 
@@ -195,7 +195,8 @@ function ChapterTreePanel() {
         <UnifiedModal
           message={modal.message}
           buttons={[
-            { text: '确定', onClick: modal.onConfirm || (() => setModal({ show: false, message: '', onConfirm: null })), className: 'bg-theme-green' }
+            { text: '确定', onClick: modal.onConfirm || (() => setModal({ show: false, message: '', onConfirm: null, onCancel: null })), className: 'bg-theme-green' },
+            { text: '取消', onClick: modal.onCancel || (() => setModal({ show: false, message: '', onConfirm: null, onCancel: null })), className: 'bg-theme-gray3' }
           ]}
         />
       )}

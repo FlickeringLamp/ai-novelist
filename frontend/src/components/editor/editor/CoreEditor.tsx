@@ -183,7 +183,6 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
         />
       )}
       
-      {/* {似乎Editor并不支持onKeyDown作为prop，所以需要套一层div} */}
       <Editor
         height="100%"
         defaultLanguage="markdown" // 暂时没用，以后根据文件后缀动态切换多语言可能有点用
@@ -207,6 +206,8 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
           automaticLayout: true, // 当容器大小变化时自动重新计算编辑器尺寸
           scrollBeyondLastLine: true, // 允许最后一行向上滚动，直到视窗顶部
           tabSize: 2,
+          renderWhitespace:"all",
+          renderControlCharacters: true,
         }}
       />
     </div>

@@ -12,7 +12,7 @@ import EditorLogo from '../others/Logo.tsx';
 const EditorPanel = () => {
   const allState = useSelector((state:RootState)=> state.tabSlice);
   const tabBars = useSelector(getTabBarsWithContent);
-  const hasTabBars = Object.keys(tabBars).length > 0 // 为{}依然是true，只能判断键的数量
+  const hasTabBars = Object.keys(tabBars).length > 0 // tabBars为{}依然是true，只能判断键的数量
   const activeTabBarId = useSelector((state: RootState) => state.tabSlice.activeTabBarId);
   const dirtyTabIds = useSelector(dirtyTabs);
   const dispatch = useDispatch();
@@ -22,7 +22,6 @@ const EditorPanel = () => {
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // 这三个是用来支持跨编辑页拖动的状态
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [draggedTabBarId, setDraggedTabBarId] = useState<string | null>(null);
   
   // 右键菜单状态
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
@@ -98,7 +97,6 @@ const EditorPanel = () => {
               dirtyTabIds={dirtyTabIds}
               draggedIndex={draggedIndex}
               dragOverIndex={dragOverIndex}
-              draggedTabBarId={draggedTabBarId}
               scrollContainerRef={(el) => { scrollContainerRefs.current[tabBarId] = el; }}
               onTabClick={(tabId) => {
                 dispatch(setActiveTabBar({ tabBarId }));
@@ -118,11 +116,9 @@ const EditorPanel = () => {
               onTabDragEnd={() => {
                 setDraggedIndex(null);
                 setDragOverIndex(null);
-                setDraggedTabBarId(null);
               }}
               onTabDragOver={(index) => setDragOverIndex(index)}
               onTabDrop={(fromIndex, toIndex) => dispatch(reorderTabs({ fromIndex, toIndex }))}
-              onDraggedTabBarIdSet={setDraggedTabBarId}
             />
             {/* 编辑器区域 */}
             <TabBarEditorArea 

@@ -1,5 +1,7 @@
 import DisplayNameHelper from "../../../utils/DisplayNameHelper.ts";
 import { useCallback } from 'react';
+import { useDispatch, useSelector } from "react-redux";
+import { setActiveTabBar, type RootState } from "../../../store/editor.ts";
 
 interface TabBarProps {
   tabBarId: string;
@@ -11,7 +13,6 @@ interface TabBarProps {
   dirtyTabIds: Set<string>;
   draggedIndex: number | null;
   dragOverIndex: number | null;
-  draggedTabBarId: string | null;
   scrollContainerRef: (el: HTMLDivElement | null) => void;
   onTabClick: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
@@ -20,7 +21,6 @@ interface TabBarProps {
   onTabDragEnd: () => void;
   onTabDragOver: (index: number) => void;
   onTabDrop: (fromIndex: number, toIndex: number) => void;
-  onDraggedTabBarIdSet: (tabBarId: string) => void;
 }
 
 const TabBar = ({
@@ -30,7 +30,6 @@ const TabBar = ({
   dirtyTabIds,
   draggedIndex,
   dragOverIndex,
-  draggedTabBarId,
   scrollContainerRef,
   onTabClick,
   onTabClose,
@@ -39,27 +38,29 @@ const TabBar = ({
   onTabDragEnd,
   onTabDragOver,
   onTabDrop,
-  onDraggedTabBarIdSet,
 }: TabBarProps) => {
+  const dispatch = useDispatch();
+  const activeTabBarId = useSelector((state: RootState) => state.tabSlice.activeTabBarId);
 
   // 拖动功能函数
+  // 拖拽开始
   const handleTabDragStart = useCallback((index: number) => {
     onTabDragStart(index);
-    onDraggedTabBarIdSet(tabBarId);
-  }, [onTabDragStart, onDraggedTabBarIdSet, tabBarId]);
-
+    dispatch(setActiveTabBar({ tabBarId }));
+  }, [onTabDragStart, dispatch, tabBarId]);
+  // 拖拽结束（暂时只允许标签栏内拖动，不支持跨标签栏）
   const handleTabDrop = useCallback((fromIndex: number, toIndex: number) => {
-    if (draggedTabBarId === tabBarId) {
+    if (activeTabBarId === tabBarId) {
       onTabDrop(fromIndex, toIndex);
     }
     onTabDragEnd();
-  }, [draggedTabBarId, tabBarId, onTabDrop, onTabDragEnd]);
-
+  }, [activeTabBarId, tabBarId, onTabDrop, onTabDragEnd]);
+  // 拖到上方
   const handleTabDragOver = useCallback((index: number) => {
-    if (draggedTabBarId === tabBarId) {
+    if (activeTabBarId === tabBarId) {
       onTabDragOver(index);
     }
-  }, [draggedTabBarId, tabBarId, onTabDragOver]);
+  }, [activeTabBarId, tabBarId, onTabDragOver]);
 
   return (
     <div className="border-b border-theme-gray3">
@@ -73,7 +74,7 @@ const TabBar = ({
           <div
             key={tab}
             draggable
-            className={`px-3 cursor-pointer transition-all border-r border-theme-gray3 whitespace-nowrap flex items-center gap-2 ${tabBar.activeTabId === tab ? 'bg-theme-gray2 text-theme-green border-t-1 border-t-theme-green' : 'text-theme-white hover:bg-theme-gray2'} ${draggedIndex === index && draggedTabBarId === tabBarId ? 'opacity-50' : ''} ${dragOverIndex === index && draggedTabBarId === tabBarId ? 'border-l-2 border-l-theme-green' : ''}`}
+            className={`px-3 cursor-pointer transition-all border-r border-theme-gray3 whitespace-nowrap flex items-center gap-2 ${tabBar.activeTabId === tab ? 'bg-theme-gray2 text-theme-green border-t-1 border-t-theme-green' : 'text-theme-white hover:bg-theme-gray2'} ${draggedIndex === index && activeTabBarId === tabBarId ? 'opacity-50' : ''} ${dragOverIndex === index && activeTabBarId === tabBarId ? 'border-l-2 border-l-theme-green' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
               onTabClick(tab);

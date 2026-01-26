@@ -25,7 +25,7 @@ interface ChapterTreeItemProps {
     lastSelectedItem: { id: string | null };
     setSelectedItem: (item: { state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null }) => void;
     fetchChapters?: () => void;
-    setModal: (modal: { show: boolean; message: string; onConfirm: (() => void) | null }) => void;
+    setModal: (modal: { show: boolean; message: string; onConfirm: (() => void) | null; onCancel: (() => void) | null }) => void;
   };
 }
 
@@ -53,6 +53,13 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [showInvalidCharWarning, setShowInvalidCharWarning] = useState(false);
+
+  // 检查是否包含特殊字符
+  const containsInvalidChars = (value: string): boolean => {
+    const invalidChars = /[*\\/<>\:|?"']/;
+    return invalidChars.test(value);
+  };
 
   // 进入编辑模式时，自动聚焦并选中输入框
   useEffect(() => {
@@ -69,6 +76,17 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
 
   const handleSaveRename = async () => {
     if (editingValue && editingValue.trim() !== '') {
+      // 检查是否包含特殊字符
+      if (containsInvalidChars(editingValue)) {
+        setModal({
+          show: true,
+          message: '不可包含* " \' \\ / < > : | 特殊字符',
+          onConfirm: () => setModal({ show: false, message: '', onConfirm: null, onCancel: null }),
+          onCancel: null
+        });
+        return;
+      }
+
       // 只有文件才添加 .md 后缀发送给后端
       const finalName = isFolder ? editingValue : (editingValue.endsWith('.md') ? editingValue : editingValue + '.md');
       // 检查名称是否真的改变了
@@ -105,7 +123,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
         fetchChapters && fetchChapters();
       } catch (error) {
         console.error('重命名失败:', error);
-        setModal({ show: true, message: '重命名失败: ' + (error as Error).toString(), onConfirm: null });
+        setModal({ show: true, message: '重命名失败: ' + (error as Error).toString(), onConfirm: null, onCancel: null });
       }
     } else {
       // 取消编辑
@@ -160,7 +178,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
         />
       )}
       <div
-        className={`chapter-item-content ${isFolder && level > 0 ? 'nested-folder-content' : ''} cursor-pointer ${(selectedItem.id === itemId || lastSelectedItem.id === itemId) ? 'bg-theme-gray2 text-theme-green' : 'text-theme-white hover:text-theme-green hover:bg-theme-gray2'}`}
+        className={`chapter-item-content flex ${isFolder && level > 0 ? 'nested-folder-content' : ''} cursor-pointer ${(selectedItem.id === itemId || lastSelectedItem.id === itemId) ? 'bg-theme-gray2 text-theme-green' : 'text-theme-white hover:text-theme-green hover:bg-theme-gray2'}`}
         style={{ paddingLeft: `${level * 20}px` }}
         onClick={() => {
           // 如果正在编辑，不触发点击事件
@@ -194,16 +212,25 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
         )}
         {/* 文件/文件夹名称 - 编辑模式下显示输入框 */}
         {selectedItem.state === 'renaming' && selectedItem.id === itemId ? (
-          <input
-            ref={inputRef}
-            type="text"
-            value={editingValue}
-            onChange={(e) => setEditingValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={handleSaveRename}
-            className="chapter-title-input bg-theme-black text-theme-white border border-theme-green px-1 py-0.5 text-sm outline-none flex-1"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="flex flex-col flex-1">
+            <input
+              ref={inputRef}
+              type="text"
+              value={editingValue}
+              onChange={(e) => {
+                const value = e.target.value;
+                setEditingValue(value);
+                setShowInvalidCharWarning(containsInvalidChars(value));
+              }}
+              onKeyDown={handleKeyDown}
+              onBlur={handleSaveRename}
+              className="chapter-title-input bg-theme-black text-theme-white border border-theme-green text-sm outline-none flex-1"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {showInvalidCharWarning && (
+              <span className="text-theme-red text-xs mt-1">不可包含* " ' \ / {"< >"} : |特殊字符</span>
+            )}
+          </div>
         ) : (
           <span className="chapter-title-text">
             {displayName}

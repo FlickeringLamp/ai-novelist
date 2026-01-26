@@ -95,8 +95,11 @@ export const tabSlice = createSlice({
 
             if (!focusTabBar.tabs.find(tab => tab === id)) {
                 focusTabBar.tabs.push(id);
-                state.currentData[id] = content;
-                state.backUp[id] = content;
+                // 只有当id不存在于currentData时，才设置内容。避免在bar1中有脏状态，在bar2打开这个标签时，从后端获取的content直接刷掉了脏数据（备份数据需要在每次添加tab时更新，否则会沿用上次关闭tab时的旧content）
+                if (!(state.currentData[id] !== undefined)) {
+                    state.currentData[id] = content;
+                    state.backUp[id] = content;
+                }
             }
         },
         // 从指定标签栏移除标签
@@ -127,6 +130,22 @@ export const tabSlice = createSlice({
             }
 
             focusTabBar.tabs = focusTabBar.tabs.filter(tab => tab !== tabId);
+
+            // 获取所有 bar 里的 tabId 数量
+            let tabCount = 0;
+            Object.values(state.tabBars).forEach(tabBar => {
+                if (tabBar.tabs.includes(tabId)) {
+                    tabCount += 1;
+                }
+            });
+            console.log("标签名是：",tabId)
+            console.log("bar里还有几个同名id？",tabCount)
+
+            // 如果数量 = 0，清理 currentData 里的对应 content
+            if (tabCount = 0) {
+                console.log("删到这了吗？")
+                delete state.currentData[tabId];
+            }
         },
         // 设置活跃标签
         setActiveTab: (state: Draft<EditorState>, action: PayloadAction<{ tabId: string }>) => {
@@ -155,17 +174,18 @@ export const tabSlice = createSlice({
         // 更新标签ID
         updateTabId: (state: Draft<EditorState>, action: PayloadAction<{ oldId: string; newId: string }>) => {
             const { oldId, newId } = action.payload;
-            const focusTabBar = state.tabBars[state.activeTabBarId]!;
-            // 更新标签id
-            const tabIndex = focusTabBar.tabs.findIndex(tab => tab === oldId);
-            if (tabIndex !== -1) {
-                focusTabBar.tabs[tabIndex] = newId;
-            }
+            // 遍历所有标签栏，更新匹配的标签id
+            Object.values(state.tabBars).forEach(tabBar => {
+                const tabIndex = tabBar.tabs.findIndex(tab => tab === oldId);
+                if (tabIndex !== -1) {
+                    tabBar.tabs[tabIndex] = newId;
+                }
 
-            // 如果此id是活跃标签，更新activeTabId
-            if (focusTabBar.activeTabId === oldId) {
-                focusTabBar.activeTabId = newId;
-            }
+                // 如果此id是活跃标签，更新activeTabId
+                if (tabBar.activeTabId === oldId) {
+                    tabBar.activeTabId = newId;
+                }
+            });
             // 更新currentData中的标签id
             state.currentData[newId] = state.currentData[oldId]!;
             delete state.currentData[oldId];

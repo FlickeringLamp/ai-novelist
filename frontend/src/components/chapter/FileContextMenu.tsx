@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import ContextMenu, { type ContextMenuItem } from '../others/ContextMenu';
 import httpClient from '../../utils/httpClient';
 
@@ -22,6 +21,7 @@ interface Modal {
   show: boolean;
   message: string;
   onConfirm: (() => void) | null;
+  onCancel: (() => void) | null;
 }
 
 interface ChapterContextMenuProps {
@@ -32,7 +32,7 @@ interface ChapterContextMenuProps {
   setLastSelectedItem: (item: LastSelectedItem) => void;
   handleCloseContextMenu: () => void;
   handleCreateItem: (isFolder: boolean, parentId: string | undefined) => void;
-  fetchChapters: () => void;
+  fetchChapters: () => Promise<void>;
   setModal: (modal: Modal) => void;
 }
 
@@ -47,11 +47,6 @@ function ChapterContextMenu({
   fetchChapters,
   setModal
 }: ChapterContextMenuProps) {
-  const [adjustedY, setAdjustedY] = useState(contextMenu.y);
-  // 监听看看,到底是什么导致右键空白区，item有值。
-  useEffect(()=>{
-    console.log("右键时，值为：",selectedItem)
-  })
 
   const handleRenameItem = () => {
     setSelectedItem({
@@ -90,19 +85,19 @@ function ChapterContextMenu({
       await fetchChapters();
     } catch (error) {
       console.error('粘贴失败:', error);
-      setModal({ show: true, message: String(error), onConfirm: null });
+      setModal({ show: true, message: String(error), onConfirm: null, onCancel: null });
     }
   };
 
   const handleConfirmDelete = async () => {
     try {
-      setModal({ show: false, message: "", onConfirm: null });
+      setModal({ show: false, message: "", onConfirm: null, onCancel: null });
       handleCloseContextMenu();
       await httpClient.delete(`/api/file/delete/${selectedItem.id}`);
       await fetchChapters();
     } catch (error) {
       console.error('删除失败:', error);
-      setModal({ show: true, message: String(error), onConfirm: null });
+      setModal({ show: true, message: String(error), onConfirm: null, onCancel: null });
     }
   };
 
@@ -111,7 +106,11 @@ function ChapterContextMenu({
     setModal({
       show: true,
       message: `确定要删除 "${selectedItem.id}" 吗？`,
-      onConfirm: handleConfirmDelete
+      onConfirm: handleConfirmDelete,
+      onCancel: () => {
+        // 取消操作，只需要关闭模态框
+        setModal({ show: false, message: "", onConfirm: null, onCancel: null });
+      }
     });
   };
 
