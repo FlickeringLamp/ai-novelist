@@ -47,8 +47,8 @@ const RagSettingsPanel = () =>{
   useEffect(()=>{
     const fetchEmbeddingModels = async() => {
       if (selectedProviderId) {
-        const response = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
-        const embeddingList = filterEmbeddingModels(response.models || []);
+        const models = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
+        const embeddingList = filterEmbeddingModels(models || []);
         setEmbeddingModels(embeddingList);
       }
     };
@@ -57,8 +57,8 @@ const RagSettingsPanel = () =>{
 
   useEffect(()=>{
     const fetchKnowledgeBaseFiles = async() => {
-      const response = await httpClient.get('/api/embedding/rag/files');
-      setRagFile(response.files || []);
+      const files = await httpClient.get('/api/embedding/rag/files');
+      setRagFile(files || []);
     };
     fetchKnowledgeBaseFiles();
   },[])
@@ -109,11 +109,11 @@ const RagSettingsPanel = () =>{
     try {
       const formData = new FormData();
       formData.append('file', file);
-      await httpClient.post('/api/embedding/rag/files', formData);
+      await httpClient.upload('/api/embedding/rag/files', formData);
 
       setUploadStatus(`文件 "${file.name}" 上传成功！`)
-      const fileListResult = await httpClient.get('/api/embedding/rag/files');
-      setRagFile(fileListResult.files || [])
+      const files = await httpClient.get('/api/embedding/rag/files');
+      setRagFile(files || [])
     } catch (error) {
       console.error('文件上传过程中发生错误:', error)
       setUploadStatus(`文件上传失败: ${(error as Error).message}`)
@@ -131,8 +131,8 @@ const RagSettingsPanel = () =>{
       await httpClient.delete(`/api/embedding/rag/files/${fileId}`);
 
       console.log('文件删除成功');
-      const fileListResult = await httpClient.get('/api/embedding/rag/files');
-      setRagFile(fileListResult.files || []);
+      const files = await httpClient.get('/api/embedding/rag/files');
+      setRagFile(files || []);
     } catch (error) {
       console.error('文件删除过程中发生错误:', error);
     }
@@ -150,8 +150,8 @@ const RagSettingsPanel = () =>{
       });
 
       console.log('文件重命名成功');
-      const fileListResult = await httpClient.get('/api/embedding/rag/files');
-      setRagFile(fileListResult.files || []);
+      const files = await httpClient.get('/api/embedding/rag/files');
+      setRagFile(files || []);
       setRenamingFileId(null);
       setNewFileName('');
     } catch (error) {

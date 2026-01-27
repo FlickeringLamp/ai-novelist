@@ -5,6 +5,8 @@ import httpClient from '../../utils/httpClient';
 
 interface Model {
   id: string;
+  name: string;
+  provider: string;
 }
 
 interface Provider {
@@ -35,8 +37,8 @@ const ProviderSettingsPanel = () => {
   useEffect(() => {
     const fetchProviders = async () => {
       const result = await httpClient.get('/api/provider/providers');
-      if (result.success) {
-        setProviders(result.data || []);
+      if (result) {
+        setProviders(result || []);
       }
     };
     fetchProviders();
@@ -46,8 +48,8 @@ const ProviderSettingsPanel = () => {
   useEffect(() => {
     const loadFavoriteModels = async () => {
       const result = await httpClient.get('/api/provider/favorite-models');
-      if (result.success) {
-        setFavoriteModels(result.data || {});
+      if (result) {
+        setFavoriteModels(result || {});
       }
     };
     loadFavoriteModels();
@@ -66,13 +68,10 @@ const ProviderSettingsPanel = () => {
     setModelError(''); // 清除之前的错误
     try {
       const result = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
-      if (result.success) {
-        setProviderModels(result.data.models || []);
-        setModelError('');
-      } else {
-        setProviderModels([]);
-        setModelError(result.error || '获取模型列表失败');
-      }
+      // 后端返回的是对象数组，包含id、name、provider字段
+      const models = result || [];
+      setProviderModels(models);
+      setModelError('');
     } catch (error) {
       setProviderModels([]);
       setModelError('获取模型列表失败: ' + (error as Error).message);
@@ -87,36 +86,28 @@ const ProviderSettingsPanel = () => {
   // 确认删除提供商
   const confirmDeleteProvider = async () => {
     try {
-      // 检查是否是自定义提供商
-      const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-      const customProviders = providersResponse.data || [];
-      const isCustomProvider = customProviders.some((provider: Provider) => provider.name === providerToDelete);
+      // 内置提供商列表
+      const builtinProviders = ['deepseek', 'openrouter', 'aliyun', 'siliconflow', 'zhipuai', 'kimi', 'ollama', 'gemini'];
+      const isBuiltinProvider = builtinProviders.includes(providerToDelete);
 
-      if (isCustomProvider) {
+      if (!isBuiltinProvider) {
         // 删除自定义提供商
-        const result = await httpClient.delete(`/api/provider/custom-providers/${providerToDelete}`);
+        await httpClient.delete(`/api/provider/custom-providers/${providerToDelete}`);
 
-        if (result.success) {
-          // 刷新提供商列表
-          const providersResult = await httpClient.get('/api/provider/providers');
-          if (providersResult.success) {
-            setProviders(providersResult.data || []);
-          }
+        // 刷新提供商列表
+        const providersResult = await httpClient.get('/api/provider/providers');
+        setProviders(providersResult || []);
 
-          // 如果删除的是当前选中的提供商，清空选中状态
-          if (selectedProviderId === providerToDelete) {
-            setSelectedProviderId(null);
-            setProviderModels([]);
-            setApiKey('');
-            setBaseUrl('');
-          }
-
-          setNotificationMessage(`提供商 "${providerToDelete}" 删除成功`);
-          setShowNotification(true);
-        } else {
-          setNotificationMessage(`删除失败: ${result.error}`);
-          setShowNotification(true);
+        // 如果删除的是当前选中的提供商，清空选中状态
+        if (selectedProviderId === providerToDelete) {
+          setSelectedProviderId(null);
+          setProviderModels([]);
+          setApiKey('');
+          setBaseUrl('');
         }
+
+        setNotificationMessage(`提供商 "${providerToDelete}" 删除成功`);
+        setShowNotification(true);
       } else {
         setNotificationMessage('内置提供商不能删除');
         setShowNotification(true);
@@ -150,77 +141,34 @@ const ProviderSettingsPanel = () => {
     if (isFavorite) {
       // 从常用列表中移除
       const result = await httpClient.delete(`/api/provider/favorite-models?modelId=${encodeURIComponent(modelId)}`);
-      if (result.success) {
-        setFavoriteModels(result.data || {});
-      }
+      setFavoriteModels(result || {});
     } else {
       // 添加到常用列表
       const result = await httpClient.post('/api/provider/favorite-models', {
         modelId,
         provider
       });
-      if (result.success) {
-        setFavoriteModels(result.data || {});
-      }
+      setFavoriteModels(result || {});
     }
   }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProviderId) return;
     try {
-      // 内置提供商列表
-      const builtinProviders = ['deepseek', 'openrouter', 'aliyun', 'siliconflow', 'zhipuai', 'kimi', 'ollama', 'gemini'];
-      const isBuiltinProvider = builtinProviders.includes(selectedProviderId);
+      // 对于所有提供商（内置和自定义），统一使用新的嵌套结构 provider.{providerId}.key 和 provider.{providerId}.url
+      const apiKeyConfigKey = `provider.${selectedProviderId}.key`;
+      const baseUrlConfigKey = `provider.${selectedProviderId}.url`;
 
-      if (!isBuiltinProvider) {
-        // 对于自定义提供商，使用customProviders数组
-        const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-        let customProviders = providersResponse.data || [];
-        const existingProviderIndex = customProviders.findIndex((provider: Provider) => provider.name === selectedProviderId);
-
-        if (existingProviderIndex !== -1) {
-          // 更新现有的自定义提供商
-          customProviders[existingProviderIndex] = {
-            ...customProviders[existingProviderIndex],
-            apiKey: apiKey,
-            baseUrl: baseUrl
-          };
-        } else {
-          // 如果不在customProviders数组中，创建一个新的条目
-          customProviders.push({
-            name: selectedProviderId,
-            apiKey: apiKey,
-            baseUrl: baseUrl
-          });
-        }
-
-        // 保存更新后的customProviders数组
-        await httpClient.post('/api/config/store', {
-          key: 'customProviders',
-          value: customProviders
-        });
-        setSubmitStatus({
-          success: true,
-          message: `${selectedProviderId} 配置保存成功`
-        });
-        setNotificationMessage(`${selectedProviderId} 配置保存成功`);
-        setShowNotification(true);
-      } else {
-        // 对于内置提供商，使用原来的方式
-        const apiKeyConfigKey = `${selectedProviderId}ApiKey`;
-        const baseUrlConfigKey = `${selectedProviderId}BaseUrl`;
-
-        await Promise.all([
-          httpClient.post('/api/config/store', { key: apiKeyConfigKey, value: apiKey }),
-          httpClient.post('/api/config/store', { key: baseUrlConfigKey, value: baseUrl })
-        ]);
-        setSubmitStatus({
-          success: true,
-          message: `${selectedProviderId} 配置保存成功`
-        });
-        setNotificationMessage(`${selectedProviderId} 配置保存成功`);
-        setShowNotification(true);
-      }
+      await Promise.all([
+        httpClient.post('/api/config/store', { key: apiKeyConfigKey, value: apiKey }),
+        httpClient.post('/api/config/store', { key: baseUrlConfigKey, value: baseUrl })
+      ]);
+      setSubmitStatus({
+        success: true,
+        message: `${selectedProviderId} 配置保存成功`
+      });
+      setNotificationMessage(`${selectedProviderId} 配置保存成功`);
+      setShowNotification(true);
     } catch (error) {
       setSubmitStatus({
         success: false,
@@ -233,30 +181,23 @@ const ProviderSettingsPanel = () => {
   const handleCustomProviderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await httpClient.post('/api/provider/custom-providers', {
+      await httpClient.post('/api/provider/custom-providers', {
         name: customProviderName,
-        baseUrl: '',
-        apiKey: ''
+        url: '',
+        key: ''
       });
 
-      if (result.success) {
-        // 刷新提供商列表
-        const providersResult = await httpClient.get('/api/provider/providers');
-        if (providersResult.success) {
-          setProviders(providersResult.data || []);
-        }
+      // 刷新提供商列表
+      const providersResult = await httpClient.get('/api/provider/providers');
+      setProviders(providersResult || []);
 
-        // 重置表单并关闭模态框
-        setCustomProviderName('');
-        setShowCustomProviderModal(false);
+      // 重置表单并关闭模态框
+      setCustomProviderName('');
+      setShowCustomProviderModal(false);
 
-        // 显示成功通知
-        setNotificationMessage('自定义提供商添加成功');
-        setShowNotification(true);
-      } else {
-        setNotificationMessage(`添加失败: ${result.error}`);
-        setShowNotification(true);
-      }
+      // 显示成功通知
+      setNotificationMessage('自定义提供商添加成功');
+      setShowNotification(true);
     } catch (error) {
       setNotificationMessage(`添加失败: ${(error as Error).message}`);
       setShowNotification(true);
@@ -272,53 +213,42 @@ const ProviderSettingsPanel = () => {
         return;
       }
       try {
-        // 检查是否是自定义提供商
-        const providersResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customProviders')}`);
-        const customProviders = providersResponse.data || [];
-        const customProvider = customProviders.find((provider: Provider) => provider.name === selectedProviderId);
+        // 对于所有提供商（内置和自定义），统一使用新的嵌套结构 provider.{providerId}.key 和 provider.{providerId}.url
+        const apiKeyConfigKey = `provider.${selectedProviderId}.key`;
+        const baseUrlConfigKey = `provider.${selectedProviderId}.url`;
 
-        if (customProvider) {
-          // 对于自定义提供商，从customProviders数组中获取配置
-          setApiKey(customProvider.apiKey || '');
-          setBaseUrl(customProvider.baseUrl || '');
+        const [apiKeyResponse, baseUrlResponse] = await Promise.all([
+          httpClient.get(`/api/config/store?key=${encodeURIComponent(apiKeyConfigKey)}`),
+          httpClient.get(`/api/config/store?key=${encodeURIComponent(baseUrlConfigKey)}`)
+        ]);
+
+        // 检查返回结果结构
+        if (apiKeyResponse) {
+          setApiKey(apiKeyResponse);
         } else {
-          // 对于内置提供商，使用原来的方式
-          const apiKeyConfigKey = `${selectedProviderId}ApiKey`;
-          const baseUrlConfigKey = `${selectedProviderId}BaseUrl`;
+          setApiKey('');
+        }
 
-          const [apiKeyResponse, baseUrlResponse] = await Promise.all([
-            httpClient.get(`/api/config/store?key=${encodeURIComponent(apiKeyConfigKey)}`),
-            httpClient.get(`/api/config/store?key=${encodeURIComponent(baseUrlConfigKey)}`)
-          ]);
-
-          // 检查返回结果结构
-          if (apiKeyResponse.data) {
-            setApiKey(apiKeyResponse.data);
+        if (baseUrlResponse) {
+          setBaseUrl(baseUrlResponse);
+        } else {
+          // 如果没有自定义URL，对于内置提供商，使用默认URL
+          if (selectedProviderId === 'deepseek') {
+            setBaseUrl('https://api.deepseek.com/v1');
+          } else if (selectedProviderId === 'ollama') {
+            setBaseUrl('http://127.0.0.1:11434');
+          } else if (selectedProviderId === 'aliyun') {
+            setBaseUrl('https://dashscope.aliyuncs.com/compatible-mode/v1');
+          } else if (selectedProviderId === 'openrouter') {
+            setBaseUrl('https://openrouter.ai/api/v1');
+          } else if (selectedProviderId === 'siliconflow') {
+            setBaseUrl('https://api.siliconflow.cn/v1');
+          } else if (selectedProviderId === 'kimi') {
+            setBaseUrl('https://api.moonshot.cn/v1');
+          } else if (selectedProviderId === 'zhipuai') {
+            setBaseUrl('https://open.bigmodel.cn/api/paas/v4/');
           } else {
-            setApiKey('');
-          }
-
-          if (baseUrlResponse.data) {
-            setBaseUrl(baseUrlResponse.data);
-          } else {
-            // 如果没有自定义URL，对于内置提供商，使用默认URL
-            if (selectedProviderId === 'deepseek') {
-              setBaseUrl('https://api.deepseek.com/v1');
-            } else if (selectedProviderId === 'ollama') {
-              setBaseUrl('http://127.0.0.1:11434');
-            } else if (selectedProviderId === 'aliyun') {
-              setBaseUrl('https://dashscope.aliyuncs.com/compatible-mode/v1');
-            } else if (selectedProviderId === 'openrouter') {
-              setBaseUrl('https://openrouter.ai/api/v1');
-            } else if (selectedProviderId === 'siliconflow') {
-              setBaseUrl('https://api.siliconflow.cn/v1');
-            } else if (selectedProviderId === 'kimi') {
-              setBaseUrl('https://api.moonshot.cn/v1');
-            } else if (selectedProviderId === 'zhipuai') {
-              setBaseUrl('https://open.bigmodel.cn/api/paas/v4/');
-            } else {
-              setBaseUrl('');
-            }
+            setBaseUrl('');
           }
         }
       } catch (error) {

@@ -1,7 +1,6 @@
 import json
 import logging
 from typing import Any, Dict, List
-from pathlib import Path
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
@@ -32,27 +31,6 @@ class UpdateModeToolConfigRequest(BaseModel):
     enabled_tools: List[str] = Field(..., description="启用的工具列表")
 
 
-def load_store_config():
-    """加载存储配置"""
-    config_path = Path("backend/data/config/store.json")
-    if not config_path.exists():
-        logger.warning("配置文件不存在，创建默认配置")
-        default_config = {}
-        save_store_config(default_config)
-        return default_config
-    
-    with open(config_path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_store_config(config: Dict[str, Any]):
-    """保存存储配置"""
-    config_path = Path("backend/data/config/store.json")
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
-
-
 # ========== 通用配置API端点 ==========
 
 @router.get("/store", summary="获取存储值", response_model=Any)
@@ -60,24 +38,23 @@ async def get_store_value(key: str):
     """
     根据键名获取存储值
     
-    - **key**: 存储键名
+    - **key**: 存储键名（支持点号分隔的嵌套路径，如"provider.deepseek.key"）
     """
-    config = load_store_config()
-    value = config.get(key)
-    
-    return value
+    # 支持点号分隔的嵌套路径
+    keys = key.split('.')
+    return settings.get_config(*keys)
 
 @router.post("/store", summary="设置存储值", response_model=Any)
 async def set_store_value(request: SetStoreValueRequest):
     """
     设置存储值
     
-    - **key**: 存储键名
+    - **key**: （可以是简单键名如"username"，也支持点号分隔的嵌套路径如"provider.deepseek.key"）
     - **value**: 存储值
     """
-    config = load_store_config()
-    config[request.key] = request.value
-    save_store_config(config)
+    # 支持点号分隔的嵌套路径
+    keys = request.key.split('.')
+    settings.update_config(request.value, *keys)
     
     return request.value
 
@@ -93,17 +70,17 @@ async def get_api_key():
     Returns:
         Dict[str, str]: API密钥配置字典
     """
-    config = load_store_config()
+    provider_config = settings.get_config("provider", default={})
     
-    # 返回所有API密钥配置
+    # 返回所有提供商的API密钥
     return {
-        "deepseekApiKey": config.get("deepseekApiKey", ""),
-        "openrouterApiKey": config.get("openrouterApiKey", ""),
-        "siliconflowApiKey": config.get("siliconflowApiKey", ""),
-        "aliyunApiKey": config.get("aliyunApiKey", ""),
-        "zhipuaiApiKey": config.get("zhipuaiApiKey", ""),
-        "kimiApiKey": config.get("kimiApiKey", ""),
-        "geminiApiKey": config.get("geminiApiKey", "")
+        "deepseekApiKey": provider_config.get("deepseek", {}).get("key", ""),
+        "openrouterApiKey": provider_config.get("openrouter", {}).get("key", ""),
+        "siliconflowApiKey": provider_config.get("siliconflow", {}).get("key", ""),
+        "aliyunApiKey": provider_config.get("aliyun", {}).get("key", ""),
+        "zhipuaiApiKey": provider_config.get("zhipuai", {}).get("key", ""),
+        "kimiApiKey": provider_config.get("kimi", {}).get("key", ""),
+        "ollamaApiKey": provider_config.get("ollama", {}).get("key", "")
     }
 
 # 选中的模型相关API
@@ -115,11 +92,9 @@ async def get_selected_model():
     Returns:
         Dict[str, str]: 包含 selectedModel 和 selectedProvider 的字典
     """
-    config = load_store_config()
-    
     return {
-        "selectedModel": config.get("selectedModel", ""),
-        "selectedProvider": config.get("selectedProvider", "")
+        "selectedModel": settings.get_config("selectedModel", default=""),
+        "selectedProvider": settings.get_config("selectedProvider", default="")
     }
 
 @router.post("/ai/selected-model", summary="设置选中的模型", response_model=Dict[str, str])
@@ -133,41 +108,13 @@ async def set_selected_model(request: SetSelectedModelRequest):
     Returns:
         Dict[str, str]: 包含 selectedModel 和 selectedProvider 的字典
     """
-    config = load_store_config()
-    config["selectedModel"] = request.selectedModel
-    config["selectedProvider"] = request.selectedProvider
-    save_store_config(config)
+    settings.update_config(request.selectedModel, "selectedModel")
+    settings.update_config(request.selectedProvider, "selectedProvider")
     
     return {
         "selectedModel": request.selectedModel,
         "selectedProvider": request.selectedProvider
     }
-
-# 提供商配置相关API
-@router.get("/ai/provider-config", summary="获取提供商配置", response_model=Dict[str, Any])
-async def get_provider_config():
-    """
-    获取所有提供商配置
-    
-    Returns:
-        Dict[str, Any]: 提供商配置字典
-    """
-    return load_store_config()
-
-@router.post("/ai/provider-config", summary="保存提供商配置", response_model=Dict[str, Any])
-async def save_provider_config(request: SaveProviderConfigRequest):
-    """
-    保存提供商配置
-    
-    - **config_data**: 提供商配置数据
-    
-    Returns:
-        Dict[str, Any]: 保存后的配置数据
-    """
-    save_store_config(request.config_data)
-    return request.config_data
-
-# ========== 工具配置API端点 ==========
 
 @router.get("/tool/modes", summary="获取所有模式的工具配置", response_model=Dict[str, Any])
 async def get_all_modes_tool_config():
@@ -178,13 +125,12 @@ async def get_all_modes_tool_config():
     # 构建响应数据
     response_data = {}
     
-    # 获取所有模式，需要重构
     for mode_id, config in all_mode_config.items():
         response_data[mode_id] = {
             "id": mode_id,
             "name": mode_id.capitalize(),
             "type": "builtin",
-            "enabled_tools": settings.get_config(mode_id, default={})
+            "enabled_tools": config.get("tools", [])
         }
     
     return response_data

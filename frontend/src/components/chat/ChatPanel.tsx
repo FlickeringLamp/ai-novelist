@@ -156,8 +156,8 @@ const ChatPanel = () => {
     const loadCurrentThreadMessages = async () => {
       try {
         const threadResponse = await httpClient.get('/api/chat/current-thread');
-        if (threadResponse.success && threadResponse.thread_id) {
-          const threadId = threadResponse.thread_id;
+        if (threadResponse) {
+          const threadId = threadResponse;
           console.log('加载当前thread_id的历史消息:', threadId);
           // 获取该thread_id的历史消息
           const messagesResult = await httpClient.post('/api/history/messages', {
@@ -165,8 +165,8 @@ const ChatPanel = () => {
             mode: 'outline'
           });
           
-          if (messagesResult.success && messagesResult.data && messagesResult.data.length > 0) {
-            const messages = messagesResult.data;
+          if (Array.isArray(messagesResult) && messagesResult.length > 0) {
+            const messages = messagesResult;
             // 将消息转换为前端期望的格式
             const formattedMessages = messages.map((msg: any) => {
               // 将后端消息类型转换为前端角色
@@ -731,14 +731,14 @@ const ChatPanel = () => {
   // 处理创建新会话
   const handleCreateNewThread = async () => {
     try {
-      const response = await httpClient.post('/api/chat/new-thread', {});
+      const threadId = await httpClient.post('/api/chat/new-thread', {});
       
-      if (response.success) {
+      if (threadId) {
         // 清空消息面板
         setMessages([]);
         setCurrentAiMessage('');
         setInterruptInfo(null);
-        console.log('新会话创建成功:', response.thread_id);
+        console.log('新会话创建成功:', threadId);
       }
     } catch (error) {
       console.error('创建新会话失败:', error);
@@ -750,27 +750,27 @@ const ChatPanel = () => {
     try {
       setIsLoading(true);
       
-      const response = await httpClient.post('/api/chat/summarize', {});
+      const summary = await httpClient.post('/api/chat/summarize', {});
       
-      if (response.success && response.summary) {
+      if (summary) {
         // 创建总结消息
         const summaryMessage = {
           id: generateMessageId(),
           role: 'summary',
-          content: response.summary,
+          content: summary,
           isCollapsible: true // 标记为可折叠的消息
         };
         
         // 添加总结消息到消息列表
         setMessages(prev => [...prev, summaryMessage]);
         
-        console.log('对话总结成功:', response.summary);
+        console.log('对话总结成功:', summary);
       } else {
         // 添加错误消息
         const errorMessage = {
           id: generateMessageId(),
           role: 'assistant',
-          content: response.message || '总结失败，请稍后再试。'
+          content: '总结失败，请稍后再试。'
         };
         setMessages(prev => [...prev, errorMessage]);
       }

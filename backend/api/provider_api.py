@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict
+from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 from backend.core.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.config import settings
@@ -33,7 +33,7 @@ def providers_list():
 
 
 
-@router.get("/{provider_id}/models", summary="获取指定模型提供商的模型列表", response_model=List[str])
+@router.get("/{provider_id}/models", summary="获取指定模型提供商的模型列表", response_model=List[Dict[str, Any]])
 def model_list(provider_id: str):
     """
     获取指定模型提供商的模型列表
@@ -79,14 +79,14 @@ async def add_favorite_model(request: AddFavoriteModelRequest):
     return settings.get_config("favoriteModels", default={})
 
 @router.delete("/favorite-models", summary="删除常用模型", response_model=Dict[str, Dict])
-async def remove_favorite_model(model_id: str):
+async def remove_favorite_model(modelId: str):
     """
     从常用模型列表中删除模型
     
     - **modelId**: 模型ID（通过查询参数传递）
     """
     # 从常用列表中删除模型
-    settings.delete_config("favoriteModels", model_id)
+    settings.delete_config("favoriteModels", modelId)
     
     return settings.get_config("favoriteModels", default={})
 

@@ -47,9 +47,9 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
   const loadModeConfig = async () => {
     try {
       const [customPromptsData, additionalInfoData, aiParametersData] = await Promise.all([
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('customPrompts')}`).then(r => r.data),
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('additionalInfo')}`).then(r => r.data),
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('aiParameters')}`).then(r => r.data)
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('customPrompts')}`),
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('additionalInfo')}`),
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('aiParameters')}`)
       ]);
       
       setCustomPrompts(customPromptsData || {});

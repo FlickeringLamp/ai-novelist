@@ -122,8 +122,8 @@ const MessageInput = ({ onSendMessage, interruptInfo, onInterruptResponse, disab
         // 获取文件内容
         fileContentPromises.push(
           httpClient.get(`/api/file/read/${encodeURIComponent(fileName)}`)
-            .then(response => {
-              return { fileName, content: response };
+            .then(content => {
+              return { fileName, content: content };
             })
             .catch(error => {
               console.error(`读取文件 ${fileName} 失败:`, error);

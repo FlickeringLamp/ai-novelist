@@ -23,15 +23,15 @@ const ModeSelector = () => {
     const loadModeSettings = async () => {
       try {
         // 加载当前模式
-        const modeResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('currentMode')}`);
-        if (modeResponse) {
-          setCurrentMode(modeResponse);
+        const currentModeValue = await httpClient.get(`/api/config/store?key=${encodeURIComponent('currentMode')}`);
+        if (currentModeValue) {
+          setCurrentMode(currentModeValue);
         }
         
         // 加载自定义模式
-        const modesResponse = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customModes')}`);
-        if (modesResponse && Array.isArray(modesResponse)) {
-          setCustomModes(modesResponse);
+        const customModesValue = await httpClient.get(`/api/config/store?key=${encodeURIComponent('customModes')}`);
+        if (customModesValue && Array.isArray(customModesValue)) {
+          setCustomModes(customModesValue);
         }
       } catch (error) {
         console.error('加载模式设置失败:', error);

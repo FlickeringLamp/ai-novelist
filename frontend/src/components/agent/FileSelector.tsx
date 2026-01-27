@@ -10,11 +10,6 @@ interface FileItem {
   children?: FileItem[];
 }
 
-interface ApiResponse {
-  success: boolean;
-  data?: FileItem[];
-  error?: string;
-}
 
 interface FileSelectorProps {
   onFileContentAdd: (response: any) => void;
@@ -33,12 +28,8 @@ const FileSelector = ({ onFileContentAdd }: FileSelectorProps) => {
     setIsLoading(true);
     try {
       const result = await httpClient.get('/api/file/tree');
-      if (result.success) {
-        setFiles(result.data || []);
-        setFilteredFiles(result.data || []);
-      } else {
-        console.error('获取文件列表失败:', result.error);
-      }
+      setFiles(result || []);
+      setFilteredFiles(result || []);
     } catch (error) {
       console.error('获取文件列表出错:', error);
     } finally {

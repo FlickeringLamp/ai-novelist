@@ -139,7 +139,7 @@ def initialize_directories_and_files():
                     "key": ""
                 },
                 "ollama": {
-                    "url": "http://127.0.0.1/11434",
+                    "url": "http://127.0.0.1:11434",
                     "key": ""
                 }
             },

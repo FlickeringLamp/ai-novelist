@@ -325,6 +325,11 @@ async def get_all_sessions():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # 检查checkpoints表是否存在
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='checkpoints'")
+    if cursor.fetchone() is None:
+        return {"sessions": []}
+    
     # 获取所有用户ID（会话ID）并按照最后访问时间排序
     cursor.execute('''
         SELECT DISTINCT thread_id,

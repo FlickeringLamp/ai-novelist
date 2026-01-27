@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faSyncAlt, faRobot } from '@fortawesome/free-solid-svg-icons';
-import httpClient from '../../../utils/httpClient';
-import { isEmbeddingModel } from '../../../utils/embeddingModelUtils';
+import httpClient from '../../../utils/httpClient.ts';
+import { isEmbeddingModel } from '../../../utils/embeddingModelUtils.ts';
 
 interface Model {
     id: string;
@@ -42,19 +42,15 @@ const ModelSelectorPanel = () => {
   const loadAvailableModels = async () => {
     try {
       setLoading(true);
-      const result = await httpClient.get('/api/provider/favorite-models');
+      const favoriteModels = await httpClient.get('/api/provider/favorite-models');
       
-      if (result.success) {
-        const models = convertBackendModels(result.data);
-        const filteredModels = models.filter(model => !isEmbeddingModel(model.id));
-        setAvailableModels(filteredModels);
-        console.log('ModelSelectorPanel: 从后端获取到模型数据:', {
-          availableModelsCount: filteredModels.length,
-          availableModels: filteredModels
-        });
-      } else {
-        console.error('获取模型列表失败:', result.error);
-      }
+      const models = convertBackendModels(favoriteModels);
+      const filteredModels = models.filter(model => !isEmbeddingModel(model.id));
+      setAvailableModels(filteredModels);
+      console.log('ModelSelectorPanel: 从后端获取到模型数据:', {
+        availableModelsCount: filteredModels.length,
+        availableModels: filteredModels
+      });
     } catch (error) {
       console.error('加载模型列表失败:', error);
     } finally {
@@ -65,8 +61,8 @@ const ModelSelectorPanel = () => {
   // 加载选中的模型
   const loadSelectedModel = async () => {
     try {
-      const response = await httpClient.get('/api/ai-config/selected-model');
-      setSelectedModel(response.selectedModel || '');
+      const selectedModelData = await httpClient.get('/api/config/ai/selected-model');
+      setSelectedModel(selectedModelData.selectedModel || '');
     } catch (error) {
       console.error('加载选中模型失败:', error);
     }
@@ -90,7 +86,7 @@ const ModelSelectorPanel = () => {
       const selectedModelInfo = availableModels.find(model => model.id === modelId);
       const provider = selectedModelInfo?.provider || '';
       
-      await httpClient.post('/api/ai-config/selected-model', {
+      await httpClient.post('/api/config/ai/selected-model', {
         selectedModel: modelId,
         selectedProvider: provider
       });

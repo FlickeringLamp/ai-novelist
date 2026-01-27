@@ -2,7 +2,7 @@
 const API_BASE_URL = 'http://localhost:8000';
 
 // 通用的 fetch 封装函数
-const api = {
+const httpClient = {
   baseURL: API_BASE_URL,
   timeout: 30000, // 请求超时时间（30秒）
   
@@ -31,7 +31,7 @@ const api = {
         'Content-Type': 'application/json'
       }
     });
-    return await api.parseResponse(response);
+    return await httpClient.parseResponse(response);
   },
   
   // POST 请求
@@ -43,7 +43,7 @@ const api = {
       },
       body: JSON.stringify(data)
     });
-    return await api.parseResponse(response);
+    return await httpClient.parseResponse(response);
   },
   
   // PUT 请求
@@ -55,7 +55,7 @@ const api = {
       },
       body: JSON.stringify(data)
     });
-    return await api.parseResponse(response);
+    return await httpClient.parseResponse(response);
   },
   
   // DELETE 请求
@@ -66,7 +66,7 @@ const api = {
         'Content-Type': 'application/json'
       }
     });
-    return await api.parseResponse(response);
+    return await httpClient.parseResponse(response);
   },
   
   // 上传文件请求
@@ -76,7 +76,7 @@ const api = {
       // 不设置 Content-Type，让浏览器自动设置 multipart/form-data
       body: formData
     });
-    return await api.parseResponse(response);
+    return await httpClient.parseResponse(response);
   },
 
   // 流式请求
@@ -94,4 +94,4 @@ const api = {
   }
 };
 
-export default api;
+export default httpClient;
