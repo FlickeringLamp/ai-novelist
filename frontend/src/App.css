@@ -10,10 +10,10 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--color-green);
+    background: var(--color-gray3);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-gray3);
+    background: var(--color-green);
   }
 }

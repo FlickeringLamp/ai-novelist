@@ -2,7 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
 import DisplayNameHelper from '../../utils/DisplayNameHelper.ts';
 import { useDispatch, useSelector } from 'react-redux'
-import { addTab, setActiveTab, updateTabId, getActiveTabBar } from '../../store/editor.ts';
+import { addTab, setActiveTab, updateTabId } from '../../store/editor.ts';
 import { toggleCollapse } from '../../store/file.ts';
 import { useEffect, useRef, useState } from 'react';
 import httpClient from '../../utils/httpClient.ts';
@@ -32,8 +32,6 @@ interface ChapterTreeItemProps {
 // 章节树节点组件
 function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
   const dispatch = useDispatch();
-  const activeTabBar = useSelector(getActiveTabBar);
-  const tabs = activeTabBar?.tabs || [];
   const collapsedChapters = useSelector((state: any) => state.fileSlice.collapsedChapters);
 
   const {

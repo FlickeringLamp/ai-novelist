@@ -1,5 +1,7 @@
 import ContextMenu, { type ContextMenuItem } from '../others/ContextMenu';
 import httpClient from '../../utils/httpClient';
+import { useDispatch } from 'react-redux';
+import { deleteTabFromAllBars, updateTabId } from '../../store/editor';
 
 interface SelectedItem {
   id: string | null;
@@ -47,6 +49,7 @@ function ChapterContextMenu({
   fetchChapters,
   setModal
 }: ChapterContextMenuProps) {
+  const dispatch = useDispatch();
 
   const handleRenameItem = () => {
     setSelectedItem({
@@ -68,6 +71,9 @@ function ChapterContextMenu({
           source_path: lastSelectedItem.id,
           target_path: targetFolderId
         });
+        const newPath = targetFolderId ? `${targetFolderId}/${lastSelectedItem.itemTitle}` : lastSelectedItem.itemTitle!;
+        // 更新所有标签栏中的标签 id
+        dispatch(updateTabId({ oldId: lastSelectedItem.id!, newId: newPath }));
       } else if (lastSelectedItem.state === 'copying') {
         await httpClient.post('/api/file/copy', {
           source_path: lastSelectedItem.id,
@@ -94,6 +100,8 @@ function ChapterContextMenu({
       setModal({ show: false, message: "", onConfirm: null, onCancel: null });
       handleCloseContextMenu();
       await httpClient.delete(`/api/file/delete/${selectedItem.id}`);
+      // 从所有标签栏中删除该标签
+      dispatch(deleteTabFromAllBars({ tabId: selectedItem.id! }));
       await fetchChapters();
     } catch (error) {
       console.error('删除失败:', error);

@@ -1,9 +1,8 @@
 import { useSelector } from 'react-redux';
 import { useEffect, useState } from 'react';
-import { getActiveTab, type RootState, type TabBar } from "../../../store/editor.ts";
+import { type RootState, type TabBar } from "../../../store/editor.ts";
 import MonacoEditor from './CoreEditor.tsx';
 import StatusBar from './StatusBar.tsx';
-import EditorLogo from '../../others/Logo.tsx';
 
 /**不知为什么，关闭最后一个活跃标签时，被监听的tabSlice根本不更新, 导致始终无法显示logo
  * 依赖换成tabslice都没用。
@@ -12,7 +11,7 @@ import EditorLogo from '../../others/Logo.tsx';
  * 推测与组件结构（这是父组件遍历出来的子组件之一）有关，可能也与redux特性有关
  */
 const TabBarEditorArea = ({ tabBarId, tabBar }: { tabBarId: string, tabBar:TabBar }) => {
-  const activeTab = useSelector((state: RootState) => getActiveTab(state, tabBarId));
+  const activeTab = tabBar.activeTabId
   const hasActiveTab = !!activeTab;
   const currentData = useSelector((state: RootState) => state.tabSlice.currentData);
   const [charCount, setCharCount] = useState(0);

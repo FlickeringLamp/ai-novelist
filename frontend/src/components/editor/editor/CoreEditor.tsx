@@ -4,7 +4,7 @@ import loader from '@monaco-editor/loader';
 import type * as Monaco from 'monaco-editor';
 import { useTheme } from '../../../context/ThemeContext.tsx';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateTabContent, saveTabContent, getTabBar, type RootState } from '../../../store/editor.ts';
+import { updateTabContent, saveTabContent, type RootState } from '../../../store/editor.ts';
 import api from '../../../utils/httpClient.ts';
 import UnifiedModal from '../../others/UnifiedModal';
 
@@ -65,7 +65,7 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
 
-  const tabBar = useSelector((state: RootState) => getTabBar(state, tabBarId!));
+  const tabBar = useSelector((state: RootState) => state.tabSlice.tabBars[tabBarId!] || null);
   const activeTab = tabBar?.tabs.find((tab: string) => tab === tabBar?.activeTabId);
   const currentData = useSelector((state: RootState) => state.tabSlice.currentData);
   const value = activeTab ? (currentData[activeTab] || '') : '';

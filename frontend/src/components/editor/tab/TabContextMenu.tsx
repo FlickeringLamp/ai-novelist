@@ -46,8 +46,8 @@ function EditorContextMenu({
   };
 
   const handleSplitRight = () => {
-    if (tabId && tabBarId) {
-      dispatch(addTabBar({ sourceTabId: tabId, tabBarId }));
+    if (tabId) {
+      dispatch(addTabBar({ sourceTabId: tabId }));
     }
     onClose();
   };
