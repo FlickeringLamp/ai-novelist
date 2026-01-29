@@ -42,19 +42,17 @@ async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
     provider = provider.strip()
     provider_model_id = provider_model_id.strip()
     
-    # 处理provider_model_id：去掉第一个前缀（例如从"siliconflow/Qwen/Qwen3-Embedding-8B"变为"Qwen/Qwen3-Embedding-8B"）
-    if "/" in provider_model_id:
-        # 只去掉第一个前缀部分
-        parts = provider_model_id.split("/", 1)
-        model_id = parts[1]
-        print(f"整理后的模型名{model_id}")
+
+    # 直接使用原始模型ID
+    model_id = provider_model_id
+    print(f"模型名{model_id}")
     # 检查是否为内置提供商
     if provider in BUILTIN_PROVIDERS:
         # 内置提供商直接使用默认URL
         embedding_url = BUILTIN_PROVIDERS[provider]
     else:
         # 自定义提供商从配置文件获取URL
-        embedding_url = settings.get_config(provider, "url", default="")
+        embedding_url = settings.get_config("provider", provider, "url", default="")
         if not embedding_url:
             raise HTTPException(
                 status_code=400,
@@ -65,7 +63,7 @@ async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
     if provider == "ollama":
         api_key = ""
     else:
-        api_key = settings.get_config(provider, "key", default="")
+        api_key = settings.get_config("provider", provider, "key", default="")
     
     print(f"提供商: {provider}, 模型ID: {model_id}")
     print(f"URL: {embedding_url}")
@@ -186,7 +184,7 @@ async def save_rag_chunk_settings(request: SaveRagChunkSettingsRequest):
     
     return {
         "chunkSize": request.chunkSize,
-        "chunkOverlap": request.chunk_overlap
+        "chunkOverlap": request.chunkOverlap
     }
 
 # 知识库文件列表相关API

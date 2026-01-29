@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import httpClient from '../../utils/httpClient';
 import { filterEmbeddingModels } from '../../utils/embeddingModelUtils';
+import ErrorModal from '../others/ErrorModal';
 
 interface RagFile {
   id: string;
@@ -12,15 +13,12 @@ interface RagFile {
   dimensions: number;
 }
 
-interface EmbeddingModel {
-  id: string;
-}
 
 const RagSettingsPanel = () =>{
   const [activeTab, setActiveTab] = useState<string>('embedding'); // 默认显示嵌入配置标签
   const [providers, setProviders] = useState<string[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
-  const [embeddingModels, setEmbeddingModels] = useState<EmbeddingModel[]>([]);
+  const [embeddingModels, setEmbeddingModels] = useState<string[]>([]);
   const [selectedEmbeddingModelId, setSelectedEmbeddingModelId] = useState<string | null>(null);
   const [embeddingDimensions, setEmbeddingDimensions] = useState<string | null>(null)
   const [chunkSize, setChunkSize] = useState<string>("")
@@ -29,6 +27,7 @@ const RagSettingsPanel = () =>{
   const [uploadStatus, setUploadStatus] = useState<string>('')
   const [renamingFileId, setRenamingFileId] = useState<string | null>(null)
   const [newFileName, setNewFileName] = useState<string>('')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(()=>{
@@ -37,7 +36,11 @@ const RagSettingsPanel = () =>{
         httpClient.get('/api/provider/providers'),
         httpClient.get('/api/embedding/rag/chunk-settings'),
       ]);
-      setProviders(providersResult || []);
+      // 只显示有嵌入模型的提供商：aliyun, siliconflow, openrouter, zhipuai, ollama
+      const providersWithEmbedding = (providersResult || []).filter((provider: string) =>
+        ['aliyun', 'siliconflow', 'openrouter', 'zhipuai', 'ollama'].includes(provider)
+      );
+      setProviders(providersWithEmbedding);
       setChunkSize(chunkSettingsResult.chunkSize || "");
       setChunkOverlap(chunkSettingsResult.chunkOverlap || "")
     };
@@ -47,9 +50,15 @@ const RagSettingsPanel = () =>{
   useEffect(()=>{
     const fetchEmbeddingModels = async() => {
       if (selectedProviderId) {
-        const models = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
-        const embeddingList = filterEmbeddingModels(models || []);
-        setEmbeddingModels(embeddingList);
+        try {
+          const models = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
+          console.log("获取到模型为：",models)
+          const embeddingList = filterEmbeddingModels(models || []);
+          setEmbeddingModels(embeddingList);
+          console.log("获取到嵌入模型：",embeddingList)
+        } catch (error) {
+          setErrorMessage((error as Error).message || '获取模型列表失败');
+        }
       }
     };
     fetchEmbeddingModels();
@@ -216,13 +225,13 @@ const RagSettingsPanel = () =>{
                       未找到此提供商的嵌入模型
                     </div>
                   ) : (
-                    embeddingModels.map((embeddingModel,index)=>(
+                    embeddingModels.map((modelId, index)=>(
                       <div
                         key={index}
-                        className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray1 ${selectedEmbeddingModelId === embeddingModel.id?'border border-theme-green text-theme-green':''}`}
-                        onClick={()=> handleEmbeddingModelClick(embeddingModel.id)}
+                        className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray1 ${selectedEmbeddingModelId === modelId?'border border-theme-green text-theme-green':''}`}
+                        onClick={()=> handleEmbeddingModelClick(modelId)}
                       >
-                        {embeddingModel.id}
+                        {modelId}
                       </div>
                     ))
                   )}
@@ -346,8 +355,13 @@ const RagSettingsPanel = () =>{
           </div>
         )}
       </div>
+      
+      <ErrorModal
+        errorMessage={errorMessage}
+        onClose={() => setErrorMessage(null)}
+      />
     </div>
   );
-
 };
+
 export default RagSettingsPanel;

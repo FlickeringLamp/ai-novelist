@@ -91,7 +91,7 @@ class MultiModelAdapter:
             )
 
     @classmethod
-    def get_available_models(cls, provider: str, api_key: str = None, base_url: str = None):
+    def get_available_models(cls, provider: str, api_key: str = None, base_url: str = None) -> List[str]:
         """
         获取指定提供商的可用模型列表
         
@@ -101,7 +101,7 @@ class MultiModelAdapter:
             base_url: API基础URL
             
         Returns:
-            模型信息列表
+            模型ID列表
         """
         try:
             if provider == "ollama":
@@ -126,11 +126,7 @@ class MultiModelAdapter:
                     # 保留完整的模型名称，包括标签（如 qwen3:0.6b）
                     # 不再截断冒号后的部分
                     
-                    models.append({
-                        "id": f"ollama/{model_name}",
-                        "name": f"Ollama {model_name}",
-                        "provider": "ollama"
-                    })
+                    models.append(model_name)
                 return models
             else:
                 logger.warning(f"Ollama服务不可用: {response.status_code}")
@@ -140,7 +136,7 @@ class MultiModelAdapter:
             return []
 
     @classmethod
-    def _get_openai_compatible_models(cls, provider: str, api_key: str = None, base_url: str = None) -> List[Dict[str, Any]]:
+    def _get_openai_compatible_models(cls, provider: str, api_key: str = None, base_url: str = None) -> List[str]:
         """获取OpenAI兼容提供商的模型列表"""
         try:
             headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
@@ -151,58 +147,27 @@ class MultiModelAdapter:
                 models = []
                 for model_data in data.get("data", []):
                     model_id = model_data.get("id", "")
-                    models.append({
-                        "id": f"{provider}/{model_id}",
-                        "name": f"{provider.title()} {model_id}",
-                        "provider": provider
-                    })
+                    models.append(model_id)
+                    print(f"获得的id是{model_id}")
                 
                 # 添加嵌入模型列表
                 if provider == "aliyun":
                     embedding_models = [
-                        {
-                            "id": "aliyun/text-embedding-v4",
-                            "name": "阿里云 text-embedding-v4",
-                            "provider": "aliyun"
-                        },
-                        {
-                            "id": "aliyun/text-embedding-v3",
-                            "name": "阿里云 text-embedding-v3",
-                            "provider": "aliyun"
-                        },
-                        {
-                            "id": "aliyun/text-embedding-v2",
-                            "name": "阿里云 text-embedding-v2",
-                            "provider": "aliyun"
-                        },
-                        {
-                            "id": "aliyun/text-embedding-v1",
-                            "name": "阿里云 text-embedding-v1",
-                            "provider": "aliyun"
-                        }
+                        "text-embedding-v4",
+                        "text-embedding-v3",
+                        "text-embedding-v2",
+                        "text-embedding-v1"
                     ]
                     models.extend(embedding_models)
                 elif provider == "zhipuai":
                     embedding_models = [
-                        {
-                            "id": "zhipuai/embedding-3",
-                            "name": "智谱 Embedding-3",
-                            "provider": "zhipuai"
-                        },
-                        {
-                            "id": "zhipuai/embedding-2",
-                            "name": "智谱 Embedding-2",
-                            "provider": "zhipuai"
-                        }
+                        "embedding-3",
+                        "embedding-2"
                     ]
                     models.extend(embedding_models)
                 elif provider == "openrouter":
                     embedding_models = [
-                        {
-                            "id": "openrouter/qwen/qwen3-embedding-4b",
-                            "name": "OpenRouter 千问 text-embedding-v4",
-                            "provider": "openrouter"
-                        }
+                        "qwen/qwen3-embedding-4b"
                     ]
                     models.extend(embedding_models)
                 

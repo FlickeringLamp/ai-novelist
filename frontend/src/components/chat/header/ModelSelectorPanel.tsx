@@ -159,7 +159,7 @@ const ModelSelectorPanel = () => {
       </button>
       
       {isVisible && (
-        <div className="absolute bottom-full left-[-10px] right-[-150px] w-[400px] bg-theme-black border border-theme-gray1 rounded-small shadow-deep z-[1000] mb-1 flex flex-col overflow-hidden max-h-[500px]">
+        <div className="absolute top-full left-[-10px] right-[-150px] w-[400px] bg-theme-black border border-theme-gray1 rounded-small shadow-deep z-[1000] mt-1 flex flex-col overflow-hidden max-h-[500px]">
           {/* 搜索和过滤区域 */}
           <div className="p-3 border-b border-theme-gray1">
             <div className="flex items-center gap-2 mb-3">

@@ -141,16 +141,12 @@ export const useModeManager = () => {
   const cleanupModeSettings = async (modeId: string) => {
     try {
       // 获取当前设置
-      const [customPrompts, additionalInfo, aiParameters] = await Promise.all([
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('customPrompts')}`).then(r => r.data || {}),
+      const [additionalInfo, aiParameters] = await Promise.all([
         httpClient.get(`/api/config/store?key=${encodeURIComponent('additionalInfo')}`).then(r => r.data || {}),
         httpClient.get(`/api/config/store?key=${encodeURIComponent('aiParameters')}`).then(r => r.data || {})
       ]);
       
       // 删除相关的设置数据
-      const updatedPrompts = { ...customPrompts };
-      delete updatedPrompts[modeId];
-      
       const updatedAdditionalInfo = { ...additionalInfo };
       delete updatedAdditionalInfo[modeId];
       
@@ -159,7 +155,6 @@ export const useModeManager = () => {
       
       // 保存清理后的设置
       await Promise.all([
-        httpClient.post('/api/config/store', { key: 'customPrompts', value: updatedPrompts }),
         httpClient.post('/api/config/store', { key: 'additionalInfo', value: updatedAdditionalInfo }),
         httpClient.post('/api/config/store', { key: 'aiParameters', value: updatedAiParameters })
       ]);
@@ -167,7 +162,6 @@ export const useModeManager = () => {
       console.log('[ModeManager] 清理模式设置完成:', modeId);
       
       return {
-        customPrompts: updatedPrompts,
         additionalInfo: updatedAdditionalInfo,
         aiParameters: updatedAiParameters
       };

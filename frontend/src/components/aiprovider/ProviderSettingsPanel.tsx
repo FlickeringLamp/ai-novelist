@@ -3,26 +3,20 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient';
 
-interface Model {
-  id: string;
-  name: string;
-  provider: string;
-}
-
 interface Provider {
   name: string;
 }
 
 const ProviderSettingsPanel = () => {
   const [providers, setProviders] = useState<string[]>([]);
-  const [providerModels, setProviderModels] = useState<Model[]>([]);
+  const [providerModels, setProviderModels] = useState<string[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
   const [submitStatus, setSubmitStatus] = useState<{ success: boolean | null; message: string }>({ success: null, message: '' })
   const [modelError, setModelError] = useState('')
-  const [favoriteModels, setFavoriteModels] = useState<Record<string, string>>({})
+  const [favoriteModels, setFavoriteModels] = useState<string[]>([])
   const [showNotification, setShowNotification] = useState(false)
   const [notificationMessage, setNotificationMessage] = useState('')
 
@@ -49,7 +43,7 @@ const ProviderSettingsPanel = () => {
     const loadFavoriteModels = async () => {
       const result = await httpClient.get('/api/provider/favorite-models');
       if (result) {
-        setFavoriteModels(result || {});
+        setFavoriteModels(result || []);
       }
     };
     loadFavoriteModels();
@@ -68,7 +62,7 @@ const ProviderSettingsPanel = () => {
     setModelError(''); // 清除之前的错误
     try {
       const result = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
-      // 后端返回的是对象数组，包含id、name、provider字段
+      // 后端返回的是字符串数组（模型ID列表）
       const models = result || [];
       setProviderModels(models);
       setModelError('');
@@ -136,19 +130,20 @@ const ProviderSettingsPanel = () => {
 
   // 处理常用模型勾选
   const handleFavoriteToggle = async (modelId: string, provider: string) => {
-    const isFavorite = modelId in favoriteModels;
+    const isFavorite = favoriteModels.includes(modelId);
 
     if (isFavorite) {
       // 从常用列表中移除
       const result = await httpClient.delete(`/api/provider/favorite-models?modelId=${encodeURIComponent(modelId)}`);
-      setFavoriteModels(result || {});
+      setFavoriteModels(result || []);
     } else {
       // 添加到常用列表
       const result = await httpClient.post('/api/provider/favorite-models', {
         modelId,
         provider
       });
-      setFavoriteModels(result || {});
+      console.log("添加的内容是",modelId)
+      setFavoriteModels(result || []);
     }
   }
   const handleSubmit = async (e: React.FormEvent) => {
@@ -334,27 +329,27 @@ const ProviderSettingsPanel = () => {
                 {modelError}
               </div>
             ) : (
-              providerModels.map((model, index) => (
+              providerModels.map((modelId, index) => (
                 <div
                   key={index}
-                  className={`m-2.5 cursor-pointer ${selectedModelId === model.id?'border border-theme-green text-theme-green': ''}`}
+                  className={`m-2.5 cursor-pointer ${selectedModelId === modelId?'border border-theme-green text-theme-green': ''}`}
                 >
                   <input
                     type="checkbox"
-                    checked={model.id in favoriteModels}
+                    checked={favoriteModels.includes(modelId)}
                     onChange={(e) => {
                       e.stopPropagation();
                       if (selectedProviderId) {
-                        handleFavoriteToggle(model.id, selectedProviderId);
+                        handleFavoriteToggle(modelId, selectedProviderId);
                       }
                     }}
                     className="model-checkbox"
                   />
                   <span
-                    onClick={() => handleModelClick(model.id)}
+                    onClick={() => handleModelClick(modelId)}
                     className="model-name"
                   >
-                    {model.id}
+                    {modelId}
                   </span>
                 </div>
               ))

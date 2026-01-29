@@ -35,6 +35,7 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
 
   // 模式配置状态
   const [customPrompts, setCustomPrompts] = useState<Record<string, string>>({});
+  const [builtinModePrompts, setBuiltinModePrompts] = useState<Record<string, string>>({});
   const [additionalInfo, setAdditionalInfo] = useState<Record<string, any>>({});
   const [aiParameters, setAiParameters] = useState<Record<string, any>>({});
   const [toolConfigs, setToolConfigs] = useState<Record<string, any>>({});
@@ -46,14 +47,23 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
   // 加载模式配置
   const loadModeConfig = async () => {
     try {
-      const [customPromptsData, additionalInfoData, aiParametersData] = await Promise.all([
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('customPrompts')}`),
-        httpClient.get(`/api/config/store?key=${encodeURIComponent('additionalInfo')}`),
+      const [modeConfigData, aiParametersData] = await Promise.all([
+        httpClient.get(`/api/config/store?key=${encodeURIComponent('mode')}`),
         httpClient.get(`/api/config/store?key=${encodeURIComponent('aiParameters')}`)
       ]);
       
-      setCustomPrompts(customPromptsData || {});
-      setAdditionalInfo(additionalInfoData || {});
+      // 从 mode 配置中提取所有模式的提示词和附加信息
+      const prompts: Record<string, string> = {};
+      const additionalInfos: Record<string, any> = {};
+      if (modeConfigData) {
+        Object.keys(modeConfigData).forEach(modeId => {
+          prompts[modeId] = modeConfigData[modeId]?.prompt || '';
+          additionalInfos[modeId] = modeConfigData[modeId]?.additionalInfo || [];
+        });
+      }
+      
+      setCustomPrompts(prompts);
+      setAdditionalInfo(additionalInfos);
       setAiParameters(aiParametersData || {});
     } catch (error) {
       console.error('加载模式配置失败:', error);
@@ -91,14 +101,14 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
     };
     setCustomPrompts(updatedPrompts);
     
-    // 保存到后端
+    // 保存到后端 - 保存到 mode.{modeId}.prompt
     try {
       await httpClient.post('/api/config/store', {
-        key: 'customPrompts',
-        value: updatedPrompts
+        key: `mode.${mode}.prompt`,
+        value: value
       });
     } catch (error) {
-      console.error('保存自定义提示词失败:', error);
+      console.error('保存提示词失败:', error);
     }
   };
 
@@ -111,11 +121,11 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
     console.log("配置了什么玩意",updatedAdditionalInfo)
     setAdditionalInfo(updatedAdditionalInfo);
     
-    // 保存到后端
+    // 保存到后端 - 保存到 mode.{modeId}.additionalInfo
     try {
       await httpClient.post('/api/config/store', {
-        key: 'additionalInfo',
-        value: updatedAdditionalInfo
+        key: `mode.${mode}.additionalInfo`,
+        value: value
       });
     } catch (error) {
       console.error('保存附加信息失败:', error);
@@ -163,12 +173,8 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
     try {
       console.log('[AgentPanel] 开始保存通用设置和工具配置');
       
-      // 保存到后端 - 直接使用本地状态
-      await Promise.all([
-        httpClient.post('/api/config/store', { key: 'customPrompts', value: customPrompts }),
-        httpClient.post('/api/config/store', { key: 'additionalInfo', value: additionalInfo }),
-        httpClient.post('/api/config/store', { key: 'aiParameters', value: aiParameters })
-      ]);
+      // 保存到后端 - 提示词和附加信息已通过 handlePromptChange 和 handleAdditionalInfoChange 实时保存，这里只保存AI参数
+      await httpClient.post('/api/config/store', { key: 'aiParameters', value: aiParameters });
       
       // 通知保存成功
       showNotification('通用设置保存成功！', true);
@@ -286,6 +292,17 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
     if (selectedModeDetail.type === 'custom') {
       try {
         await modeManager.deleteCustomMode(selectedMode);
+        
+        // 清理自定义模式的配置
+        try {
+          await httpClient.post('/api/config/store', {
+            key: `mode.${selectedMode}`,
+            value: null
+          });
+        } catch (error) {
+          console.error('清理模式配置失败:', error);
+        }
+        
         await modeManager.cleanupModeSettings(selectedMode);
         setShowDeleteConfirm(false);
         
@@ -345,13 +362,13 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
       default:
         return (
           <div className="flex flex-col gap-4 p-3">
-            {/* 自定义提示词 */}
+            {/* 提示词 */}
             <div className="flex flex-col gap-2">
-              <h4 className="text-theme-white text-[14px] font-medium">自定义提示词:</h4>
+              <h4 className="text-theme-white text-[14px] font-medium">提示词:</h4>
               <textarea
                 value={selectedModeDetail.customPrompt}
                 onChange={(e) => handlePromptChange(selectedMode, e.target.value)}
-                placeholder={`输入${selectedModeDetail.name}模式的自定义提示词...`}
+                placeholder={`输入${selectedModeDetail.name}模式的提示词...`}
                 rows={4}
                 className="w-full p-2.5 bg-theme-gray3 border border-theme-gray1 rounded-small text-theme-white text-[14px] outline-none resize-none placeholder:text-theme-gray1"
               />
@@ -437,7 +454,7 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
               {filteredModes.map(mode => (
                 <div
                   key={mode.id}
-                  className={`flex items-center justify-between p-2.5 border-b border-theme-gray1 cursor-pointer transition-all ${selectedMode === mode.id ? 'bg-theme-green/10 border-l-3 border-l-theme-green' : 'hover:bg-theme-gray1'}`}
+                  className={`flex items-center p-2.5 border-b border-theme-gray1 cursor-pointer transition-all ${selectedMode === mode.id ? 'bg-theme-green/10 border-l-3 border-l-theme-green' : 'hover:bg-theme-gray1'}`}
                   onClick={() => setSelectedMode(mode.id)}
                 >
                   <div className="flex flex-col gap-1">
@@ -445,9 +462,6 @@ const AgentPanel = ({ isOpen = true, onClose }: AgentPanelProps) => {
                     <div className="text-theme-white text-[12px]">
                       {mode.type === 'custom' ? '自定义模式' : '内置模式'}
                     </div>
-                  </div>
-                  <div className="text-theme-white text-[12px]">
-                    {customPrompts[mode.id] ? '已自定义' : '默认'}
                   </div>
                 </div>
               ))}

@@ -111,48 +111,48 @@ def initialize_directories_and_files():
                 "enabled": False,
                 "delay": 1000
             },
-            "favoriteModels": {},
             "selectedProvider": "deepseek",
             "provider": {
                 "deepseek": {
                     "url": "https://api.deepseek.com/v1",
-                    "key": ""
+                    "key": "",
+                    "favoriteModels": []
                 },
                 "aliyun": {
                     "url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                    "key": ""
+                    "key": "",
+                    "favoriteModels": []
                 },
                 "siliconflow": {
                     "url": "https://api.siliconflow.cn/v1",
-                    "key": ""
+                    "key": "",
+                    "favoriteModels": []
                 },
                 "openrouter": {
                     "url": "https://openrouter.ai/api/v1",
-                    "key": ""
+                    "key": "",
+                    "favoriteModels": []
                 },
                 "kimi": {
                     "url": "https://api.moonshot.cn/v1",
-                    "key": ""
+                    "key": "",
+                    "favoriteModels": []
                 },
                 "zhipuai": {
                     "url": "https://open.bigmodel.cn/api/paas/v4/",
-                    "key": ""
+                    "key": "",
+                    "favoriteModels": []
                 },
                 "ollama": {
                     "url": "http://127.0.0.1:11434",
-                    "key": ""
+                    "key": "",
+                    "favoriteModels": []
                 }
             },
             "embeddingModels": {},
             "ragChunkSize": 150,
             "ragChunkOverlap": 20,
-            "thread_id": thread_id,
-            # 待重构
-            "additionalInfo": {
-                "writing": {},
-                "adjustment": {},
-                "outline": {}
-            }
+            "thread_id": thread_id
         }
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, ensure_ascii=False, indent=2)

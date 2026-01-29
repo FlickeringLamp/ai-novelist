@@ -8,11 +8,9 @@ export const isEmbeddingModel = (modelName: string) => {
   const embeddingKeywords = [
     'embedding',
     'embed',
-    'text-embedding',
     'bge-',
     'e5-',
     'sentence-transformers',
-    'qwen3-embedding'
   ];
 
   const lowerModelName = modelName.toLowerCase();
@@ -43,7 +41,8 @@ export const filterEmbeddingModels = (models: any[]) => {
     return [];
   }
   return models.filter(model => {
-    const modelName = model.id || '';
+    // 支持字符串数组
+    const modelName =  model || '';
     return isEmbeddingModel(modelName);
   });
 };
@@ -55,7 +54,8 @@ export const filterRerankModels = (models: any[]) => {
     return [];
   }
   return models.filter(model => {
-    const modelName = model.id || '';
+    // 支持字符串数组
+    const modelName = model || '';
     return isRerankModel(modelName);
   });
 };

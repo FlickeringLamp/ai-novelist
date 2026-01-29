@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 from backend.core.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.config import settings
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def providers_list():
 
 
 
-@router.get("/{provider_id}/models", summary="获取指定模型提供商的模型列表", response_model=List[Dict[str, Any]])
+@router.get("/{provider_id}/models", summary="获取指定模型提供商的模型列表", response_model=List[str])
 def model_list(provider_id: str):
     """
     获取指定模型提供商的模型列表
@@ -42,53 +42,77 @@ def model_list(provider_id: str):
         provider_id: 模型提供商ID
         
     Returns:
-        模型列表
+        模型ID列表
     """
-    # 获取API密钥和base_url
-    api_key = settings.get_config("provider", provider_id, "key", default="")
-    base_url = settings.get_config("provider", provider_id, "url", default="")
-    
-    # 获取模型列表
-    models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
-    
-    return models
+    try:
+        # 获取API密钥和base_url
+        api_key = settings.get_config("provider", provider_id, "key", default="")
+        base_url = settings.get_config("provider", provider_id, "url", default="")
+        
+        # 获取模型列表
+        models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
+        
+        return models
+    except Exception as e:
+        logger.error(f"获取 {provider_id} 模型列表失败: {e}")
+        raise HTTPException(status_code=401, detail=str(e))
 
 # 常用模型相关API
-@router.get("/favorite-models", summary="获取常用模型列表", response_model=Dict[str, Dict])
+@router.get("/favorite-models", summary="获取常用模型列表", response_model=List[str])
 async def get_favorite_models():
     """
     获取常用模型列表
     """
-    favorite_models = settings.get_config("favoriteModels", default={})
-    return favorite_models
+    # 从所有provider中收集favoriteModels
+    provider_config = settings.get_config("provider", default={})
+    all_favorites = []
+    
+    for provider_name, provider_data in provider_config.items():
+        favorites = provider_data.get("favoriteModels", [])
+        # 合并所有favorite models
+        all_favorites.extend(favorites)
+    
+    return all_favorites
 
-@router.post("/favorite-models", summary="添加常用模型", response_model=Dict[str, Dict])
+@router.post("/favorite-models", summary="添加常用模型", response_model=List[str])
 async def add_favorite_model(request: AddFavoriteModelRequest):
     """
     添加模型到常用模型列表
     
     - **modelId**: 模型ID
-    - **provider**: 提供商
     """
-    # 添加模型到常用列表
-    settings.update_config({
-        "modelId": request.modelId,
-        "provider": request.provider
-    }, "favoriteModels", request.modelId)
+    # 获取当前provider的favoriteModels列表
+    provider_config = settings.get_config("provider", request.provider, default={})
+    favorites = provider_config.get("favoriteModels", [])
     
-    return settings.get_config("favoriteModels", default={})
+    # 如果模型不在列表中，添加它
+    if request.modelId not in favorites:
+        favorites.append(request.modelId)
+        settings.update_config(favorites, "provider", request.provider, "favoriteModels")
+    
+    # 返回更新后的所有favorite models
+    return await get_favorite_models()
 
-@router.delete("/favorite-models", summary="删除常用模型", response_model=Dict[str, Dict])
+@router.delete("/favorite-models", summary="删除常用模型", response_model=List[str])
 async def remove_favorite_model(modelId: str):
     """
     从常用模型列表中删除模型
     
     - **modelId**: 模型ID（通过查询参数传递）
     """
-    # 从常用列表中删除模型
-    settings.delete_config("favoriteModels", modelId)
+    # 需要先找到这个模型属于哪个provider
+    provider_config = settings.get_config("provider", default={})
     
-    return settings.get_config("favoriteModels", default={})
+    for provider_name, provider_data in provider_config.items():
+        favorites = provider_data.get("favoriteModels", [])
+        if modelId in favorites:
+            # 从该provider的favoriteModels中删除
+            favorites.remove(modelId)
+            settings.update_config(favorites, "provider", provider_name, "favoriteModels")
+            break
+    
+    # 返回更新后的所有favorite models
+    return await get_favorite_models()
 
 
 @router.post("/custom-providers", summary="添加自定义提供商", response_model=Dict[str, Dict])
@@ -107,7 +131,8 @@ async def add_custom_provider(request: AddProviderRequest):
     # 添加新的提供商
     settings.update_config({
         "url": request.url,
-        "key": request.key
+        "key": request.key,
+        "favoriteModels": []
     }, "provider", request.name)
     
     return settings.get_config("provider", default={})
