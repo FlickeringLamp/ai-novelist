@@ -1,28 +1,43 @@
 import { useState, useEffect } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import UnifiedModal from '../others/UnifiedModal';
+import ProviderContextMenu from './ProviderContextMenu';
+import ProviderListPanel from './ProviderListPanel';
+import ModelListPanel from './ModelListPanel';
 import httpClient from '../../utils/httpClient';
 
-interface Provider {
-  name: string;
-}
 
 const ProviderSettingsPanel = () => {
+  const [allProvidersData, setAllProvidersData] = useState<{[key: string]: any}>({});
   const [providers, setProviders] = useState<string[]>([]);
-  const [providerModels, setProviderModels] = useState<string[]>([]);
+  const [favoriteModels, setFavoriteModels] = useState<{chat: {[key: string]: any}, embedding: {[key: string]: any}, other: {[key: string]: any}}>({chat: {}, embedding: {}, other: {}});
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
-  const [submitStatus, setSubmitStatus] = useState<{ success: boolean | null; message: string }>({ success: null, message: '' })
   const [modelError, setModelError] = useState('')
-  const [favoriteModels, setFavoriteModels] = useState<string[]>([])
   const [showNotification, setShowNotification] = useState(false)
   const [notificationMessage, setNotificationMessage] = useState('')
+
+  // 内置提供商列表
+  const builtinProviders = ['deepseek', 'ollama', 'aliyun', 'openrouter', 'siliconflow', 'kimi', 'zhipuai'];
 
   // 自定义提供商相关状态
   const [showCustomProviderModal, setShowCustomProviderModal] = useState(false);
   const [customProviderName, setCustomProviderName] = useState('');
+
+  // 右键菜单相关状态
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    providerId: string | null;
+  }>({ visible: false, x: 0, y: 0, providerId: null });
+
+  // 重命名相关状态
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [providerToRename, setProviderToRename] = useState('');
+  const [newProviderName, setNewProviderName] = useState('');
 
   // 删除确认模态框相关状态
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -32,80 +47,68 @@ const ProviderSettingsPanel = () => {
     const fetchProviders = async () => {
       const result = await httpClient.get('/api/provider/providers');
       if (result) {
-        setProviders(result || []);
+        setAllProvidersData(result);
+        setProviders(Object.keys(result || {}));
       }
     };
     fetchProviders();
   }, []);
 
-  // 加载常用模型列表
+  // 当切换提供商时，从本地状态获取模型列表
   useEffect(() => {
-    const loadFavoriteModels = async () => {
-      const result = await httpClient.get('/api/provider/favorite-models');
-      if (result) {
-        setFavoriteModels(result || []);
-      }
-    };
-    loadFavoriteModels();
-  }, []);
-
-  // 当切换提供商时，清理模型列表和错误状态
-  useEffect(() => {
-    setProviderModels([]);
+    setFavoriteModels({chat: {}, embedding: {}, other: {}});
     setModelError('');
     setSelectedModelId(null);
-  }, [selectedProviderId]);
-
-  // 手动获取模型列表的函数
-  const fetchProviderModels = async () => {
-    if (!selectedProviderId) return;
-    setModelError(''); // 清除之前的错误
-    try {
-      const result = await httpClient.get(`/api/provider/${selectedProviderId}/models`);
-      // 后端返回的是字符串数组（模型ID列表）
-      const models = result || [];
-      setProviderModels(models);
-      setModelError('');
-    } catch (error) {
-      setProviderModels([]);
-      setModelError('获取模型列表失败: ' + (error as Error).message);
+    if (selectedProviderId && allProvidersData[selectedProviderId]) {
+      const providerData = allProvidersData[selectedProviderId];
+      const models = providerData.favoriteModels || {chat: {}, embedding: {}, other: {}};
+      setFavoriteModels(models);
     }
+  }, [selectedProviderId, allProvidersData]);
+  // 处理右键菜单
+  const handleContextMenu = (e: React.MouseEvent, providerId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      providerId
+    });
   };
+
+  // 关闭右键菜单
+  const closeContextMenu = () => {
+    setContextMenu({ ...contextMenu, visible: false, providerId: null });
+  };
+
   // 处理删除提供商
   const handleDeleteProvider = (providerId: string) => {
     setProviderToDelete(providerId);
     setShowDeleteConfirmModal(true);
+    closeContextMenu();
   };
 
   // 确认删除提供商
   const confirmDeleteProvider = async () => {
     try {
-      // 内置提供商列表
-      const builtinProviders = ['deepseek', 'openrouter', 'aliyun', 'siliconflow', 'zhipuai', 'kimi', 'ollama', 'gemini'];
-      const isBuiltinProvider = builtinProviders.includes(providerToDelete);
+      // 删除自定义提供商
+      await httpClient.delete(`/api/provider/custom-providers/${providerToDelete}`);
 
-      if (!isBuiltinProvider) {
-        // 删除自定义提供商
-        await httpClient.delete(`/api/provider/custom-providers/${providerToDelete}`);
+      // 刷新提供商列表
+      const providersResult = await httpClient.get('/api/provider/providers');
+      setProviders(providersResult || []);
 
-        // 刷新提供商列表
-        const providersResult = await httpClient.get('/api/provider/providers');
-        setProviders(providersResult || []);
-
-        // 如果删除的是当前选中的提供商，清空选中状态
-        if (selectedProviderId === providerToDelete) {
-          setSelectedProviderId(null);
-          setProviderModels([]);
-          setApiKey('');
-          setBaseUrl('');
-        }
-
-        setNotificationMessage(`提供商 "${providerToDelete}" 删除成功`);
-        setShowNotification(true);
-      } else {
-        setNotificationMessage('内置提供商不能删除');
-        setShowNotification(true);
+      // 如果删除的是当前选中的提供商，清空选中状态
+      if (selectedProviderId === providerToDelete) {
+        setSelectedProviderId(null);
+        setFavoriteModels({chat: {}, embedding: {}, other: {}});
+        setApiKey('');
+        setBaseUrl('');
       }
+
+      setNotificationMessage(`提供商 "${providerToDelete}" 删除成功`);
+      setShowNotification(true);
     } catch (error) {
       setNotificationMessage(`删除失败: ${(error as Error).message}`);
       setShowNotification(true);
@@ -121,6 +124,58 @@ const ProviderSettingsPanel = () => {
     setProviderToDelete('');
   };
 
+  // 处理重命名提供商
+  const handleRenameProvider = (providerId: string) => {
+    setProviderToRename(providerId);
+    setNewProviderName(providerId);
+    setShowRenameModal(true);
+    closeContextMenu();
+  };
+
+  // 确认重命名提供商
+  const confirmRenameProvider = async () => {
+    try {
+      if (!newProviderName.trim()) {
+        setNotificationMessage('提供商名称不能为空');
+        setShowNotification(true);
+        return;
+      }
+
+      if (newProviderName === providerToRename) {
+        setShowRenameModal(false);
+        return;
+      }
+
+      // 更新提供商名称
+      await httpClient.put(`/api/provider/custom-providers/${providerToRename}`, {
+        name: newProviderName
+      });
+
+      // 刷新提供商列表
+      const providersResult = await httpClient.get('/api/provider/providers');
+      setProviders(providersResult || []);
+
+      // 如果重命名的是当前选中的提供商，更新选中状态
+      if (selectedProviderId === providerToRename) {
+        setSelectedProviderId(newProviderName);
+      }
+
+      setNotificationMessage(`提供商重命名成功`);
+      setShowNotification(true);
+      setShowRenameModal(false);
+    } catch (error) {
+      setNotificationMessage(`重命名失败: ${(error as Error).message}`);
+      setShowNotification(true);
+    }
+  };
+
+  // 取消重命名
+  const cancelRenameProvider = () => {
+    setShowRenameModal(false);
+    setProviderToRename('');
+    setNewProviderName('');
+  };
+
   const handleProviderClick = (providerId: string) => {
     setSelectedProviderId(providerId);
   };
@@ -128,26 +183,7 @@ const ProviderSettingsPanel = () => {
     setSelectedModelId(modelId)
   }
 
-  // 处理常用模型勾选
-  const handleFavoriteToggle = async (modelId: string, provider: string) => {
-    const isFavorite = favoriteModels.includes(modelId);
-
-    if (isFavorite) {
-      // 从常用列表中移除
-      const result = await httpClient.delete(`/api/provider/favorite-models?modelId=${encodeURIComponent(modelId)}`);
-      setFavoriteModels(result || []);
-    } else {
-      // 添加到常用列表
-      const result = await httpClient.post('/api/provider/favorite-models', {
-        modelId,
-        provider
-      });
-      console.log("添加的内容是",modelId)
-      setFavoriteModels(result || []);
-    }
-  }
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!selectedProviderId) return;
     try {
       // 对于所有提供商（内置和自定义），统一使用新的嵌套结构 provider.{providerId}.key 和 provider.{providerId}.url
@@ -158,23 +194,16 @@ const ProviderSettingsPanel = () => {
         httpClient.post('/api/config/store', { key: apiKeyConfigKey, value: apiKey }),
         httpClient.post('/api/config/store', { key: baseUrlConfigKey, value: baseUrl })
       ]);
-      setSubmitStatus({
-        success: true,
-        message: `${selectedProviderId} 配置保存成功`
-      });
       setNotificationMessage(`${selectedProviderId} 配置保存成功`);
       setShowNotification(true);
     } catch (error) {
-      setSubmitStatus({
-        success: false,
-        message: `保存失败: ${(error as Error).message}`
-      });
+      setNotificationMessage(`保存失败: ${(error as Error).message}`);
+      setShowNotification(true);
     }
   }
 
   // 处理自定义提供商提交
-  const handleCustomProviderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCustomProviderSubmit = async () => {
     try {
       await httpClient.post('/api/provider/custom-providers', {
         name: customProviderName,
@@ -201,161 +230,46 @@ const ProviderSettingsPanel = () => {
 
   // 加载当前选中的提供商的API key和base URL
   useEffect(() => {
-    const loadProviderConfig = async () => {
-      if (!selectedProviderId) {
-        setApiKey('');
-        setBaseUrl('');
-        return;
-      }
-      try {
-        // 对于所有提供商（内置和自定义），统一使用新的嵌套结构 provider.{providerId}.key 和 provider.{providerId}.url
-        const apiKeyConfigKey = `provider.${selectedProviderId}.key`;
-        const baseUrlConfigKey = `provider.${selectedProviderId}.url`;
-
-        const [apiKeyResponse, baseUrlResponse] = await Promise.all([
-          httpClient.get(`/api/config/store?key=${encodeURIComponent(apiKeyConfigKey)}`),
-          httpClient.get(`/api/config/store?key=${encodeURIComponent(baseUrlConfigKey)}`)
-        ]);
-
-        // 检查返回结果结构
-        if (apiKeyResponse) {
-          setApiKey(apiKeyResponse);
-        } else {
-          setApiKey('');
-        }
-
-        if (baseUrlResponse) {
-          setBaseUrl(baseUrlResponse);
-        } else {
-          // 如果没有自定义URL，对于内置提供商，使用默认URL
-          if (selectedProviderId === 'deepseek') {
-            setBaseUrl('https://api.deepseek.com/v1');
-          } else if (selectedProviderId === 'ollama') {
-            setBaseUrl('http://127.0.0.1:11434');
-          } else if (selectedProviderId === 'aliyun') {
-            setBaseUrl('https://dashscope.aliyuncs.com/compatible-mode/v1');
-          } else if (selectedProviderId === 'openrouter') {
-            setBaseUrl('https://openrouter.ai/api/v1');
-          } else if (selectedProviderId === 'siliconflow') {
-            setBaseUrl('https://api.siliconflow.cn/v1');
-          } else if (selectedProviderId === 'kimi') {
-            setBaseUrl('https://api.moonshot.cn/v1');
-          } else if (selectedProviderId === 'zhipuai') {
-            setBaseUrl('https://open.bigmodel.cn/api/paas/v4/');
-          } else {
-            setBaseUrl('');
-          }
-        }
-      } catch (error) {
-        console.error('加载提供商配置失败:', error);
-        setApiKey('');
-        setBaseUrl('');
-      }
-    };
-
-    loadProviderConfig();
-  }, [selectedProviderId]);
+    if (!selectedProviderId) {
+      setApiKey('');
+      setBaseUrl('');
+      return;
+    }
+    const providerData = allProvidersData[selectedProviderId];
+    if (providerData) {
+      setApiKey(providerData.key || '');
+      setBaseUrl(providerData.url || '');
+    } else {
+      setApiKey('');
+      setBaseUrl('');
+    }
+  }, [selectedProviderId, allProvidersData]);
 
   return (
     <div className="w-full">
       <PanelGroup direction="horizontal" className="pt-2.5">
         {/* 左侧提供商列表面板 */}
-        <Panel defaultSize={25} minSize={0} maxSize={100} className="border border-theme-gray1 flex flex-col h-[932px]">
-          <div className="overflow-y-auto flex-1 p-1.25">
-            {providers.map((provider, index) => (
-              <div
-                key={index}
-                className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray1 ${selectedProviderId === provider ? 'border border-theme-green text-theme-green' : ''}`}
-                onClick={() => handleProviderClick(provider)}
-              >
-                {provider}
-              </div>
-            ))}
-            {/* 自定义提供商按钮 */}
-            <div className="m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray1 hover:bg-theme-gray1" onClick={() => setShowCustomProviderModal(true)}>
-              + 自定义提供商
-            </div>
-          </div>
-        </Panel>
+        <ProviderListPanel
+          providers={providers}
+          selectedProviderId={selectedProviderId}
+          onProviderClick={handleProviderClick}
+          onContextMenu={handleContextMenu}
+          onAddCustomProvider={() => setShowCustomProviderModal(true)}
+        />
         <PanelResizeHandle className="w-1.25 bg-theme-gray1 cursor-col-resize relative transition-colors hover:bg-theme-gray1 after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-0.5 after:h-5 after:bg-theme-gray1 after:rounded-[1px]" />
         {/* 右侧模型列表面板 */}
-        <Panel className='border border-theme-gray1 flex flex-col h-[932px]'>
-          {selectedProviderId && (
-            <div className='block mx-auto my-5 bg-theme-gray1 p-2.5 rounded-small w-[80%]'>
-              <form onSubmit={handleSubmit}>
-                <label htmlFor="api-input" className="block mx-auto my-2.5 mb-1.25 text-theme-white w-[80%] text-left">API Key:</label>
-                <input
-                  type='password'
-                  id='api-input'
-                  className="block mx-auto my-2.5 border-0 h-[25px] w-[80%] bg-theme-gray1"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="请输入 API Key"
-                />
-                <label htmlFor="url-input" className="block mx-auto my-2.5 mb-1.25 text-theme-white w-[80%] text-left">Base URL:</label>
-                <input
-                  type='text'
-                  id='url-input'
-                  className="block mx-auto my-2.5 border-0 h-[25px] w-[80%] bg-theme-gray1"
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="请输入 Base URL"
-                />
-                <button type="submit" className="block mx-auto my-3.75 px-4 py-2 bg-theme-green text-white border-none rounded-small cursor-pointer hover:bg-theme-green">确定</button>
-              </form>
-            </div>
-          )}
-          {selectedProviderId && (
-            <div className="mx-auto my-2.5 w-[80%] flex gap-2.5">
-              <button
-                type="button"
-                className="flex-1 px-4 py-2 bg-theme-green text-white border-none rounded-small cursor-pointer"
-                onClick={fetchProviderModels}
-              >
-                刷新模型列表
-              </button>
-              <button
-                type="button"
-                className="flex-1 px-4 py-2 bg-red-500 text-white border-none rounded-small cursor-pointer hover:bg-red-600"
-                onClick={() => handleDeleteProvider(selectedProviderId)}
-              >
-                删除此提供商
-              </button>
-            </div>
-          )}
-          <div className="overflow-y-auto flex-1 p-1.25">
-            {modelError ? (
-              <div className="p-2.5 rounded-small m-2.5" style={{color: '#ff6b6b', backgroundColor: '#ffe0e0'}}>
-                {modelError}
-              </div>
-            ) : (
-              providerModels.map((modelId, index) => (
-                <div
-                  key={index}
-                  className={`m-2.5 cursor-pointer ${selectedModelId === modelId?'border border-theme-green text-theme-green': ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={favoriteModels.includes(modelId)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      if (selectedProviderId) {
-                        handleFavoriteToggle(modelId, selectedProviderId);
-                      }
-                    }}
-                    className="model-checkbox"
-                  />
-                  <span
-                    onClick={() => handleModelClick(modelId)}
-                    className="model-name"
-                  >
-                    {modelId}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </Panel>
+        <ModelListPanel
+          selectedProviderId={selectedProviderId}
+          apiKey={apiKey}
+          baseUrl={baseUrl}
+          favoriteModels={favoriteModels}
+          selectedModelId={selectedModelId}
+          modelError={modelError}
+          onApiKeyChange={(value) => setApiKey(value)}
+          onBaseUrlChange={(value) => setBaseUrl(value)}
+          onConfigSubmit={handleSubmit}
+          onModelClick={handleModelClick}
+        />
       </PanelGroup>
 
       {/* 通知弹窗 */}
@@ -370,41 +284,72 @@ const ProviderSettingsPanel = () => {
 
       {/* 自定义提供商模态框 */}
       {showCustomProviderModal && (
-        <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex justify-center items-center z-[1000]">
-          <div className="bg-theme-gray1 rounded-medium shadow-medium w-[400px] max-w-[90vw] text-theme-white">
-            <div className="flex justify-between items-center px-5 py-3.75 border-b border-theme-gray1">
-              <h3 className="m-0 text-theme-white text-lg">添加自定义提供商</h3>
-              <button
-                className="bg-none border-none text-xl text-theme-white cursor-pointer p-1.25 hover:text-theme-white"
-                onClick={() => setShowCustomProviderModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            <form onSubmit={handleCustomProviderSubmit} className="px-5 py-5">
-              <div className="mb-3.75">
-                <label htmlFor="provider-name" className="block mb-1.25 text-theme-white">提供商名称:</label>
-                <input
-                  type="text"
-                  id="provider-name"
-                  className="w-full p-2 bg-theme-gray1 text-theme-white border border-theme-gray1 rounded-small box-border focus:outline-none focus:border-theme-green"
-                  value={customProviderName}
-                  onChange={(e) => setCustomProviderName(e.target.value)}
-                  placeholder="例如: 我的提供商"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2.5 mt-5">
-                <button type="button" className="px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-gray-600 text-white hover:bg-gray-700" onClick={() => setShowCustomProviderModal(false)}>
-                  取消
-                </button>
-                <button type="submit" className="px-4 py-2 border-none rounded-small cursor-pointer text-sm bg-theme-green text-white hover:bg-theme-green">
-                  确定
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <UnifiedModal
+          title="添加自定义提供商"
+          inputs={[
+            {
+              label: '提供商名称:',
+              type: 'text',
+              value: customProviderName,
+              onChange: (value) => setCustomProviderName(value),
+              placeholder: '例如: 我的提供商',
+              required: true
+            }
+          ]}
+          buttons={[
+            {
+              text: '确定',
+              onClick: handleCustomProviderSubmit,
+              className: 'bg-theme-green'
+            },
+            {
+              text: '取消',
+              onClick: () => setShowCustomProviderModal(false),
+              className: 'bg-theme-gray3'
+            }
+          ]}
+        />
+      )}
+
+      {/* 右键菜单 */}
+      <ProviderContextMenu
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        providerId={contextMenu.providerId}
+        builtinProviders={builtinProviders}
+        onRename={handleRenameProvider}
+        onDelete={handleDeleteProvider}
+        onClose={closeContextMenu}
+      />
+
+      {/* 重命名模态框 */}
+      {showRenameModal && (
+        <UnifiedModal
+          title="重命名提供商"
+          inputs={[
+            {
+              label: '新名称:',
+              type: 'text',
+              value: newProviderName,
+              onChange: (value) => setNewProviderName(value),
+              placeholder: '请输入新名称',
+              required: true
+            }
+          ]}
+          buttons={[
+            {
+              text: '确定',
+              onClick: confirmRenameProvider,
+              className: 'bg-theme-green'
+            },
+            {
+              text: '取消',
+              onClick: cancelRenameProvider,
+              className: 'bg-theme-gray3'
+            }
+          ]}
+        />
       )}
 
       {/* 删除确认模态框 */}

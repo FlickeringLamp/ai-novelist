@@ -6,12 +6,23 @@ interface Button {
   className?: string;
 }
 
+interface InputField {
+  label: string;
+  type?: 'text' | 'password';
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+}
+
 interface UnifiedModalProps {
-  message: string;
+  title?: string;
+  message?: string;
+  inputs?: InputField[];
   buttons: Button[];
 }
 
-const UnifiedModal = ({ message, buttons }: UnifiedModalProps) => {
+const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProps) => {
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [focusedButtonIndex, setFocusedButtonIndex] = useState(0);
 
@@ -23,7 +34,7 @@ const UnifiedModal = ({ message, buttons }: UnifiedModalProps) => {
   // 处理键盘事件
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // 支持左右箭头切换焦点
+      // 焦点在按钮上时的处理
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
         event.stopPropagation();
@@ -53,15 +64,32 @@ const UnifiedModal = ({ message, buttons }: UnifiedModalProps) => {
     };
   }, [focusedButtonIndex, buttons]);
 
-  // 根据焦点状态更新焦点
-  useEffect(() => {
-    buttonRefs.current[focusedButtonIndex]?.focus();
-  }, [focusedButtonIndex]);
-
   return (
     <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex justify-center items-center z-[1000]">
       <div className="bg-theme-gray1 rounded-medium shadow-medium px-5 py-3.75 max-w-[500px] w-[400px] text-theme-white">
-        <p className="m-0">{message}</p>
+        {title && <h3 className="m-0 text-theme-white text-lg mb-3.75">{title}</h3>}
+        {message && <p className="m-0">{message}</p>}
+        {inputs.length > 0 && (
+          <form className="mt-3.75">
+            {inputs.map((input, index) => (
+              <div key={index} className="mb-3.75">
+                <label htmlFor={`input-${index}`} className="block mb-1.25 text-theme-white">
+                  {input.label}
+                  {input.required && <span className="text-theme-green ml-1">*</span>}
+                </label>
+                <input
+                  type={input.type || 'text'}
+                  id={`input-${index}`}
+                  className="w-full p-2 bg-theme-gray1 text-theme-white border border-theme-gray1 rounded-small box-border focus:outline-none focus:border-theme-green"
+                  value={input.value}
+                  onChange={(e) => input.onChange(e.target.value)}
+                  placeholder={input.placeholder}
+                  required={input.required}
+                />
+              </div>
+            ))}
+          </form>
+        )}
         <div className="flex justify-end gap-2.5 mt-5">
           {buttons.map((button: Button, index: number) => (
             <button
