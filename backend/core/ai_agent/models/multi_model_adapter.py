@@ -167,6 +167,7 @@ class MultiModelAdapter:
                     models.extend(embedding_models)
                 elif provider == "openrouter":
                     embedding_models = [
+                        "qwen/qwen3-embedding-8b",
                         "qwen/qwen3-embedding-4b"
                     ]
                     models.extend(embedding_models)

@@ -4,6 +4,7 @@ import time
 import logging
 from pathlib import Path
 from typing import Dict, Any, TypedDict
+from backend.core.ai_agent.models.providers import PROVIDERS
 
 logger = logging.getLogger(__name__)
 
@@ -42,16 +43,6 @@ ADJUSTMENT_PROMPT = """你是一位资深编辑和小说精修师。你的任务
 2.  **提供报告**：输出一份检查报告，每个问题都需提供修改案例，格式为：【原句】、【建议】、【理由】。
 3.  **执行修改**：根据用户批准的修改建议，对草稿进行精修，确保修改后的内容逻辑清晰、文风与原文保持一致，并且不得变更用户已确认的核心情节。"""
 
-# 内置提供商列表&url
-BUILTIN_PROVIDERS={
-    "deepseek": "https://api.deepseek.com/v1",
-    "aliyun": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "kimi": "https://api.moonshot.cn/v1",
-    "zhipuai": "https://open.bigmodel.cn/api/paas/v4/",
-    "openrouter": "https://openrouter.ai/api/v1",
-    "ollama": "http://127.0.0.1:11434",
-    "siliconflow": "https://api.siliconflow.cn/v1",
-}
 
 def initialize_directories_and_files():
     """
@@ -112,43 +103,7 @@ def initialize_directories_and_files():
                 "delay": 1000
             },
             "selectedProvider": "deepseek",
-            "provider": {
-                "deepseek": {
-                    "url": "https://api.deepseek.com/v1",
-                    "key": "",
-                    "favoriteModels": []
-                },
-                "aliyun": {
-                    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                    "key": "",
-                    "favoriteModels": []
-                },
-                "siliconflow": {
-                    "url": "https://api.siliconflow.cn/v1",
-                    "key": "",
-                    "favoriteModels": []
-                },
-                "openrouter": {
-                    "url": "https://openrouter.ai/api/v1",
-                    "key": "",
-                    "favoriteModels": []
-                },
-                "kimi": {
-                    "url": "https://api.moonshot.cn/v1",
-                    "key": "",
-                    "favoriteModels": []
-                },
-                "zhipuai": {
-                    "url": "https://open.bigmodel.cn/api/paas/v4/",
-                    "key": "",
-                    "favoriteModels": []
-                },
-                "ollama": {
-                    "url": "http://127.0.0.1:11434",
-                    "key": "",
-                    "favoriteModels": []
-                }
-            },
+            "provider": PROVIDERS,
             "embeddingModels": {},
             "ragChunkSize": 150,
             "ragChunkOverlap": 20,

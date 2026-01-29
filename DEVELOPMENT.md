@@ -54,6 +54,7 @@ with open('backend/data/config/store.json', 'r') as f:
 - 便于未来切换配置存储方式（如从文件切换到数据库）
 - 避免配置文件被意外破坏
 
-## 其他规范
+## 前端规范：
+统一使用定义的theme颜色，如text-theme-green
 
 （待补充）

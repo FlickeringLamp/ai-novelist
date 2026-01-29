@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, UploadFile, File
 
 from backend.core.ai_agent.embedding.emb_service import prepare_emb, list_available_tables, delete_table, update_table_metadata, prepare_doc, create_db
-from backend.config import BUILTIN_PROVIDERS, settings
+from backend.config import settings
 
 # 请求模型
 class GetEmbeddingDimensionsRequest(BaseModel):
@@ -46,18 +46,13 @@ async def get_embedding_dimensions(request: GetEmbeddingDimensionsRequest):
     # 直接使用原始模型ID
     model_id = provider_model_id
     print(f"模型名{model_id}")
-    # 检查是否为内置提供商
-    if provider in BUILTIN_PROVIDERS:
-        # 内置提供商直接使用默认URL
-        embedding_url = BUILTIN_PROVIDERS[provider]
-    else:
-        # 自定义提供商从配置文件获取URL
-        embedding_url = settings.get_config("provider", provider, "url", default="")
-        if not embedding_url:
-            raise HTTPException(
-                status_code=400,
-                detail=f"未找到提供商 {provider} 的URL配置"
-            )
+    # 从配置文件获取URL
+    embedding_url = settings.get_config("provider", provider, "url")
+    if not embedding_url:
+        raise HTTPException(
+            status_code=400,
+            detail=f"未找到提供商 {provider} 的URL配置"
+        )
     
     # 获取API key
     if provider == "ollama":
@@ -136,10 +131,7 @@ def get_emb_model_key_url_dimensions():
     
     
     # 确定嵌入URL和api_key
-    if provider in BUILTIN_PROVIDERS:
-        embedding_url = BUILTIN_PROVIDERS[provider]
-    else:
-        embedding_url = settings.get_config("provider", provider, "url", default="")
+    embedding_url = settings.get_config("provider", provider, "url")
     
     if provider == "ollama":
         api_key = ""

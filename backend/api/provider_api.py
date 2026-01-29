@@ -1,9 +1,9 @@
 import logging
 from typing import List, Dict, Any
 from pydantic import BaseModel, Field
-from backend.core.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.config import settings
 from fastapi import APIRouter, HTTPException
+from backend.core.ai_agent.models.providers import BUILTIN_PROVIDERS
 
 logger = logging.getLogger(__name__)
 
@@ -15,25 +15,32 @@ class AddFavoriteModelRequest(BaseModel):
 
 class AddProviderRequest(BaseModel):
     """添加提供商请求"""
-    name: str = Field(..., description="提供商名称")
-    url: str = Field(..., description="API基础URL")
-    key: str = Field(..., description="API密钥")
+    name: str = Field(None, description="提供商名称")
+    url: str = Field(None, description="API基础URL")
+    key: str = Field(None, description="API密钥")
+    favoriteModels: List[str] = Field(None, description="常用模型列表")
 
 # 创建API路由器
 router = APIRouter(prefix="/api/provider", tags=["Provider"])
 
 # API端点
 
+# 获取内置提供商列表
+@router.get("/builtin-providers", summary="获取内置提供商列表", response_model=List[str])
+def builtin_providers_list():
+    """获取内置提供商列表"""
+    return BUILTIN_PROVIDERS
+
 # 所有提供商列表
-@router.get("/providers", summary="获取提供商列表", response_model=List[str])
+@router.get("/providers", summary="获取提供商列表", response_model=Dict[str, Dict])
 def providers_list():
-    """获取所有提供商列表"""
+    """获取所有提供商列表（包含完整信息）"""
     provider_config = settings.get_config("provider", default={})
-    return list(provider_config.keys())
+    return provider_config
 
 
 
-@router.get("/{provider_id}/models", summary="获取指定模型提供商的模型列表", response_model=List[str])
+@router.get("/{provider_id}/models", summary="获取指定模型提供商的模型列表", response_model=Dict[str, Dict[str, Any]])
 def model_list(provider_id: str):
     """
     获取指定模型提供商的模型列表
@@ -42,20 +49,17 @@ def model_list(provider_id: str):
         provider_id: 模型提供商ID
         
     Returns:
-        模型ID列表
+        包含对话模型、嵌入模型和其他模型的字典
     """
     try:
-        # 获取API密钥和base_url
-        api_key = settings.get_config("provider", provider_id, "key", default="")
-        base_url = settings.get_config("provider", provider_id, "url", default="")
+        # 从配置文件获取provider的favoriteModels
+        provider_config = settings.get_config("provider", provider_id, default={})
+        favorite_models = provider_config.get("favoriteModels", {})
         
-        # 获取模型列表
-        models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
-        
-        return models
+        return favorite_models
     except Exception as e:
         logger.error(f"获取 {provider_id} 模型列表失败: {e}")
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 常用模型相关API
 @router.get("/favorite-models", summary="获取常用模型列表", response_model=List[str])
@@ -69,7 +73,6 @@ async def get_favorite_models():
     
     for provider_name, provider_data in provider_config.items():
         favorites = provider_data.get("favoriteModels", [])
-        # 合并所有favorite models
         all_favorites.extend(favorites)
     
     return all_favorites
@@ -143,25 +146,43 @@ async def update_custom_provider(provider_id: str, request: AddProviderRequest):
     更新自定义提供商
     
     - **provider_id**: 提供商ID（路径参数）
-    - **name**: 提供商名称
-    - **baseUrl**: API基础URL
-    - **apiKey**: API密钥
+    - **name**: 提供商名称（可选）
+    - **url**: API基础URL（可选）
+    - **key**: API密钥（可选）
+    - **favoriteModels**: 常用模型列表（可选）
     """
     provider_config = settings.get_config("provider", default={})
+    # 获取当前提供商的配置
+    current_config = provider_config[provider_id]
     
-    # 如果名称改变，检查新名称是否已存在
-    if request.name != provider_id and request.name in provider_config:
-        return {"error": "新名称已被使用"}
+    updated_config = {}
     
-    # 删除旧的提供商（如果名称改变）
-    if request.name != provider_id:
-        settings.delete_config("provider", provider_id)
+    # 更新name（如果提供）
+    if request.name is not None:
+        updated_config["name"] = request.name
+    elif "name" in current_config:
+        updated_config["name"] = current_config["name"]
     
-    # 更新提供商
-    settings.update_config({
-        "url": request.url,
-        "key": request.key
-    }, "provider", request.name)
+    # 更新URL（如果提供）
+    if request.url is not None:
+        updated_config["url"] = request.url
+    elif "url" in current_config:
+        updated_config["url"] = current_config["url"]
+    
+    # 更新Key（如果提供）
+    if request.key is not None:
+        updated_config["key"] = request.key
+    elif "key" in current_config:
+        updated_config["key"] = current_config["key"]
+    
+    # 更新favoriteModels（如果提供）
+    if request.favoriteModels is not None:
+        updated_config["favoriteModels"] = request.favoriteModels
+    elif "favoriteModels" in current_config:
+        updated_config["favoriteModels"] = current_config["favoriteModels"]
+    
+    # 更新提供商配置
+    settings.update_config(updated_config, "provider", provider_id)
     
     return settings.get_config("provider", default={})
 
