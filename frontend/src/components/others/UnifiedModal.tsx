@@ -8,11 +8,14 @@ interface Button {
 
 interface InputField {
   label: string;
-  type?: 'text' | 'password';
+  type?: 'text' | 'password' | 'select';
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
+  options?: string[];
+  autocompleteOptions?: string[];
+  onAutocompleteSelect?: (value: string) => void;
 }
 
 interface UnifiedModalProps {
@@ -25,6 +28,7 @@ interface UnifiedModalProps {
 const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProps) => {
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [focusedButtonIndex, setFocusedButtonIndex] = useState(0);
+  const [focusedInputIndex, setFocusedInputIndex] = useState<number | null>(null);
 
   // 初始焦点设置
   useEffect(() => {
@@ -65,7 +69,7 @@ const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProp
   }, [focusedButtonIndex, buttons]);
 
   return (
-    <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex justify-center items-center z-[1000]">
+    <div className="fixed top-0 left-0 right-0 bottom-0 flex justify-center items-center z-[1000]">
       <div className="bg-theme-gray1 rounded-medium shadow-medium px-5 py-3.75 max-w-[500px] w-[400px] text-theme-white">
         {title && <h3 className="m-0 text-theme-white text-lg mb-3.75">{title}</h3>}
         {message && <p className="m-0">{message}</p>}
@@ -77,15 +81,51 @@ const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProp
                   {input.label}
                   {input.required && <span className="text-theme-green ml-1">*</span>}
                 </label>
-                <input
-                  type={input.type || 'text'}
-                  id={`input-${index}`}
-                  className="w-full p-2 bg-theme-gray1 text-theme-white border border-theme-gray1 rounded-small box-border focus:outline-none focus:border-theme-green"
-                  value={input.value}
-                  onChange={(e) => input.onChange(e.target.value)}
-                  placeholder={input.placeholder}
-                  required={input.required}
-                />
+                {input.type === 'select' ? (
+                  <select
+                    id={`input-${index}`}
+                    className="w-full p-2 bg-theme-gray1 text-theme-white border border-theme-gray1 rounded-small box-border focus:outline-none focus:border-theme-green"
+                    value={input.value}
+                    onChange={(e) => input.onChange(e.target.value)}
+                    required={input.required}
+                  >
+                    {input.options?.map((option, optIndex) => (
+                      <option key={optIndex} value={option}>{option}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type={input.type || 'text'}
+                      id={`input-${index}`}
+                      className="w-full p-2 bg-theme-gray1 text-theme-white border border-theme-gray1 rounded-small box-border focus:outline-none focus:border-theme-green"
+                      value={input.value}
+                      onChange={(e) => input.onChange(e.target.value)}
+                      placeholder={input.placeholder}
+                      required={input.required}
+                      onFocus={() => setFocusedInputIndex(index)}
+                      onBlur={() => setFocusedInputIndex(null)}
+                    />
+                    {input.autocompleteOptions && input.autocompleteOptions.length > 0 && focusedInputIndex === index && (
+                      <div className="absolute z-10 w-full mt-1 bg-theme-gray2 border border-theme-gray3 rounded max-h-48 overflow-y-auto">
+                        {input.autocompleteOptions
+                          .filter(option => option.toLowerCase().includes(input.value.toLowerCase()))
+                          .map((option, optIndex) => (
+                            <div
+                              key={optIndex}
+                              className="px-3 py-2 hover:bg-theme-green hover:text-theme-white cursor-pointer text-theme-white"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                input.onAutocompleteSelect?.(option);
+                              }}
+                            >
+                              {option}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </form>

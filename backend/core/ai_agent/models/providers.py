@@ -12,6 +12,7 @@ BUILTIN_PROVIDERS = [
 PROVIDERS = {
     "deepseek": {
         "name": "deepseek",
+        "enable": False,
         "url": "https://api.deepseek.com/v1",
         "key": "",
         "favoriteModels": {
@@ -25,6 +26,7 @@ PROVIDERS = {
     },
     "aliyun": {
         "name": "阿里云",
+        "enable": False,
         "url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "key": "",
         "favoriteModels": {
@@ -53,6 +55,7 @@ PROVIDERS = {
     },
     "siliconflow": {
         "name": "硅基流动",
+        "enable": False,
         "url": "https://api.siliconflow.cn/v1",
         "key": "",
         "favoriteModels": {
@@ -87,6 +90,7 @@ PROVIDERS = {
     },
     "openrouter": {
         "name": "OpenRouter",
+        "enable": False,
         "url": "https://openrouter.ai/api/v1",
         "key": "",
         "favoriteModels": {
@@ -126,6 +130,7 @@ PROVIDERS = {
     },
     "kimi": {
         "name": "Kimi",
+        "enable": False,
         "url": "https://api.moonshot.cn/v1",
         "key": "",
         "favoriteModels": {
@@ -139,6 +144,7 @@ PROVIDERS = {
     },
     "zhipuai": {
         "name": "智谱",
+        "enable": False,
         "url": "https://open.bigmodel.cn/api/paas/v4/",
         "key": "",
         "favoriteModels": {
@@ -158,6 +164,7 @@ PROVIDERS = {
     },
     "ollama": {
         "name": "ollama",
+        "enable": False,
         "url": "http://127.0.0.1:11434",
         "key": "",
         "favoriteModels": {

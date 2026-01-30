@@ -102,7 +102,7 @@ def initialize_directories_and_files():
                 "enabled": False,
                 "delay": 1000
             },
-            "selectedProvider": "deepseek",
+            "selectedProvider": "",
             "provider": PROVIDERS,
             "embeddingModels": {},
             "ragChunkSize": 150,
@@ -146,14 +146,14 @@ class Settings:
         self.TEMP_DIR: str = str(base_dir / "temp")
         
     def _load_config(self) -> Dict[str, Any]:
-        """从 store.json 加载配置"""
+        """从 store.json 加载配置，每次都会创建全新的字典对象"""
         try:
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (json.JSONDecodeError, Exception):
             return {}
     def get_config(self, *keys: str, default: Any = None) -> Any:
-        """获取指定配置值，支持多层嵌套
+        """获取指定配置值，支持多层嵌套。返回临时字典的引用，必须使用update_config更新，才能保存到磁盘
         
         Args:
             *keys: 嵌套的键路径，如 get_config('level1', 'level2', 'level3')

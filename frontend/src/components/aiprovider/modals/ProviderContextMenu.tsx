@@ -1,5 +1,5 @@
-import { type ContextMenuItem } from '../others/ContextMenu';
-import ContextMenu from '../others/ContextMenu';
+import { type ContextMenuItem } from '../../others/ContextMenu';
+import ContextMenu from '../../others/ContextMenu';
 
 interface ProviderContextMenuProps {
   visible: boolean;

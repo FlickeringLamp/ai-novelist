@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCaretRight, faCaretDown } from '@fortawesome/free-solid-svg-icons';
+import { faAngleRight, faAngleDown } from '@fortawesome/free-solid-svg-icons';
 import DisplayNameHelper from '../../utils/DisplayNameHelper.ts';
 import { useDispatch, useSelector } from 'react-redux'
 import { addTab, setActiveTab, updateTabId } from '../../store/editor.ts';
@@ -205,7 +205,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
       >
         {isFolder && (
           <span className="collapse-icon">
-            <FontAwesomeIcon icon={collapsedChapters[itemId] ? faCaretDown : faCaretRight} />
+            <FontAwesomeIcon icon={collapsedChapters[itemId] ? faAngleDown : faAngleRight} />
           </span>
         )}
         {/* 文件/文件夹名称 - 编辑模式下显示输入框 */}

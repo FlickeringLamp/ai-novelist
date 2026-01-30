@@ -73,7 +73,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
 
       {/* 设置面板 - 全屏覆盖 */}
       {activePanel && (
-        <div className="fixed top-0 left-[51px] right-0 bottom-0 bg-theme-black z-[1000] overflow-auto">
+        <div className="fixed top-0 left-[51px] right-0 bottom-0 bg-theme-black z-[1000]">
           {activePanel === 'api' && (
             <ProviderSettingsPanel
             // @ts-ignore
