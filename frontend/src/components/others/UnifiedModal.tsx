@@ -6,6 +6,11 @@ interface Button {
   className?: string;
 }
 
+interface SelectOption {
+  label: string;
+  value: string;
+}
+
 interface InputField {
   label: string;
   type?: 'text' | 'password' | 'select';
@@ -13,7 +18,8 @@ interface InputField {
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
-  options?: string[];
+  disabled?: boolean;
+  options?: (string | SelectOption)[];
   autocompleteOptions?: string[];
   onAutocompleteSelect?: (value: string) => void;
 }
@@ -89,9 +95,14 @@ const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProp
                     onChange={(e) => input.onChange(e.target.value)}
                     required={input.required}
                   >
-                    {input.options?.map((option, optIndex) => (
-                      <option key={optIndex} value={option}>{option}</option>
-                    ))}
+                    {input.options?.map((option, optIndex) => {
+                      const isString = typeof option === 'string';
+                      const label = isString ? option : option.label;
+                      const value = isString ? option : option.value;
+                      return (
+                        <option key={optIndex} value={value}>{label}</option>
+                      );
+                    })}
                   </select>
                 ) : (
                   <div className="relative">

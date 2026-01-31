@@ -75,19 +75,20 @@ const ProviderListPanel = ({}: ProviderListPanelProps) => {
   // 确认删除提供商
   const confirmDeleteProvider = async (providerId: string) => {
     try {
+      const providerName = providersData[providerId]?.name || providerId;
       // 删除自定义提供商
       await httpClient.delete(`/api/provider/custom-providers/${providerId}`);
 
       // 刷新提供商列表
       const providersResult = await httpClient.get('/api/provider/providers');
       dispatch(setAllProvidersData(providersResult));
-
-      setNotificationMessage(`提供商 "${providerId}" 删除成功`);
+      setNotificationMessage(`提供商 "${providerName}" 删除成功`);
       setShowNotification(true);
     } catch (error) {
       setNotificationMessage(`删除失败: ${(error as Error).message}`);
       setShowNotification(true);
     } finally {
+      dispatch(setSelectedProviderId(""))
       setShowDeleteConfirmModal(false);
       setProviderToDelete('');
     }
@@ -215,6 +216,7 @@ const ProviderListPanel = ({}: ProviderListPanelProps) => {
       <DeleteConfirmModal
         isOpen={showDeleteConfirmModal}
         providerId={providerToDelete}
+        providerName={providersData[providerToDelete]?.name || providerToDelete}
         onClose={() => setShowDeleteConfirmModal(false)}
         onConfirm={confirmDeleteProvider}
       />

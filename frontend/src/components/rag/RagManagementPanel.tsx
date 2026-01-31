@@ -37,7 +37,7 @@ const RagSettingsPanel = () =>{
         httpClient.get('/api/embedding/rag/chunk-settings'),
       ]);
       // 只显示有嵌入模型的提供商：aliyun, siliconflow, openrouter, zhipuai, ollama
-      const providersWithEmbedding = (providersResult || []).filter((provider: string) =>
+      const providersWithEmbedding = Object.keys(providersResult || {}).filter((provider: string) =>
         ['aliyun', 'siliconflow', 'openrouter', 'zhipuai', 'ollama'].includes(provider)
       );
       setProviders(providersWithEmbedding);

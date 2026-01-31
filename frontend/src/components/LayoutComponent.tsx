@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import SidebarComponent from './SidebarComponent';
 import ProviderSettingsPanel from './aiprovider/ProviderSettingsPanel';
-import RagManagementPanel from './rag/RagManagementPanel';
+import RagManagementPanel from './rag/KnowledgeBasePanel';
 import AgentPanel from './agent/AgentPanel';
 
 interface LayoutComponentProps {
@@ -75,23 +75,13 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
       {activePanel && (
         <div className="fixed top-0 left-[51px] right-0 bottom-0 bg-theme-black z-[1000]">
           {activePanel === 'api' && (
-            <ProviderSettingsPanel
-            // @ts-ignore
-              isOpen={true}
-              onClose={() => setActivePanel(null)}
-            />
+            <ProviderSettingsPanel />
           )}
           {activePanel === 'rag' && (
-            <RagManagementPanel
-            // @ts-ignore
-              isOpen={true}
-              onClose={() => setActivePanel(null)}
-            />
+            <RagManagementPanel />
           )}
           {activePanel === 'agent' && (
             <AgentPanel
-              isOpen={true}
-              onClose={() => setActivePanel(null)}
             />
           )}
         </div>
