@@ -1,6 +1,6 @@
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import LanceDB
+from langchain_chroma import Chroma
 import os
 import shutil
 from datetime import datetime
@@ -11,7 +11,7 @@ from langchain_ollama import OllamaEmbeddings
 from backend.config import settings
 
 
-def prepare_doc(orgfile_path,chunk_size,chunk_overlap):
+def prepare_doc(orgfile_path, chunk_size, chunk_overlap):
     # 初始化documents列表
     documents = []
     loader = TextLoader(orgfile_path, encoding='utf-8')
@@ -19,9 +19,6 @@ def prepare_doc(orgfile_path,chunk_size,chunk_overlap):
     
     # 获取原始文件名
     original_filename = os.path.basename(orgfile_path)
-    
-    # 获取维度
-    embedding_dimensions = settings.get_config("embeddingModels", "dimensions", default=0)
     
     # 使用配置的分块参数进行文档切分
     text_splitter = RecursiveCharacterTextSplitter(
@@ -33,23 +30,11 @@ def prepare_doc(orgfile_path,chunk_size,chunk_overlap):
     
     # 为每个文档片段添加元数据
     for i, doc in enumerate(documents):
-        # 保留原有元数据
-        if not doc.metadata:
-            doc.metadata = {}
-        
+        doc.metadata = {}
         # 添加自定义元数据
-        doc.metadata.update({
-            'original_filename': original_filename,
-            'file_path': orgfile_path,
-            'chunk_index': i,
-            'total_chunks': len(documents),
-            'chunk_size': chunk_size,
-            'chunk_overlap': chunk_overlap,
-            'dimensions': embedding_dimensions,
-            'created_at': datetime.now().isoformat()
-        })
+        doc.metadata.update({'original_filename': original_filename})
     
-    print(f"文档切分完成: 分块长度={chunk_size}, 重叠长度={chunk_overlap}, 切分后文档数量={len(documents)},维度={embedding_dimensions}")
+    print(f"文档切分完成: 分块长度={chunk_size}, 重叠长度={chunk_overlap}, 切分后文档数量={len(documents)}")
     return documents
 
 def prepare_emb(provider, model_id,embedding_url,embedding_api_key=None):
@@ -84,200 +69,211 @@ def prepare_emb(provider, model_id,embedding_url,embedding_api_key=None):
 
 
 # 指定数据库保存路径
-db_path = Path("backend/data/lancedb")
+db_path = Path("backend/data/chromadb")
 # 确保目录存在,创建嵌入表
 os.makedirs(db_path, exist_ok=True)
-def create_db(documents, embeddings, db_path):
-    # 根据时间戳生成表名
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    table_name = f"db_{timestamp}"
+
+def create_db(documents, embeddings, collection_name):
+    """
+    创建向量数据库
+    
+    Args:
+        documents: 文档列表
+        embeddings: 嵌入模型实例
+        collection_name: 集合名
+    
+    Returns:
+        collection_name: 集合名
+    """
+    db_path = settings.CHROMADB_PERSIST_DIR
     
     # 创建数据库
-    docemb = LanceDB.from_documents(
-        documents,
-        embeddings,
-        uri=db_path,  # 固定的保存路径
-        table_name=table_name  # 使用时间戳生成的表名
+    vector_store = Chroma(
+        collection_name=collection_name,
+        embedding_function=embeddings,
+        persist_directory=db_path
     )
-    print(f"向量数据库已创建并保存到: {db_path}, 表名: {table_name}")
-    return table_name
+    
+    # 生成文档ID并添加文档
+    from uuid import uuid4
+    uuids = [str(uuid4()) for _ in range(len(documents))]
+    vector_store.add_documents(documents=documents, ids=uuids)
+    
+    print(f"向量数据库已创建并保存到: {db_path}, 集合: {collection_name}")
+    return collection_name
 
 
 
 
-def load(embeddings, db_path, table_name):
+def load(embeddings, collection_name):
     """
     加载已存在的向量数据库
+    
+    Args:
+        embeddings: 嵌入模型实例
+        collection_name: 集合名
+    
+    Returns:
+        vector_store: 向量存储实例
     """
-    # 获取数据库文件完整路径
-    db_file = os.path.join(db_path, f"{table_name}.lance")
-    
-    # 检查数据库是否存在
-    if not os.path.exists(db_file):
-        print(f"数据库不存在: {db_file}")
-        return None
-    
+    db_path = settings.CHROMADB_PERSIST_DIR
     try:
         # 直接连接到已存在的数据库
-        vector_store = LanceDB(
-            embedding=embeddings,
-            uri=db_path,
-            table_name=table_name  # 使用传入的表名参数
+        vector_store = Chroma(
+            collection_name=collection_name,
+            embedding_function=embeddings,
+            persist_directory=db_path
         )
         
-        print(f"成功加载数据库: {db_path}, 表名: {table_name}")
+        print(f"成功加载数据库: {db_path}, 集合: {collection_name}")
         return vector_store
         
     except Exception as e:
         print(f"加载数据库失败: {e}")
         return None
 
-
-def list_available_tables(db_path, embeddings=None):
+def delete_collection(collection_name):
     """
-    列出数据库路径中所有可用的表，并显示对应的原始文件名
+    删除指定的数据库集合
     
     Args:
-        db_path: 数据库路径
-        embeddings: 嵌入模型实例（可选，用于获取表详细信息）
-    
-    Returns:
-        list: 包含表名和文件名的字典列表
-    """
-    if not os.path.exists(db_path):
-        print(f"数据库路径不存在: {db_path}")
-        return []
-    
-    # 获取所有 .lance 文件
-    lance_files = [f for f in os.listdir(db_path) if f.endswith('.lance')]
-    
-    # 提取表名（去掉 .lance 后缀）
-    table_names = [f.replace('.lance', '') for f in lance_files]
-    
-    result = []
-    print("当前可用的知识库表：")
-    
-    for table_name in table_names:
-        table_info = {"table_name": table_name, "original_filename": "未知"}
-        
-        # 如果提供了embeddings，尝试获取表的详细信息
-        if embeddings:
-            try:
-                # 连接到表
-                vector_store = LanceDB(
-                    embedding=embeddings,
-                    uri=db_path,
-                    table_name=table_name
-                )
-                
-                # 获取第一条记录来提取元数据
-                # 使用limit(1)只获取一条记录以提高性能
-                results = vector_store.similarity_search_with_score(
-                    query="test",
-                    k=1
-                )
-                
-                if results:
-                    doc, score = results[0]
-                    original_filename = doc.metadata.get('original_filename', '未知')
-                    created_at = doc.metadata.get('created_at', '未知')
-                    total_chunks = doc.metadata.get('total_chunks', '未知')
-                    chunk_size = doc.metadata.get('chunk_size', 0)
-                    chunk_overlap = doc.metadata.get('chunk_overlap', 0)
-                    dimensions = doc.metadata.get('dimensions', 0)
-                    
-                    table_info.update({
-                        "original_filename": original_filename,
-                        "created_at": created_at,
-                        "total_chunks": total_chunks,
-                        "chunk_size": chunk_size,
-                        "chunk_overlap": chunk_overlap,
-                        "dimensions": dimensions
-                    })
-                    
-                    print(f"- 表名: {table_name} | 文件名: {original_filename} | 创建时间: {created_at} | 片段数: {total_chunks} | 切分长度: {chunk_size} | 重叠长度: {chunk_overlap}")
-                else:
-                    print(f"- 表名: {table_name} | 文件名: 未知 | 状态: 空表")
-                    
-            except Exception as e:
-                print(f"- 表名: {table_name} | 文件名: 未知 | 状态: 无法访问 ({str(e)})")
-        else:
-            # 如果没有提供embeddings，只显示表名
-            print(f"- 表名: {table_name} | 文件名: 需要提供embeddings参数获取详细信息")
-        
-        result.append(table_info)
-    
-    return result
-def delete_table(db_path, table_name):
-    """
-    删除指定的数据库表文件
-    
-    Args:
-        db_path: 数据库路径
-        table_name: 要删除的表名
+        collection_name: 要删除的集合
     
     Returns:
         bool: 删除是否成功
     """
-    # 构建数据库文件路径
-    db_dir = os.path.join(db_path, f"{table_name}.lance")
-    
-    # 检查数据库目录是否存在
-    if not os.path.exists(db_dir):
-        print(f"数据库表不存在: {db_dir}")
-        return False
-    
+    db_path = settings.CHROMADB_PERSIST_DIR
     try:
-        # shutil.rmtree递归删除
-        shutil.rmtree(db_dir)
+        # 使用 Chroma 的 PersistentClient 来删除集合
+        import chromadb
+        client = chromadb.PersistentClient(path=db_path)
+        client.delete_collection(name=collection_name)
         
-        print(f"成功删除数据库表: {table_name}")
+        print(f"成功删除数据库集合: {collection_name}")
         return True
     except Exception as e:
-        print(f"删除数据库表失败: {e}")
+        print(f"删除数据库集合失败: {e}")
         return False
 
-def update_table_metadata(db_path, table_name, embeddings, metadata_updates):
+
+def add_file_to_collection(file_path, collection_name):
     """
-    更新表中所有文档的元数据（使用LanceDB的原生API）
+    将新文件嵌入到已有的集合中
     
     Args:
-        db_path: 数据库路径
-        table_name: 表名
-        embeddings: 嵌入模型实例
-        metadata_updates: 要更新的元数据字典，如 {'original_filename': '新文件名.txt'}
+        file_path: 文件路径
+        collection_name: 集合名（知识库ID，如 db_xxx）
     
     Returns:
-        bool: 更新是否成功
+        bool: 添加是否成功
     """
     try:
-        # 直接连接到LanceDB
-        import lancedb
-        db = lancedb.connect(db_path)
-        table = db.open_table(table_name)
+        # 从配置获取知识库参数
+        kb_config = settings.get_config('knowledgeBase', collection_name)
+        if kb_config is None:
+            print(f"未找到知识库配置: {collection_name}")
+            return False
         
-        # 获取所有数据
-        arrow_data = table.to_arrow()
-        data = arrow_data.to_pylist()
+        chunk_size = kb_config.get('chunkSize', 1000)
+        chunk_overlap = kb_config.get('overlapSize', 100)
+        provider = kb_config.get('provider', '')
+        model = kb_config.get('model', '')
         
-        # 更新所有行的元数据
-        for i in range(len(data)):
-            updated_metadata = data[i]['metadata'].copy()
-            updated_metadata.update(metadata_updates)
-            data[i]['metadata'] = updated_metadata
+        # 获取provider配置
+        provider_config = settings.get_config('provider', provider)
+        if provider_config is None:
+            print(f"未找到提供商配置: {provider}")
+            return False
         
-        # 删除表中的所有数据
-        table.delete(where="1=1")
+        # 准备嵌入模型
+        embeddings = prepare_emb(
+            provider=provider,
+            model_id=model,
+            embedding_url=provider_config.get('url', ''),
+            embedding_api_key=provider_config.get('key', '')
+        )
         
-        # 添加更新后的数据
-        table.add(data)
+        # 准备文档
+        documents = prepare_doc(file_path, chunk_size, chunk_overlap)
         
-        print(f"成功更新表 {table_name} 的元数据，更新了 {len(data)} 行")
+        # 加载已有集合
+        vector_store = load(embeddings, collection_name)
+        if vector_store is None:
+            print(f"加载集合失败: {collection_name}")
+            return False
+        
+        # 生成文档ID并添加文档
+        from uuid import uuid4
+        uuids = [str(uuid4()) for _ in range(len(documents))]
+        vector_store.add_documents(documents=documents, ids=uuids)
+        
+        print(f"成功将文件 {os.path.basename(file_path)} 添加到集合 {collection_name}")
         return True
-        
     except Exception as e:
-        print(f"更新表元数据失败: {e}")
+        print(f"添加文件到集合失败: {e}")
         return False
+
+
+def remove_file_from_collection(collection_name, filename):
+    """
+    从集合中移除指定文件及其所有向量
+    
+    Args:
+        collection_name: 集合名
+        filename: 要移除的文件名
+    
+    Returns:
+        bool: 移除是否成功
+    """
+    db_path = settings.CHROMADB_PERSIST_DIR
+    try:
+        import chromadb
+        # 创建持久化客户端（不需要嵌入模型）
+        client = chromadb.PersistentClient(path=db_path)
+        
+        # 获取集合
+        collection = client.get_collection(name=collection_name)
+        
+        # 通过元数据过滤删除
+        collection.delete(where={"original_filename": filename})
+        
+        print(f"成功从集合 {collection_name} 中移除文件 {filename}")
+        return True
+    except Exception as e:
+        print(f"从集合中移除文件失败: {e}")
+        return False
+
+
+def get_files_in_collection(collection_name):
+    """
+    获取集合中包含的所有文件名
+    
+    Args:
+        collection_name: 集合名
+    
+    Returns:
+        list: 文件名列表
+    """
+    db_path = settings.CHROMADB_PERSIST_DIR
+    try:
+        import chromadb
+        client = chromadb.PersistentClient(path=db_path)
+        collection = client.get_collection(name=collection_name)
+        
+        # 获取所有文档的元数据
+        results = collection.get(include=["metadatas"])
+        
+        # 提取 original_filename 并去重
+        filenames = set()
+        for metadata in results.get('metadatas', []):
+            if metadata and 'original_filename' in metadata:
+                filenames.add(metadata['original_filename'])
+        
+        return list(filenames)
+    except Exception as e:
+        print(f"获取集合文件列表失败: {e}")
+        return []
+
 
 def search_emb(vector_store,embeddings,search_input):
     results = vector_store.similarity_search_by_vector(

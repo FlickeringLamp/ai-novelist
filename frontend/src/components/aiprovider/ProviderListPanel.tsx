@@ -162,7 +162,7 @@ const ProviderListPanel = ({}: ProviderListPanelProps) => {
           {Object.keys(providersData).map((providerId, index) => (
                 <div
                   key={index}
-                  className={`m-2.5 p-2.5 text-center cursor-pointer bg-theme-gray1 border-1 border-theme-gray3 hover:text-theme-green hover:bg-theme-gray2 ${selectedProviderId === providerId ? 'border border-theme-green text-theme-green' : ''}`}
+                  className={`m-2.5 p-2.5 rounded text-center cursor-pointer bg-theme-gray1 border-1 border-theme-gray3 hover:text-theme-green hover:bg-theme-gray2 ${selectedProviderId === providerId ? 'border border-theme-green text-theme-green' : ''}`}
                   onClick={() => dispatch(setSelectedProviderId(providerId))}
                   onContextMenu={(e) => handleContextMenu(e, providerId)}
                 >
@@ -172,7 +172,7 @@ const ProviderListPanel = ({}: ProviderListPanelProps) => {
         </ul>
       </div>
       {/* 自定义提供商按钮 */}
-      <div className="h-[5%] m-1 flex items-center justify-center cursor-pointer border-1 border-theme-gray3 hover:text-theme-green hover:bg-theme-gray2" onClick={() => setShowCustomProviderModal(true)}>
+      <div className="h-[5%] m-1 rounded flex items-center justify-center cursor-pointer border-1 border-theme-gray3 hover:text-theme-green hover:bg-theme-gray2" onClick={() => setShowCustomProviderModal(true)}>
         + 自定义提供商
       </div>
 

@@ -52,14 +52,14 @@ def initialize_directories_and_files():
     base_dir = Path("backend/data")
     config_dir = base_dir / "config"
     novel_dir = base_dir / "novel"
-    lancedb_dir = base_dir / "lancedb"
+    chromadb_dir = base_dir / "chromadb"
     db_dir = base_dir / "db"
     uploads_dir = base_dir / "uploads"
     temp_dir = base_dir / "temp"
     config_file = config_dir / "store.json"
     
     # 确保所有目录存在
-    directories = [base_dir, config_dir, novel_dir, lancedb_dir, db_dir, uploads_dir, temp_dir]
+    directories = [base_dir, config_dir, novel_dir, chromadb_dir, db_dir, uploads_dir, temp_dir]
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
     
@@ -70,7 +70,6 @@ def initialize_directories_and_files():
             "log_level": "INFO",
             "host": "127.0.0.1",
             "port": 8000,
-            "selectedModel": "",
             "currentMode": "outline",
             "mode": {
                 "outline": {
@@ -103,11 +102,10 @@ def initialize_directories_and_files():
                 "delay": 1000
             },
             "selectedProvider": "",
+            "selectedModel": "",
             "provider": PROVIDERS,
-            "embeddingModels": {},
-            "ragChunkSize": 150,
-            "ragChunkOverlap": 20,
-            "thread_id": thread_id
+            "thread_id": thread_id,
+            "knowledgeBase":{}
         }
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, ensure_ascii=False, indent=2)
@@ -136,7 +134,7 @@ class Settings:
         # 用户文件目录
         self.NOVEL_DIR: str = str(base_dir / "novel")
         # 向量数据库目录
-        self.LANCEDB_PERSIST_DIR: str = str(base_dir / "lancedb")
+        self.CHROMADB_PERSIST_DIR: str = str(base_dir / "chromadb")
         # SQLite数据库配置
         self.DB_DIR: str = str(base_dir / "db")
         self.CHECKPOINTS_DB_PATH: str = str(base_dir / "db" / "checkpoints.db")

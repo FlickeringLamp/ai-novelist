@@ -66,13 +66,10 @@ const ModelListPanel = () => {
   const handleSubmit = async () => {
     if (!selectedProviderId) return;
     try {
-      const apiKeyConfigKey = `provider.${selectedProviderId}.key`;
-      const baseUrlConfigKey = `provider.${selectedProviderId}.url`;
-
-      await Promise.all([
-        httpClient.post('/api/config/store', { key: apiKeyConfigKey, value: apiKey }),
-        httpClient.post('/api/config/store', { key: baseUrlConfigKey, value: baseUrl })
-      ]);
+      await httpClient.put(`/api/provider/custom-providers/${selectedProviderId}`, {
+        url: baseUrl,
+        key: apiKey
+      });
 
       // 刷新提供商列表
       const providersResult = await httpClient.get('/api/provider/providers');

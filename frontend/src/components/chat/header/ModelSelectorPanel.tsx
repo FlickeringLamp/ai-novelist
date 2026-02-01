@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faSyncAlt, faRobot } from '@fortawesome/free-solid-svg-icons';
 import httpClient from '../../../utils/httpClient.ts';
-import { isEmbeddingModel } from '../../../utils/embeddingModelUtils.ts';
+// import { isEmbeddingModel } from '../../../utils/embeddingModelUtils.ts';
 
 interface Model {
     id: string;
@@ -38,25 +38,25 @@ const ModelSelectorPanel = () => {
     return models;
   };
 
-  // 加载模型列表
-  const loadAvailableModels = async () => {
-    try {
-      setLoading(true);
-      const favoriteModels = await httpClient.get('/api/provider/favorite-models');
+  // // 加载模型列表
+  // const loadAvailableModels = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const favoriteModels = await httpClient.get('/api/provider/favorite-models');
       
-      const models = convertBackendModels(favoriteModels);
-      const filteredModels = models.filter(model => !isEmbeddingModel(model.id));
-      setAvailableModels(filteredModels);
-      console.log('ModelSelectorPanel: 从后端获取到模型数据:', {
-        availableModelsCount: filteredModels.length,
-        availableModels: filteredModels
-      });
-    } catch (error) {
-      console.error('加载模型列表失败:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     const models = convertBackendModels(favoriteModels);
+  //     const filteredModels = models.filter(model => !isEmbeddingModel(model.id));
+  //     setAvailableModels(filteredModels);
+  //     console.log('ModelSelectorPanel: 从后端获取到模型数据:', {
+  //       availableModelsCount: filteredModels.length,
+  //       availableModels: filteredModels
+  //     });
+  //   } catch (error) {
+  //     console.error('加载模型列表失败:', error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   // 加载选中的模型
   const loadSelectedModel = async () => {
@@ -69,16 +69,16 @@ const ModelSelectorPanel = () => {
   };
 
   // 刷新模型列表
-  const handleRefreshModels = async () => {
-    try {
-      setRefreshing(true);
-      await loadAvailableModels();
-    } catch (error) {
-      console.error('刷新模型列表失败:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  // const handleRefreshModels = async () => {
+  //   try {
+  //     setRefreshing(true);
+  //     await loadAvailableModels();
+  //   } catch (error) {
+  //     console.error('刷新模型列表失败:', error);
+  //   } finally {
+  //     setRefreshing(false);
+  //   }
+  // };
 
   // 处理模型选择
   const handleModelSelect = async (modelId: string) => {
@@ -135,11 +135,11 @@ const ModelSelectorPanel = () => {
     setSelectedProvider(provider === selectedProvider ? '' : provider);
   };
 
-  // 组件挂载时加载模型列表和选中的模型
-  useEffect(() => {
-    loadAvailableModels();
-    loadSelectedModel();
-  }, []);
+  // // 组件挂载时加载模型列表和选中的模型
+  // useEffect(() => {
+  //   loadAvailableModels();
+  //   loadSelectedModel();
+  // }, []);
 
   return (
     <div className="relative">
@@ -173,7 +173,7 @@ const ModelSelectorPanel = () => {
               />
               <button
                 className="flex items-center justify-center w-8 h-8 bg-transparent border-none text-theme-white cursor-pointer transition-all hover:text-theme-green disabled:text-theme-white disabled:cursor-not-allowed"
-                onClick={handleRefreshModels}
+                // onClick={handleRefreshModels}
                 title="刷新模型列表"
                 disabled={refreshing}
               >

@@ -1,47 +1,41 @@
 import { type ContextMenuItem } from '../../others/ContextMenu';
 import ContextMenu from '../../others/ContextMenu';
 
-interface ProviderContextMenuProps {
+interface KnowledgeBaseContextMenuProps {
   visible: boolean;
   x: number;
   y: number;
-  providerId: string | null;
-  builtinProviders: string[];
-  onRename: (providerId: string) => void;
-  onDelete: (providerId: string) => void;
+  knowledgeBaseId: string | null;
+  onRename: (knowledgeBaseId: string) => void;
+  onDelete: (knowledgeBaseId: string) => void;
   onClose: () => void;
   enableKeyboard?: boolean;
   enableAutoAdjust?: boolean;
 }
 
-const ProviderContextMenu = ({
+const KnowledgeBaseContextMenu = ({
   visible,
   x,
   y,
-  providerId,
-  builtinProviders,
+  knowledgeBaseId,
   onRename,
   onDelete,
   onClose,
   enableKeyboard = true,
   enableAutoAdjust = true
-}: ProviderContextMenuProps) => {
+}: KnowledgeBaseContextMenuProps) => {
   const menuItems: ContextMenuItem[] = (() => {
-    if (!providerId) return [];
+    if (!knowledgeBaseId) return [];
     
-    const isBuiltin = builtinProviders.includes(providerId);
     const items: ContextMenuItem[] = [];
-
-    if (!isBuiltin) {
-      items.push({
-        label: '重命名',
-        onClick: () => onRename(providerId)
-      });
-      items.push({
-        label: '删除',
-        onClick: () => onDelete(providerId)
-      });
-    }
+    items.push({
+      label: '重命名',
+      onClick: () => onRename(knowledgeBaseId)
+    });
+    items.push({
+      label: '删除',
+      onClick: () => onDelete(knowledgeBaseId)
+    });
 
     return items;
   })();
@@ -59,4 +53,4 @@ const ProviderContextMenu = ({
   );
 };
 
-export default ProviderContextMenu;
+export default KnowledgeBaseContextMenu;
