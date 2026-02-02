@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime
 from typing import Any, Dict, List
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -168,5 +169,22 @@ async def get_available_tools():
     """获取所有可用的工具"""
     return {
         "all_tools": ALL_AVAILABLE_TOOLS
+    }
+
+
+# ========== 健康检查API端点 ==========
+
+@router.get("/health", summary="健康检查")
+async def health_check():
+    """
+    检查后端服务是否正常运行
+    
+    Returns:
+        Dict: 服务状态信息
+    """
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "service": "ai-novelist-backend"
     }
 

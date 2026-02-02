@@ -1,6 +1,6 @@
 import UnifiedModal from '../../others/UnifiedModal';
 
-interface DeleteKnowledgeBaseConfirmModalProps {
+interface DeleteBaseConfirmModalProps {
   isOpen: boolean;
   knowledgeBaseId: string;
   knowledgeBaseName: string;
@@ -8,13 +8,13 @@ interface DeleteKnowledgeBaseConfirmModalProps {
   onConfirm: (knowledgeBaseId: string) => Promise<void>;
 }
 
-const DeleteKnowledgeBaseConfirmModal = ({
+const DeleteBaseConfirmModal = ({
   isOpen,
   knowledgeBaseId,
   knowledgeBaseName,
   onClose,
   onConfirm
-}: DeleteKnowledgeBaseConfirmModalProps) => {
+}: DeleteBaseConfirmModalProps) => {
   if (!isOpen) return null;
 
   return (
@@ -28,4 +28,4 @@ const DeleteKnowledgeBaseConfirmModal = ({
   );
 };
 
-export default DeleteKnowledgeBaseConfirmModal;
+export default DeleteBaseConfirmModal;

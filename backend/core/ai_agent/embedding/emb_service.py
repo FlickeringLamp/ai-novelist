@@ -9,6 +9,10 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from backend.config import settings
+from typing import Callable, Optional
+import chromadb
+from uuid import uuid4
+import asyncio
 
 
 def prepare_doc(orgfile_path, chunk_size, chunk_overlap):
@@ -73,37 +77,6 @@ db_path = Path("backend/data/chromadb")
 # 确保目录存在,创建嵌入表
 os.makedirs(db_path, exist_ok=True)
 
-def create_db(documents, embeddings, collection_name):
-    """
-    创建向量数据库
-    
-    Args:
-        documents: 文档列表
-        embeddings: 嵌入模型实例
-        collection_name: 集合名
-    
-    Returns:
-        collection_name: 集合名
-    """
-    db_path = settings.CHROMADB_PERSIST_DIR
-    
-    # 创建数据库
-    vector_store = Chroma(
-        collection_name=collection_name,
-        embedding_function=embeddings,
-        persist_directory=db_path
-    )
-    
-    # 生成文档ID并添加文档
-    from uuid import uuid4
-    uuids = [str(uuid4()) for _ in range(len(documents))]
-    vector_store.add_documents(documents=documents, ids=uuids)
-    
-    print(f"向量数据库已创建并保存到: {db_path}, 集合: {collection_name}")
-    return collection_name
-
-
-
 
 def load(embeddings, collection_name):
     """
@@ -117,20 +90,15 @@ def load(embeddings, collection_name):
         vector_store: 向量存储实例
     """
     db_path = settings.CHROMADB_PERSIST_DIR
-    try:
-        # 直接连接到已存在的数据库
-        vector_store = Chroma(
-            collection_name=collection_name,
-            embedding_function=embeddings,
-            persist_directory=db_path
-        )
-        
-        print(f"成功加载数据库: {db_path}, 集合: {collection_name}")
-        return vector_store
-        
-    except Exception as e:
-        print(f"加载数据库失败: {e}")
-        return None
+    # 直接连接到已存在的数据库
+    vector_store = Chroma(
+        collection_name=collection_name,
+        embedding_function=embeddings,
+        persist_directory=db_path
+    )
+    
+    print(f"成功加载数据库: {db_path}, 集合: {collection_name}")
+    return vector_store
 
 def delete_collection(collection_name):
     """
@@ -143,75 +111,103 @@ def delete_collection(collection_name):
         bool: 删除是否成功
     """
     db_path = settings.CHROMADB_PERSIST_DIR
-    try:
-        # 使用 Chroma 的 PersistentClient 来删除集合
-        import chromadb
-        client = chromadb.PersistentClient(path=db_path)
-        client.delete_collection(name=collection_name)
-        
-        print(f"成功删除数据库集合: {collection_name}")
-        return True
-    except Exception as e:
-        print(f"删除数据库集合失败: {e}")
-        return False
+    # 使用 Chroma 的 PersistentClient 来删除集合
+    client = chromadb.PersistentClient(path=db_path)
+    client.delete_collection(name=collection_name)
+    
+    print(f"成功删除数据库集合: {collection_name}")
+    return True
+
+def create_collection(collection_name):
+    """
+    创建新的数据库集合
+    
+    Args:
+        collection_name: 集合名（知识库ID，如 db_xxx）
+    
+    Returns:
+        vector_store: 向量存储实例
+    """
+    # 从配置获取知识库参数
+    kb_config = settings.get_config('knowledgeBase', collection_name)
+    provider = kb_config.get('provider', '')
+    model = kb_config.get('model', '')
+    
+    provider_config = settings.get_config('provider', provider)
+    
+    # 准备嵌入模型
+    embeddings = prepare_emb(
+        provider=provider,
+        model_id=model,
+        embedding_url=provider_config.get('url', ''),
+        embedding_api_key=provider_config.get('key', '')
+    )
+    
+    db_path = settings.CHROMADB_PERSIST_DIR
+    # 使用 Chroma 创建新的集合
+    vector_store = Chroma(
+        collection_name=collection_name,
+        embedding_function=embeddings,
+        persist_directory=db_path
+    )
+    
+    print(f"成功创建数据库集合: {collection_name}")
+    return vector_store
 
 
-def add_file_to_collection(file_path, collection_name):
+async def add_file_to_collection(file_path, collection_name, progress_callback: Optional[Callable] = None, batch_size: int = 10):
     """
     将新文件嵌入到已有的集合中
     
     Args:
         file_path: 文件路径
         collection_name: 集合名（知识库ID，如 db_xxx）
+        progress_callback: 异步进度回调函数，参数为 (current, total, message)
+        batch_size: 每批处理的文档数量
     
     Returns:
         bool: 添加是否成功
     """
-    try:
-        # 从配置获取知识库参数
-        kb_config = settings.get_config('knowledgeBase', collection_name)
-        if kb_config is None:
-            print(f"未找到知识库配置: {collection_name}")
-            return False
-        
-        chunk_size = kb_config.get('chunkSize', 1000)
-        chunk_overlap = kb_config.get('overlapSize', 100)
-        provider = kb_config.get('provider', '')
-        model = kb_config.get('model', '')
-        
-        # 获取provider配置
-        provider_config = settings.get_config('provider', provider)
-        if provider_config is None:
-            print(f"未找到提供商配置: {provider}")
-            return False
-        
-        # 准备嵌入模型
-        embeddings = prepare_emb(
-            provider=provider,
-            model_id=model,
-            embedding_url=provider_config.get('url', ''),
-            embedding_api_key=provider_config.get('key', '')
-        )
-        
-        # 准备文档
-        documents = prepare_doc(file_path, chunk_size, chunk_overlap)
-        
-        # 加载已有集合
-        vector_store = load(embeddings, collection_name)
-        if vector_store is None:
-            print(f"加载集合失败: {collection_name}")
-            return False
-        
-        # 生成文档ID并添加文档
-        from uuid import uuid4
-        uuids = [str(uuid4()) for _ in range(len(documents))]
-        vector_store.add_documents(documents=documents, ids=uuids)
-        
-        print(f"成功将文件 {os.path.basename(file_path)} 添加到集合 {collection_name}")
-        return True
-    except Exception as e:
-        print(f"添加文件到集合失败: {e}")
+    # 从配置获取知识库参数
+    kb_config = settings.get_config('knowledgeBase', collection_name)
+    chunk_size = kb_config.get('chunkSize', 1000)
+    chunk_overlap = kb_config.get('overlapSize', 100)
+    provider = kb_config.get('provider', '')
+    model = kb_config.get('model', '')
+    
+    provider_config = settings.get_config('provider', provider)
+    
+    # 准备嵌入模型
+    embeddings = prepare_emb(
+        provider=provider,
+        model_id=model,
+        embedding_url=provider_config.get('url', ''),
+        embedding_api_key=provider_config.get('key', '')
+    )
+    
+    # 准备文档
+    documents = prepare_doc(file_path, chunk_size, chunk_overlap)
+    total_docs = len(documents)
+    
+    # 加载已有集合
+    vector_store = load(embeddings, collection_name)
+    if vector_store is None:
+        print(f"加载集合失败: {collection_name}")
         return False
+    
+    # 分批添加文档以显示进度
+    for i in range(0, total_docs, batch_size):
+        batch = documents[i:i + batch_size]
+        uuids = [str(uuid4()) for _ in range(len(batch))]
+        vector_store.add_documents(documents=batch, ids=uuids)
+        
+        if progress_callback:
+            await progress_callback(i + len(batch), total_docs, f"已嵌入 {i + len(batch)}/{total_docs} 个文档片段")
+            # 让出事件循环控制权，确保 WebSocket 消息能够立即发送
+            await asyncio.sleep(0)
+    
+    print(f"成功将文件 {os.path.basename(file_path)} 添加到集合 {collection_name}")
+    return True
 
 
 def remove_file_from_collection(collection_name, filename):
@@ -226,53 +222,44 @@ def remove_file_from_collection(collection_name, filename):
         bool: 移除是否成功
     """
     db_path = settings.CHROMADB_PERSIST_DIR
-    try:
-        import chromadb
-        # 创建持久化客户端（不需要嵌入模型）
-        client = chromadb.PersistentClient(path=db_path)
-        
-        # 获取集合
-        collection = client.get_collection(name=collection_name)
-        
-        # 通过元数据过滤删除
-        collection.delete(where={"original_filename": filename})
-        
-        print(f"成功从集合 {collection_name} 中移除文件 {filename}")
-        return True
-    except Exception as e:
-        print(f"从集合中移除文件失败: {e}")
-        return False
+    # 创建持久化客户端（不需要嵌入模型）
+    client = chromadb.PersistentClient(path=db_path)
+    
+    # 获取集合
+    collection = client.get_collection(name=collection_name)
+    
+    # 通过元数据过滤删除
+    collection.delete(where={"original_filename": filename})
+    
+    print(f"成功从集合 {collection_name} 中移除文件 {filename}")
+    return True
 
 
 def get_files_in_collection(collection_name):
     """
-    获取集合中包含的所有文件名
+    获取集合中包含的所有文件名及其片段数量
     
     Args:
         collection_name: 集合名
     
     Returns:
-        list: 文件名列表
+        dict: 文件名到片段数量的映射 {filename: chunk_count}
     """
     db_path = settings.CHROMADB_PERSIST_DIR
-    try:
-        import chromadb
-        client = chromadb.PersistentClient(path=db_path)
-        collection = client.get_collection(name=collection_name)
-        
-        # 获取所有文档的元数据
-        results = collection.get(include=["metadatas"])
-        
-        # 提取 original_filename 并去重
-        filenames = set()
-        for metadata in results.get('metadatas', []):
-            if metadata and 'original_filename' in metadata:
-                filenames.add(metadata['original_filename'])
-        
-        return list(filenames)
-    except Exception as e:
-        print(f"获取集合文件列表失败: {e}")
-        return []
+    client = chromadb.PersistentClient(path=db_path)
+    collection = client.get_collection(name=collection_name)
+    
+    # 获取所有文档的元数据
+    results = collection.get(include=["metadatas"])
+    
+    # 统计每个文件名的出现次数（即片段数量）
+    file_chunk_counts = {}
+    for metadata in results.get('metadatas', []):
+        if metadata and 'original_filename' in metadata:
+            filename = metadata['original_filename']
+            file_chunk_counts[filename] = file_chunk_counts.get(filename, 0) + 1
+    
+    return file_chunk_counts
 
 
 def search_emb(vector_store,embeddings,search_input):

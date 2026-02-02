@@ -5,13 +5,15 @@ import shutil
 from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 from backend.config import settings
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect, BackgroundTasks
 from backend.core.ai_agent.embedding.emb_service import (
     get_files_in_collection,
     add_file_to_collection,
     remove_file_from_collection,
-    delete_collection
+    delete_collection,
+    create_collection
 )
+from backend.core.ai_agent.embedding.websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +100,9 @@ async def add_knowledge_base(request: AddKnowledgeBaseRequest):
     # 更新配置
     settings.update_config(knowledge_base, "knowledgeBase")
     
+    # 创建ChromaDB集合
+    create_collection(kb_id)
+    
     logger.info(f"添加知识库: {kb_id} - {request.name}")
     
     return knowledge_base
@@ -165,41 +170,35 @@ async def delete_knowledge_base(kb_id: str):
     """
     # 获取当前知识库配置
     knowledge_base = settings.get_config("knowledgeBase", default={})
-    
     # 检查知识库是否存在
     if kb_id not in knowledge_base:
         raise HTTPException(status_code=404, detail=f"知识库 {kb_id} 不存在")
-    
     # 删除向量集合
     delete_collection(kb_id)
-    
     # 删除知识库配置
     del knowledge_base[kb_id]
-    
     # 保存配置
     settings.update_config(knowledge_base, "knowledgeBase")
-    
     logger.info(f"删除知识库: {kb_id}")
-    
     return knowledge_base
 
 
-@router.get("/bases/{kb_id}/files", summary="获取知识库中的文件列表", response_model=List[str])
+@router.get("/bases/{kb_id}/files", summary="获取知识库中的文件列表", response_model=Dict[str, int])
 async def get_knowledge_base_files(kb_id: str):
     """
-    获取指定知识库中的所有文件名
+    获取指定知识库中的所有文件名及其片段数量
     
     - **kb_id**: 知识库ID（路径参数）
     
     Returns:
-        List[str]: 文件名列表
+        Dict[str, int]: 文件名到片段数量的映射 {filename: chunk_count}
     """
     # 检查知识库是否存在
     knowledge_base = settings.get_config("knowledgeBase", default={})
     if kb_id not in knowledge_base:
         raise HTTPException(status_code=404, detail=f"知识库 {kb_id} 不存在")
     
-    # 获取文件列表
+    # 获取文件列表及片段数量
     files = get_files_in_collection(kb_id)
     
     logger.info(f"获取知识库 {kb_id} 的文件列表: {len(files)} 个文件")
@@ -207,13 +206,45 @@ async def get_knowledge_base_files(kb_id: str):
     return files
 
 
+@router.websocket("/bases/{kb_id}/progress")
+async def websocket_progress(websocket: WebSocket, kb_id: str):
+    """
+    WebSocket端点，用于接收嵌入进度
+    
+    - **kb_id**: 知识库ID（路径参数）
+    """
+    await websocket_manager.connect(kb_id, websocket)
+    try:
+        while True:
+            # 保持连接活跃
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(kb_id, websocket)
+
+
+async def process_embedding_task(file_path: str, kb_id: str, filename: str):
+    """后台任务：处理文件嵌入"""
+    logger.info(f"开始处理嵌入任务: {filename}, kb_id={kb_id}")
+    
+    async def progress_callback(current: int, total: int, message: str):
+        logger.info(f"进度回调: current={current}, total={total}, message={message}")
+        await websocket_manager.broadcast_progress(kb_id, current, total, message)
+    
+    success = await add_file_to_collection(file_path, kb_id, progress_callback=progress_callback)
+    
+    if not success:
+        logger.error(f"文件 {filename} 嵌入失败")
+
+
+
 @router.post("/bases/{kb_id}/files", summary="上传文件到知识库")
 async def upload_file_to_knowledge_base(
     kb_id: str,
-    file: UploadFile = File(..., description="要上传的文件")
+    file: UploadFile = File(..., description="要上传的文件"),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
-    上传文件到指定知识库，并进行嵌入处理
+    上传文件到指定知识库，并进行嵌入处理（异步）
     
     - **kb_id**: 知识库ID（路径参数）
     - **file**: 要上传的文件
@@ -226,8 +257,8 @@ async def upload_file_to_knowledge_base(
     if kb_id not in knowledge_base:
         raise HTTPException(status_code=404, detail=f"知识库 {kb_id} 不存在")
     
-    # 创建临时目录保存上传的文件
-    temp_dir = "backend/data/temp_uploads"
+    # 使用配置的临时目录保存上传的文件
+    temp_dir = settings.TEMP_DIR
     os.makedirs(temp_dir, exist_ok=True)
     
     # 保存上传的文件
@@ -236,25 +267,18 @@ async def upload_file_to_knowledge_base(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # 将文件添加到知识库集合
-        success = add_file_to_collection(file_path, kb_id)
+        # 添加后台任务处理嵌入
+        background_tasks.add_task(process_embedding_task, file_path, kb_id, file.filename)
         
-        if success:
-            logger.info(f"成功上传文件 {file.filename} 到知识库 {kb_id}")
-            return {
-                "success": True,
-                "message": f"文件 {file.filename} 上传成功",
-                "filename": file.filename
-            }
-        else:
-            raise HTTPException(status_code=500, detail="文件嵌入处理失败")
+        logger.info(f"开始异步上传文件 {file.filename} 到知识库 {kb_id}")
+        return {
+            "success": True,
+            "message": f"文件 {file.filename} 开始上传，请通过WebSocket查看进度",
+            "filename": file.filename
+        }
     except Exception as e:
         logger.error(f"上传文件失败: {e}")
         raise HTTPException(status_code=500, detail=f"上传文件失败: {str(e)}")
-    finally:
-        # 删除临时文件
-        if os.path.exists(file_path):
-            os.remove(file_path)
 
 
 @router.delete("/bases/{kb_id}/files/{filename}", summary="从知识库删除文件")

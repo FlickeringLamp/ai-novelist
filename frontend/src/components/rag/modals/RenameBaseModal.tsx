@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import UnifiedModal from '../../others/UnifiedModal';
 
-interface RenameKnowledgeBaseModalProps {
+interface RenameBaseModalProps {
   isOpen: boolean;
   knowledgeBaseId: string;
   currentName: string;
@@ -9,13 +9,13 @@ interface RenameKnowledgeBaseModalProps {
   onSubmit: (knowledgeBaseId: string, newName: string) => Promise<void>;
 }
 
-const RenameKnowledgeBaseModal = ({
+const RenameBaseModal = ({
   isOpen,
   knowledgeBaseId,
   currentName,
   onClose,
   onSubmit
-}: RenameKnowledgeBaseModalProps) => {
+}: RenameBaseModalProps) => {
   const [newKnowledgeBaseName, setNewKnowledgeBaseName] = useState('');
 
   useEffect(() => {
@@ -65,4 +65,4 @@ const RenameKnowledgeBaseModal = ({
   );
 };
 
-export default RenameKnowledgeBaseModal;
+export default RenameBaseModal;

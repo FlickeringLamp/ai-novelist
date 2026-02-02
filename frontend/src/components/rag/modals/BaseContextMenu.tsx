@@ -1,7 +1,7 @@
 import { type ContextMenuItem } from '../../others/ContextMenu';
 import ContextMenu from '../../others/ContextMenu';
 
-interface KnowledgeBaseContextMenuProps {
+interface BaseContextMenuProps {
   visible: boolean;
   x: number;
   y: number;
@@ -13,7 +13,7 @@ interface KnowledgeBaseContextMenuProps {
   enableAutoAdjust?: boolean;
 }
 
-const KnowledgeBaseContextMenu = ({
+const BaseContextMenu = ({
   visible,
   x,
   y,
@@ -23,7 +23,7 @@ const KnowledgeBaseContextMenu = ({
   onClose,
   enableKeyboard = true,
   enableAutoAdjust = true
-}: KnowledgeBaseContextMenuProps) => {
+}: BaseContextMenuProps) => {
   const menuItems: ContextMenuItem[] = (() => {
     if (!knowledgeBaseId) return [];
     
@@ -53,4 +53,4 @@ const KnowledgeBaseContextMenu = ({
   );
 };
 
-export default KnowledgeBaseContextMenu;
+export default BaseContextMenu;
