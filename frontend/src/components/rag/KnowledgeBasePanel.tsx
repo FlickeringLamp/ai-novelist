@@ -1,6 +1,5 @@
 import BaseListPanel from "./BaseListPanel";
-import HeaderBar from "./HeaderBar";
-import FilesManager from "./FilesManager";
+import DetailPanel from "./DetailPanel";
 
 const KnowledgeBasePanel = () => {
   return (
@@ -8,11 +7,8 @@ const KnowledgeBasePanel = () => {
       {/* 左侧：知识库列表 */}
       <BaseListPanel />
 
-      {/* 右侧：文件列表 */}
-      <div className="w-[80%] h-full flex flex-col">
-        <HeaderBar />
-        <FilesManager />
-      </div>
+      {/* 右侧：详情面板 */}
+      <DetailPanel />
     </div>
   );
 };

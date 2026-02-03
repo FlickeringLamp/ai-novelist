@@ -11,7 +11,9 @@ from backend.core.ai_agent.embedding.emb_service import (
     add_file_to_collection,
     remove_file_from_collection,
     delete_collection,
-    create_collection
+    create_collection,
+    search_emb,
+    asearch_emb
 )
 from backend.core.ai_agent.embedding.websocket_manager import websocket_manager
 
@@ -41,6 +43,12 @@ class UpdateKnowledgeBaseRequest(BaseModel):
     overlapSize: int = Field(None, description="重叠大小")
     similarity: float = Field(None, description="相似度")
     returnDocs: int = Field(None, description="返回文档片段数")
+
+
+class SearchKnowledgeBaseRequest(BaseModel):
+    """搜索知识库请求"""
+    query: str = Field(..., description="搜索查询文本")
+    filename_filter: str = Field(None, description="可选的文件名筛选条件")
 
 
 # 创建API路由器
@@ -122,12 +130,7 @@ async def update_knowledge_base(kb_id: str, request: UpdateKnowledgeBaseRequest)
     - **similarity**: 相似度（可选）
     - **returnDocs**: 返回文档片段数（可选）
     """
-    # 获取当前知识库配置
     knowledge_base = settings.get_config("knowledgeBase", default={})
-    
-    # 检查知识库是否存在
-    if kb_id not in knowledge_base:
-        raise HTTPException(status_code=404, detail=f"知识库 {kb_id} 不存在")
     
     # 获取当前知识库配置
     current_config = knowledge_base[kb_id]
@@ -170,9 +173,6 @@ async def delete_knowledge_base(kb_id: str):
     """
     # 获取当前知识库配置
     knowledge_base = settings.get_config("knowledgeBase", default={})
-    # 检查知识库是否存在
-    if kb_id not in knowledge_base:
-        raise HTTPException(status_code=404, detail=f"知识库 {kb_id} 不存在")
     # 删除向量集合
     delete_collection(kb_id)
     # 删除知识库配置
@@ -183,20 +183,16 @@ async def delete_knowledge_base(kb_id: str):
     return knowledge_base
 
 
-@router.get("/bases/{kb_id}/files", summary="获取知识库中的文件列表", response_model=Dict[str, int])
+@router.get("/bases/{kb_id}/files", summary="获取知识库中的文件列表", response_model=Dict[str, Dict[str, int]])
 async def get_knowledge_base_files(kb_id: str):
     """
-    获取指定知识库中的所有文件名及其片段数量
+    获取指定知识库中的所有文件名及其片段数量和切分参数
     
     - **kb_id**: 知识库ID（路径参数）
     
     Returns:
-        Dict[str, int]: 文件名到片段数量的映射 {filename: chunk_count}
+        Dict[str, Dict[str, int]]: 文件名到文件信息的映射 {filename: {"chunk_count": count, "chunk_size": size, "chunk_overlap": overlap}}
     """
-    # 检查知识库是否存在
-    knowledge_base = settings.get_config("knowledgeBase", default={})
-    if kb_id not in knowledge_base:
-        raise HTTPException(status_code=404, detail=f"知识库 {kb_id} 不存在")
     
     # 获取文件列表及片段数量
     files = get_files_in_collection(kb_id)
@@ -252,14 +248,9 @@ async def upload_file_to_knowledge_base(
     Returns:
         Dict: 操作结果
     """
-    # 检查知识库是否存在
-    knowledge_base = settings.get_config("knowledgeBase", default={})
-    if kb_id not in knowledge_base:
-        raise HTTPException(status_code=404, detail=f"知识库 {kb_id} 不存在")
     
     # 使用配置的临时目录保存上传的文件
     temp_dir = settings.TEMP_DIR
-    os.makedirs(temp_dir, exist_ok=True)
     
     # 保存上传的文件
     file_path = os.path.join(temp_dir, file.filename)
@@ -278,7 +269,6 @@ async def upload_file_to_knowledge_base(
         }
     except Exception as e:
         logger.error(f"上传文件失败: {e}")
-        raise HTTPException(status_code=500, detail=f"上传文件失败: {str(e)}")
 
 
 @router.delete("/bases/{kb_id}/files/{filename}", summary="从知识库删除文件")
@@ -292,10 +282,6 @@ async def delete_file_from_knowledge_base(kb_id: str, filename: str):
     Returns:
         Dict: 操作结果
     """
-    # 检查知识库是否存在
-    knowledge_base = settings.get_config("knowledgeBase", default={})
-    if kb_id not in knowledge_base:
-        raise HTTPException(status_code=404, detail=f"知识库 {kb_id} 不存在")
     
     # 从集合中移除文件
     success = remove_file_from_collection(kb_id, filename)
@@ -308,3 +294,77 @@ async def delete_file_from_knowledge_base(kb_id: str, filename: str):
         }
     else:
         raise HTTPException(status_code=500, detail="删除文件失败")
+
+
+@router.post("/bases/{kb_id}/search", summary="搜索知识库")
+def search_knowledge_base(kb_id: str, request: SearchKnowledgeBaseRequest):
+    """
+    在指定知识库中搜索相关文档（同步版本）
+    
+    - **kb_id**: 知识库ID（路径参数）
+    - **query**: 搜索查询文本
+    - **filename_filter**: 可选的文件名筛选条件
+    
+    Returns:
+        List[Dict]: 搜索结果列表，每个结果包含文档内容和元数据
+    """
+    # 使用同步搜索函数
+    results = search_emb(
+        collection_name=kb_id,
+        search_input=request.query,
+        filename_filter=request.filename_filter
+    )
+    
+    # 格式化返回结果
+    formatted_results = []
+    for doc, score in results:
+        formatted_results.append({
+            "content": doc.page_content,
+            "metadata": doc.metadata,
+            "score": score
+        })
+    
+    logger.info(f"在知识库 {kb_id} 中搜索到 {len(formatted_results)} 条结果")
+    
+    return {
+        "success": True,
+        "results": formatted_results,
+        "total": len(formatted_results)
+    }
+
+
+@router.post("/bases/{kb_id}/asearch", summary="搜索知识库（异步）")
+async def search_knowledge_base_async(kb_id: str, request: SearchKnowledgeBaseRequest):
+    """
+    在指定知识库中搜索相关文档（异步版本）
+    
+    - **kb_id**: 知识库ID（路径参数）
+    - **query**: 搜索查询文本
+    - **filename_filter**: 可选的文件名筛选条件
+    
+    Returns:
+        List[Dict]: 搜索结果列表，每个结果包含文档内容和元数据
+    """
+    # 使用异步搜索函数
+    results = await asearch_emb(
+        collection_name=kb_id,
+        search_input=request.query,
+        filename_filter=request.filename_filter
+    )
+    
+    # 格式化返回结果
+    formatted_results = []
+    for doc, score in results:
+        formatted_results.append({
+            "content": doc.page_content,
+            "metadata": doc.metadata,
+            "score": score
+        })
+    
+    logger.info(f"在知识库 {kb_id} 中搜索到 {len(formatted_results)} 条结果")
+    
+    return {
+        "success": True,
+        "results": formatted_results,
+        "total": len(formatted_results)
+    }

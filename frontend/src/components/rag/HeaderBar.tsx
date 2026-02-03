@@ -1,187 +1,117 @@
-import { useState, useRef, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useState } from "react";
+import { useSelector } from "react-redux";
 import type { RootState } from "../../store/store";
-import { incrementFileRefreshTrigger } from "../../store/knowledge";
-import httpClient from "../../utils/httpClient";
 import BaseDetailModal from "./modals/BaseDetailModal";
-import UnifiedModal from "../others/UnifiedModal";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faGear } from '@fortawesome/free-solid-svg-icons';
+import httpClient from "../../utils/httpClient";
 
-interface UploadProgress {
-  current: number;
-  total: number;
-  percentage: number;
-  message: string;
+interface SearchResult {
+  content: string;
+  metadata: Record<string, any>;
+  score: number;
 }
 
-const HeaderBar = () => {
-  const dispatch = useDispatch();
-  const { knowledgeBases, selectedKnowledgeBaseId } = useSelector(
+interface HeaderBarProps {}
+
+const HeaderBar = ({}: HeaderBarProps) => {
+  const {
+    knowledgeBases,
+    selectedKnowledgeBaseId
+  } = useSelector(
     (state: RootState) => state.knowledgeSlice
   );
 
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalTitle, setModalTitle] = useState('');
-  const [modalMessage, setModalMessage] = useState('');
-  const wsRef = useRef<WebSocket | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // 上传文件到知识库
-  const uploadFileToKnowledgeBase = async (file: File) => {
-    if (!selectedKnowledgeBaseId) return;
-    
-    try {
-      setUploading(true);
-      setUploadProgress({
-        current: 0,
-        total: 100,
-        percentage: 0,
-        message: `正在建立连接...`
-      });
-      
-      const wsProtocol = 'ws:';
-      const wsUrl = `${wsProtocol}//localhost:8000/api/knowledge/bases/${selectedKnowledgeBaseId}/progress`;
-      
-      await new Promise<void>((resolve, reject) => {
-        wsRef.current = new WebSocket(wsUrl);
-        
-        wsRef.current.onopen = () => {
-          console.log('WebSocket 连接已建立');
-          resolve();
-        };
-        
-        wsRef.current.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          setUploadProgress(data);
-          console.log('进度更新:', data);
-        };
-        
-        wsRef.current.onerror = (error) => {
-          console.error('WebSocket 错误:', error);
-          reject(error);
-        };
-        
-        wsRef.current.onclose = () => {
-          console.log('WebSocket 连接已关闭');
-        };
-        
-        setTimeout(() => {
-          if (wsRef.current?.readyState !== WebSocket.OPEN) {
-            reject(new Error('WebSocket 连接超时'));
-          }
-        }, 5000);
-      });
-      
-      setUploadProgress({
-        current: 0,
-        total: 100,
-        percentage: 0,
-        message: `正在上传文件 "${file.name}"...`
-      });
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      await httpClient.upload(`/api/knowledge/bases/${selectedKnowledgeBaseId}/files`, formData);
-      
-      setUploadProgress({
-        current: 0,
-        total: 100,
-        percentage: 0,
-        message: `文件 "${file.name}" 已开始上传，正在后台处理...`
-      });
-      
-    } catch (error) {
-      setModalTitle('上传失败');
-      setModalMessage(`上传失败: ${(error as Error).message}`);
-      setShowModal(true);
-      setUploading(false);
-      setUploadProgress(null);
-    }
-  };
-
-  // 监听上传完成
-  useEffect(() => {
-    if (uploadProgress?.percentage === 100) {
-      setModalTitle('上传完成');
-      setModalMessage(`文件上传完成: ${uploadProgress.message}`);
-      setShowModal(true);
-      setUploading(false);
-      
-      setTimeout(() => {
-        if (wsRef.current) {
-          wsRef.current.close();
-          wsRef.current = null;
-        }
-        setUploadProgress(null);
-        
-        dispatch(incrementFileRefreshTrigger());
-      }, 2000);
-    }
-  }, [uploadProgress]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   //"守卫子句",属于HeaderBar，当没有选中东西的时候，不应该渲染。
   if (!selectedKnowledgeBaseId) {
     return null;
   }
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || !selectedKnowledgeBaseId) return;
+    
+    setIsSearching(true);
+    setShowSearchResults(true);
+    try {
+      const response = await httpClient.post(`/api/knowledge/bases/${selectedKnowledgeBaseId}/asearch`, {
+        query: searchQuery
+      });
+      setSearchResults(response.results || []);
+    } catch (error) {
+      console.error('搜索失败:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleCloseSearchResults = () => {
+    setShowSearchResults(false);
+    setSearchResults(null);
+    setSearchQuery('');
+  };
+
   return (
     <>
-      <div className="p-4 border-b border-theme-gray3">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-xl font-bold">{knowledgeBases[selectedKnowledgeBaseId]?.name}</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowDetailModal(true)}
-              className="px-4 py-2 rounded bg-theme-gray3 hover:bg-theme-gray2"
-            >
-              设置
-            </button>
-            <button
-              onClick={() => {
-                if (fileInputRef?.current) {
-                  fileInputRef.current.click();
-                }
-              }}
-              className="px-4 py-2 rounded bg-theme-green text-white hover:bg-opacity-90"
-            >
-              添加文件
-            </button>
-          </div>
+      <div className="h-[5%] border-b border-theme-gray3 flex items-center justify-between px-4">
+        <h2 className="text-xl font-bold">{knowledgeBases[selectedKnowledgeBaseId]?.name}</h2>
+        <div className="flex gap-5 items-center flex-1">
+          {/* 知识库搜索框 */}
+          <input
+            type="text"
+            placeholder="搜索知识库内容..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            className="flex-1 ml-20 px-3 py-1.5 rounded border border-theme-gray3 bg-theme-gray1 text-theme-white text-sm focus:outline-none focus:border-theme-green"
+          />
+          <button
+            onClick={() => setShowDetailModal(true)}
+            className="hover:text-theme-green"
+          >
+            <FontAwesomeIcon icon={faGear} className="text-xl"/>
+          </button>
         </div>
-        
-        {/* 上传进度显示 */}
-        {uploading && uploadProgress && (
-          <div className="mt-2 p-4 rounded border border-theme-green bg-theme-gray1">
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-medium text-theme-green">上传进度</span>
-              <span className="text-sm text-theme-gray4">{uploadProgress.percentage.toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-theme-gray3 rounded-full h-2 mb-2">
-              <div
-                className="bg-theme-green h-2 rounded-full transition-all duration-300"
-                style={{ width: `${uploadProgress.percentage}%` }}
-              ></div>
-            </div>
-            <div className="text-sm text-theme-gray4">{uploadProgress.message}</div>
-          </div>
-        )}
       </div>
 
-      {/* 隐藏的文件输入 */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) {
-            uploadFileToKnowledgeBase(file);
-          }
-        }}
-      />
+      {/* 搜索结果面板 */}
+      {showSearchResults && (
+        <div className="absolute top-[5%] left-0 right-0 bg-theme-gray2 border-b border-theme-gray3 z-50">
+          <div className="p-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-medium">搜索结果 ({(searchResults || []).length}条)</span>
+              <button
+                onClick={handleCloseSearchResults}
+                className="text-sm text-theme-gray4 hover:text-theme-white"
+              >
+                关闭
+              </button>
+            </div>
+            {isSearching ? (
+              <div className="text-center text-theme-gray4">搜索中...</div>
+            ) : (searchResults || []).length === 0 ? (
+              <div className="text-center text-theme-gray4">未找到相关结果</div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {(searchResults || []).map((result, index) => (
+                  <div key={index} className="p-2 rounded bg-theme-gray1">
+                    <div className="text-xs text-theme-gray4 mb-1">
+                      相似度: {(result.score * 100).toFixed(1)}% | 文件: {result.metadata.original_filename || '未知'}
+                    </div>
+                    <div className="text-sm">{result.content}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 知识库详情弹窗 */}
       <BaseDetailModal
@@ -189,21 +119,6 @@ const HeaderBar = () => {
         knowledgeBaseId={selectedKnowledgeBaseId}
         onClose={() => setShowDetailModal(false)}
       />
-
-      {/* 统一模态框 */}
-      {showModal && (
-        <UnifiedModal
-          title={modalTitle}
-          message={modalMessage}
-          buttons={[
-            {
-              text: '确定',
-              onClick: () => setShowModal(false),
-              className: 'bg-theme-green'
-            }
-          ]}
-        />
-      )}
     </>
   );
 };

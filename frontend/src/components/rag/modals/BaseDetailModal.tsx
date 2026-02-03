@@ -2,7 +2,16 @@ import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../../store/store";
 import { setKnowledgeBases } from "../../../store/knowledge";
+import UnifiedModal from "../../others/UnifiedModal";
 import httpClient from "../../../utils/httpClient";
+import {
+  validateChunkSize,
+  validateOverlapSize,
+  validateSimilarity,
+  validateReturnDocs,
+  convertSimilarityForBackend,
+  convertSimilarityForFrontend,
+} from "../../../utils/validationUtils";
 
 interface BaseDetailModalProps {
   isOpen: boolean;
@@ -20,6 +29,7 @@ const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalPr
     (state: RootState) => state.providerSlice.allProvidersData,
   );
 
+  const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState({
     chunkSize: '',
     overlapSize: '',
@@ -54,7 +64,7 @@ const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalPr
         setFormData({
           chunkSize: kb.chunkSize.toString(),
           overlapSize: kb.overlapSize.toString(),
-          similarity: kb.similarity.toString(),
+          similarity: convertSimilarityForFrontend(kb.similarity),
           returnDocs: kb.returnDocs.toString(),
         });
       }
@@ -64,20 +74,14 @@ const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalPr
   const handleFieldUpdate = async (field: string, value: string) => {
     try {
       if (!knowledgeBaseId) return;
-      const kb = knowledgeBases[knowledgeBaseId];
-      if (!kb) return;
+      if (value === '') return;
 
       let parsedValue: number;
       
       if (field === 'similarity') {
-        parsedValue = parseFloat(value);
+        parsedValue = convertSimilarityForBackend(value);
       } else {
         parsedValue = parseInt(value);
-      }
-
-      if (isNaN(parsedValue)) {
-        alert('请输入有效的数字');
-        return;
       }
 
       await httpClient.put(`/api/knowledge/bases/${knowledgeBaseId}`, {
@@ -89,13 +93,14 @@ const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalPr
         dispatch(setKnowledgeBases(updatedKb));
       }
     } catch (error) {
-      alert(`更新失败: ${(error as Error).message}`);
+      setErrorMessage(`更新失败: ${(error as Error).message}`);
     }
   };
 
   if (!isOpen || !knowledgeBaseId) return null;
 
   return (
+    <>
     <div className="fixed top-0 left-0 right-0 bottom-0 flex justify-center items-center z-[1000]">
       <div className="bg-theme-gray1 rounded-medium shadow-medium px-5 py-3.75 max-w-[500px] w-[400px] text-theme-white">
         <h3 className="m-0 text-theme-white text-lg mb-3.75">知识库详细信息</h3>
@@ -116,8 +121,12 @@ const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalPr
             <div className="text-sm">切分大小</div>
             <input
               type="number"
+              min="0"
+              max="1000"
               value={formData.chunkSize}
-              onChange={(e) => setFormData({ ...formData, chunkSize: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, chunkSize: validateChunkSize(e.target.value) });
+              }}
               onBlur={(e) => handleFieldUpdate('chunkSize', e.target.value)}
               className="text-lg font-medium w-full bg-transparent border-b border-theme-gray3 focus:border-theme-green outline-none"
             />
@@ -126,8 +135,11 @@ const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalPr
             <div className="text-sm">重叠大小</div>
             <input
               type="number"
+              min="0"
               value={formData.overlapSize}
-              onChange={(e) => setFormData({ ...formData, overlapSize: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, overlapSize: validateOverlapSize(e.target.value, formData.chunkSize) });
+              }}
               onBlur={(e) => handleFieldUpdate('overlapSize', e.target.value)}
               className="text-lg font-medium w-full bg-transparent border-b border-theme-gray3 focus:border-theme-green outline-none"
             />
@@ -136,9 +148,12 @@ const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalPr
             <div className="text-sm">相似度阈值</div>
             <input
               type="number"
-              step="0.1"
+              min="0"
+              max="9"
               value={formData.similarity}
-              onChange={(e) => setFormData({ ...formData, similarity: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, similarity: validateSimilarity(e.target.value) });
+              }}
               onBlur={(e) => handleFieldUpdate('similarity', e.target.value)}
               className="text-lg font-medium w-full bg-transparent border-b border-theme-gray3 focus:border-theme-green outline-none"
             />
@@ -147,8 +162,12 @@ const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalPr
             <div className="text-sm">返回文档片段数</div>
             <input
               type="number"
+              min="0"
+              max="50"
               value={formData.returnDocs}
-              onChange={(e) => setFormData({ ...formData, returnDocs: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, returnDocs: validateReturnDocs(e.target.value) });
+              }}
               onBlur={(e) => handleFieldUpdate('returnDocs', e.target.value)}
               className="text-lg font-medium w-full bg-transparent border-b border-theme-gray3 focus:border-theme-green outline-none"
             />
@@ -164,6 +183,20 @@ const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalPr
         </div>
       </div>
     </div>
+    {errorMessage && (
+      <UnifiedModal
+        title="提示"
+        message={errorMessage}
+        buttons={[
+          {
+            text: "确定",
+            onClick: () => setErrorMessage(''),
+            className: "bg-theme-green",
+          },
+        ]}
+      />
+    )}
+    </>
   );
 };
 

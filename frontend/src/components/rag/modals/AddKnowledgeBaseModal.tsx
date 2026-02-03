@@ -1,9 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../../store/store";
 import { setKnowledgeBases } from "../../../store/knowledge";
 import UnifiedModal from "../../others/UnifiedModal";
 import httpClient from "../../../utils/httpClient";
+import {
+  validateChunkSize,
+  validateOverlapSize,
+  validateSimilarity,
+  validateReturnDocs,
+  convertSimilarityForBackend,
+} from "../../../utils/validationUtils";
 
 interface AddKnowledgeBaseModalProps {
   isOpen: boolean;
@@ -12,21 +19,18 @@ interface AddKnowledgeBaseModalProps {
 
 const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) => {
   const dispatch = useDispatch();
-  const { knowledgeBases } = useSelector(
-    (state: RootState) => state.knowledgeSlice
-  );
-
   const providerData = useSelector(
     (state: RootState) => state.providerSlice.allProvidersData,
   );
 
+  const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     embeddingModel: '',
-    chunkSize: '',
-    overlapSize: '',
-    similarity: '',
-    returnDocs: '',
+    chunkSize: '150',
+    overlapSize: '20',
+    similarity: '0',
+    returnDocs: '10',
   });
 
   const getEnabledProviders = () => {
@@ -49,6 +53,16 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
 
   const enableProvider = getEnabledProviders();
 
+  // 当弹窗打开时，自动选择第一个可用的嵌入模型
+  useEffect(() => {
+    if (isOpen) {
+      const options = getAllEmbeddingModelOptions();
+      if (options.length > 0 && !formData.embeddingModel && options[0]) {
+        setFormData({ ...formData, embeddingModel: options[0].value });
+      }
+    }
+  }, [isOpen]);
+
   const getAllEmbeddingModelOptions = () => {
     const options: { label: string; value: string }[] = [];
     for (const [providerId, provider] of Object.entries(enableProvider)) {
@@ -62,16 +76,10 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
     return options;
   };
 
-  const handleOpen = () => {
-    const allModels = getAllEmbeddingModelOptions();
-    if (allModels.length > 0 && allModels[0]) {
-      setFormData({ ...formData, embeddingModel: allModels[0].value });
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
+    <>
     <UnifiedModal
       title="添加知识库"
       inputs={[
@@ -95,32 +103,32 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
           label: "分段大小",
           type: "text",
           value: formData.chunkSize,
-          onChange: (value) => setFormData({ ...formData, chunkSize: value }),
-          placeholder: "请输入分段大小",
+          onChange: (value) => setFormData({ ...formData, chunkSize: validateChunkSize(value) }),
+          placeholder: "请输入分段大小(0-1000)",
           required: true,
         },
         {
           label: "重叠大小",
           type: "text",
           value: formData.overlapSize,
-          onChange: (value) => setFormData({ ...formData, overlapSize: value }),
-          placeholder: "请输入重叠大小",
+          onChange: (value) => setFormData({ ...formData, overlapSize: validateOverlapSize(value, formData.chunkSize) }),
+          placeholder: "请输入重叠大小(小于分段大小)",
           required: true,
         },
         {
           label: "相似度",
           type: "text",
           value: formData.similarity,
-          onChange: (value) => setFormData({ ...formData, similarity: value }),
-          placeholder: "请输入相似度",
+          onChange: (value) => setFormData({ ...formData, similarity: validateSimilarity(value) }),
+          placeholder: "请输入相似度(0-9)",
           required: true,
         },
         {
           label: "返回文档片段数",
           type: "text",
           value: formData.returnDocs,
-          onChange: (value) => setFormData({ ...formData, returnDocs: value }),
-          placeholder: "请输入返回文档片段数",
+          onChange: (value) => setFormData({ ...formData, returnDocs: validateReturnDocs(value) }),
+          placeholder: "请输入返回文档片段数(0-50)",
           required: true,
         },
       ]}
@@ -131,10 +139,10 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
             setFormData({
               name: '',
               embeddingModel: '',
-              chunkSize: '',
-              overlapSize: '',
-              similarity: '',
-              returnDocs: '',
+              chunkSize: '150',
+              overlapSize: '20',
+              similarity: '0',
+              returnDocs: '10',
             });
             onClose();
           },
@@ -144,9 +152,19 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
           text: "确认",
           onClick: async () => {
             try {
+              if (!formData.name.trim()) {
+                setErrorMessage('请输入知识库名称');
+                return;
+              }
+
+              const chunkSize = parseInt(formData.chunkSize);
+              const overlapSize = parseInt(formData.overlapSize);
+              const similarity = convertSimilarityForBackend(formData.similarity);
+              const returnDocs = parseInt(formData.returnDocs);
+
               const id = `db_${Date.now()}`;
               const [providerId, modelName] = formData.embeddingModel.split('|');
-              const dimensions = enableProvider[providerId as string]?.embedding[modelName as string]?.dimensions;
+              const dimensions = parseInt(enableProvider[providerId as string]?.embedding[modelName as string]?.dimensions || '0');
               
               const requestData = {
                 id,
@@ -154,11 +172,13 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
                 provider: providerId,
                 model: modelName,
                 dimensions,
-                chunkSize: parseInt(formData.chunkSize),
-                overlapSize: parseInt(formData.overlapSize),
-                similarity: parseFloat(formData.similarity),
-                returnDocs: parseInt(formData.returnDocs)
+                chunkSize,
+                overlapSize,
+                similarity,
+                returnDocs
               };
+              
+              console.log('提交的数据:', requestData);
               
               const result = await httpClient.post('/api/knowledge/bases', requestData);
               if (result) {
@@ -166,21 +186,35 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
                 setFormData({
                   name: '',
                   embeddingModel: '',
-                  chunkSize: '',
-                  overlapSize: '',
-                  similarity: '',
-                  returnDocs: '',
+                  chunkSize: '150',
+                  overlapSize: '20',
+                  similarity: '0',
+                  returnDocs: '10',
                 });
                 onClose();
               }
             } catch (error) {
-              alert(`添加失败: ${(error as Error).message}`);
+              setErrorMessage(`添加失败: ${(error as Error).message}`);
             }
           },
           className: "bg-theme-green",
         },
       ]}
     />
+    {errorMessage && (
+      <UnifiedModal
+        title="提示"
+        message={errorMessage}
+        buttons={[
+          {
+            text: "确定",
+            onClick: () => setErrorMessage(''),
+            className: "bg-theme-green",
+          },
+        ]}
+      />
+    )}
+    </>
   );
 };
 

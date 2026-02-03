@@ -33,7 +33,7 @@ class UpdateProviderRequest(BaseModel):
     url: str = Field(None, description="API基础URL")
     key: str = Field(None, description="API密钥")
     favoriteModels: Dict[str, Dict[str, Any]] = Field(None, description="常用模型列表")
-    enable: bool = Field(False, description="是否启用")
+    enable: bool = Field(None, description="是否启用")
 
 # 创建API路由器
 router = APIRouter(prefix="/api/provider", tags=["Provider"])

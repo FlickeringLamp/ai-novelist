@@ -13,6 +13,9 @@ from typing import Callable, Optional
 import chromadb
 from uuid import uuid4
 import asyncio
+from functools import partial
+
+DB_PATH = settings.CHROMADB_PERSIST_DIR
 
 
 def prepare_doc(orgfile_path, chunk_size, chunk_overlap):
@@ -37,6 +40,8 @@ def prepare_doc(orgfile_path, chunk_size, chunk_overlap):
         doc.metadata = {}
         # 添加自定义元数据
         doc.metadata.update({'original_filename': original_filename})
+        doc.metadata.update({'chunk_size': chunk_size})
+        doc.metadata.update({'chunk_overlap': chunk_overlap})
     
     print(f"文档切分完成: 分块长度={chunk_size}, 重叠长度={chunk_overlap}, 切分后文档数量={len(documents)}")
     return documents
@@ -71,13 +76,6 @@ def prepare_emb(provider, model_id,embedding_url,embedding_api_key=None):
         return embeddings
 
 
-
-# 指定数据库保存路径
-db_path = Path("backend/data/chromadb")
-# 确保目录存在,创建嵌入表
-os.makedirs(db_path, exist_ok=True)
-
-
 def load(embeddings, collection_name):
     """
     加载已存在的向量数据库
@@ -89,15 +87,14 @@ def load(embeddings, collection_name):
     Returns:
         vector_store: 向量存储实例
     """
-    db_path = settings.CHROMADB_PERSIST_DIR
     # 直接连接到已存在的数据库
     vector_store = Chroma(
         collection_name=collection_name,
         embedding_function=embeddings,
-        persist_directory=db_path
+        persist_directory=DB_PATH
     )
     
-    print(f"成功加载数据库: {db_path}, 集合: {collection_name}")
+    print(f"成功加载数据库: {DB_PATH}, 集合: {collection_name}")
     return vector_store
 
 def delete_collection(collection_name):
@@ -110,9 +107,8 @@ def delete_collection(collection_name):
     Returns:
         bool: 删除是否成功
     """
-    db_path = settings.CHROMADB_PERSIST_DIR
     # 使用 Chroma 的 PersistentClient 来删除集合
-    client = chromadb.PersistentClient(path=db_path)
+    client = chromadb.PersistentClient(path=DB_PATH)
     client.delete_collection(name=collection_name)
     
     print(f"成功删除数据库集合: {collection_name}")
@@ -143,12 +139,11 @@ def create_collection(collection_name):
         embedding_api_key=provider_config.get('key', '')
     )
     
-    db_path = settings.CHROMADB_PERSIST_DIR
     # 使用 Chroma 创建新的集合
     vector_store = Chroma(
         collection_name=collection_name,
         embedding_function=embeddings,
-        persist_directory=db_path
+        persist_directory=DB_PATH
     )
     
     print(f"成功创建数据库集合: {collection_name}")
@@ -170,8 +165,8 @@ async def add_file_to_collection(file_path, collection_name, progress_callback: 
     """
     # 从配置获取知识库参数
     kb_config = settings.get_config('knowledgeBase', collection_name)
-    chunk_size = kb_config.get('chunkSize', 1000)
-    chunk_overlap = kb_config.get('overlapSize', 100)
+    chunk_size = kb_config.get('chunkSize')
+    chunk_overlap = kb_config.get('overlapSize')
     provider = kb_config.get('provider', '')
     model = kb_config.get('model', '')
     
@@ -199,12 +194,13 @@ async def add_file_to_collection(file_path, collection_name, progress_callback: 
     for i in range(0, total_docs, batch_size):
         batch = documents[i:i + batch_size]
         uuids = [str(uuid4()) for _ in range(len(batch))]
-        vector_store.add_documents(documents=batch, ids=uuids)
+        
+        # 将同步的嵌入操作放到线程池中执行，避免阻塞事件循环
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, partial(vector_store.add_documents, documents=batch, ids=uuids))
         
         if progress_callback:
             await progress_callback(i + len(batch), total_docs, f"已嵌入 {i + len(batch)}/{total_docs} 个文档片段")
-            # 让出事件循环控制权，确保 WebSocket 消息能够立即发送
-            await asyncio.sleep(0)
     
     print(f"成功将文件 {os.path.basename(file_path)} 添加到集合 {collection_name}")
     return True
@@ -221,9 +217,8 @@ def remove_file_from_collection(collection_name, filename):
     Returns:
         bool: 移除是否成功
     """
-    db_path = settings.CHROMADB_PERSIST_DIR
     # 创建持久化客户端（不需要嵌入模型）
-    client = chromadb.PersistentClient(path=db_path)
+    client = chromadb.PersistentClient(path=DB_PATH)
     
     # 获取集合
     collection = client.get_collection(name=collection_name)
@@ -234,39 +229,135 @@ def remove_file_from_collection(collection_name, filename):
     print(f"成功从集合 {collection_name} 中移除文件 {filename}")
     return True
 
-
+# 这个可能也适合用异步函数？
 def get_files_in_collection(collection_name):
     """
-    获取集合中包含的所有文件名及其片段数量
+    获取集合中包含的所有文件名及其片段数量和切分参数
     
     Args:
         collection_name: 集合名
     
     Returns:
-        dict: 文件名到片段数量的映射 {filename: chunk_count}
+        dict: 文件名到文件信息的映射 {filename: {"chunk_count": count, "chunk_size": size, "chunk_overlap": overlap}}
     """
-    db_path = settings.CHROMADB_PERSIST_DIR
-    client = chromadb.PersistentClient(path=db_path)
+    client = chromadb.PersistentClient(path=DB_PATH)
     collection = client.get_collection(name=collection_name)
     
     # 获取所有文档的元数据
     results = collection.get(include=["metadatas"])
     
-    # 统计每个文件名的出现次数（即片段数量）
-    file_chunk_counts = {}
+    # 统计每个文件名的出现次数（即片段数量）并获取切分参数
+    file_info = {}
     for metadata in results.get('metadatas', []):
         if metadata and 'original_filename' in metadata:
             filename = metadata['original_filename']
-            file_chunk_counts[filename] = file_chunk_counts.get(filename, 0) + 1
+            if filename not in file_info:
+                file_info[filename] = {
+                    "chunk_count": 0,
+                    "chunk_size": metadata.get('chunk_size', 0),
+                    "chunk_overlap": metadata.get('chunk_overlap', 0)
+                }
+            file_info[filename]["chunk_count"] += 1
     
-    return file_chunk_counts
+    return file_info
 
 
-def search_emb(vector_store,embeddings,search_input):
-    results = vector_store.similarity_search_by_vector(
-        embedding=embeddings.embed_query(search_input), 
-        k=1
+def search_emb(collection_name: str, search_input: str, filename_filter: Optional[str] = None):
+    """
+    在知识库中搜索相关文档
+    
+    Args:
+        collection_name: 集合名（知识库ID）
+        search_input: 搜索查询文本
+        filename_filter: 可选的文件名筛选条件（元数据中的 original_filename）
+    
+    Returns:
+        list[tuple[Document, float]]: 搜索结果列表，每个元素是 (文档, 相似度分数) 的元组
+    """
+    # 从配置获取知识库参数
+    kb_config = settings.get_config('knowledgeBase', collection_name)
+    k = kb_config.get('returnDocs')
+    model = kb_config.get('model', '')
+    score_threshold = kb_config.get('similarity')
+    provider = kb_config.get('provider', '')
+    provider_config = settings.get_config('provider', provider)
+    
+    # 准备嵌入模型
+    embeddings = prepare_emb(
+        provider=provider,
+        model_id=model,
+        embedding_url=provider_config.get('url', ''),
+        embedding_api_key=provider_config.get('key', '')
     )
-    for doc in results:
-        print("检索结果：")
-        print(f"* {doc.page_content} [{doc.metadata}]")
+    
+    # 加载向量数据库
+    vector_store = load(embeddings, collection_name)
+    
+    # 构建过滤条件
+    kwargs = {}
+    kwargs['filter'] = {'original_filename': filename_filter}
+    kwargs['score_threshold'] = score_threshold
+    
+    # 执行搜索
+    results = vector_store.similarity_search_with_relevance_scores(
+        query=search_input,
+        k=k,
+        **kwargs
+    )
+    
+    print(f"检索结果（共 {len(results)} 条）：")
+    for doc, score in results:
+        print(f"* [相似度: {score:.4f}] {doc.page_content} [{doc.metadata}]")
+    
+    return results
+
+
+async def asearch_emb(collection_name: str, search_input: str, filename_filter: Optional[str] = None):
+    """
+    异步在知识库中搜索相关文档
+    
+    Args:
+        collection_name: 集合名（知识库ID）
+        search_input: 搜索查询文本
+        filename_filter: 可选的文件名筛选条件（元数据中的 original_filename）
+    
+    Returns:
+        list[tuple[Document, float]]: 搜索结果列表，每个元素是 (文档, 相似度分数) 的元组
+    """
+    # 从配置获取知识库参数
+    kb_config = settings.get_config('knowledgeBase', collection_name)    
+    k = kb_config.get('returnDocs')
+    score_threshold = kb_config.get('similarity')
+    provider = kb_config.get('provider', '')
+    model = kb_config.get('model', '')
+    provider_config = settings.get_config('provider', provider)
+    
+    # 准备嵌入模型
+    embeddings = prepare_emb(
+        provider=provider,
+        model_id=model,
+        embedding_url=provider_config.get('url', ''),
+        embedding_api_key=provider_config.get('key', '')
+    )
+    
+    # 加载向量数据库
+    vector_store = load(embeddings, collection_name)
+    
+    # 构建过滤条件
+    kwargs = {}
+    if filename_filter:
+        kwargs['filter'] = {'original_filename': filename_filter}
+    kwargs['score_threshold'] = score_threshold
+    
+    # 执行异步搜索
+    results = await vector_store.asimilarity_search_with_relevance_scores(
+        query=search_input,
+        k=k,
+        **kwargs
+    )
+    
+    print(f"检索结果（共 {len(results)} 条）：")
+    for doc, score in results:
+        print(f"* [相似度: {score:.4f}] {doc.page_content} [{doc.metadata}]")
+    
+    return results

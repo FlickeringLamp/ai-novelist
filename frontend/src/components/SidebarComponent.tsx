@@ -1,10 +1,11 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faGear,
-  faBook,
+  faBrain,
+  faDatabase,
   faRobot,
   faPencil
 } from '@fortawesome/free-solid-svg-icons';
+import SidebarLogoWithStatus from './others/SidebarLogoWithStatus';
 
 interface SidebarItem {
   id: string;
@@ -29,13 +30,13 @@ const SidebarComponent = ({ activePanel, setActivePanel }: SidebarComponentProps
     },
     {
       id: 'api',
-      icon: faGear,
+      icon: faBrain,
       label: 'API设置',
       panelId: 'api'
     },
     {
       id: 'rag',
-      icon: faBook,
+      icon: faDatabase,
       label: 'RAG知识库',
       panelId: 'rag'
     },
@@ -61,6 +62,8 @@ const SidebarComponent = ({ activePanel, setActivePanel }: SidebarComponentProps
     <div className="w-[50px] h-full bg-theme-black flex flex-col">
       {/* 侧边栏项目列表 */}
       <div className="flex-1 py-[10px] flex flex-col gap-2">
+        {/* Logo心跳指示器 - 第一个图标 */}
+        <SidebarLogoWithStatus />
         {sidebarItems.map((item) => (
           <div
             key={item.id}
