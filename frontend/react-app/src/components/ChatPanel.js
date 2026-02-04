@@ -650,28 +650,28 @@ const ChatPanel = memo(() => {
       <div className="chat-panel-content">
         <div className="chat-header-actions">
           {/* 新增的设置按钮，移到最左边 */}
-          <button className="settings-button" onClick={() => dispatch(setShowSettingsModal(true))} title="设置">
+          <button className="settings-button" onClick={() => dispatch(setShowSettingsModal(true))} title="设置" aria-label="设置">
             <FontAwesomeIcon icon={faGear} />
           </button>
           <button className="history-button" onClick={() => {
             dispatch(setIsHistoryPanelVisible(!isHistoryPanelVisible));
             dispatch(setIsDeleteMode(false));
-          }} title="查看历史记录">
+          }} title="查看历史记录" aria-label="查看历史记录">
             <FontAwesomeIcon icon={faClock} />
           </button>
           <button className="clear-history-button" onClick={() => {
             dispatch(setIsHistoryPanelVisible(true));
             dispatch(setIsDeleteMode(true));
-          }} title="清理历史记录">
+          }} title="清理历史记录" aria-label="清理历史记录">
             <FontAwesomeIcon icon={faTrashCan} />
           </button>
           {/* 新增的知识库按钮 */}
-          <button className="knowledgebase-button" onClick={() => setShowKnowledgeBasePanel(!showKnowledgeBasePanel)} title="知识库管理">
+          <button className="knowledgebase-button" onClick={() => setShowKnowledgeBasePanel(!showKnowledgeBasePanel)} title="知识库管理" aria-label="知识库管理">
             <FontAwesomeIcon icon={faBook} />
           </button>
         </div>
 
-        <button className="reset-chat-button" onClick={handleResetChat}>×</button>
+        <button className="reset-chat-button" onClick={handleResetChat} aria-label="重置对话">×</button>
         <div id="chatDisplay" ref={chatDisplayRef}>
           {messages.map((msg, index) => (
             <div key={msg.id || index} className={`message ${msg.role === 'user' ? 'user' : msg.role === 'assistant' ? 'ai' : msg.role} ${msg.className || ''}`}>
@@ -754,12 +754,12 @@ const ChatPanel = memo(() => {
                   )}
                   
                   <div className="message-actions">
-                    <button title="复制" onClick={() => {
+                    <button title="复制" aria-label="复制" onClick={() => {
                       navigator.clipboard.writeText(msg.content);
                       setNotification({ show: true, message: '复制成功' });
                     }}><FontAwesomeIcon icon={faCopy} /></button>
                     {/* <button title="重新生成" onClick={() => invoke('regenerate-response', { messageId: msg.id })}><FontAwesomeIcon icon={faRedo} /></button> */}
-                    <button title="删除" onClick={() => {
+                    <button title="删除" aria-label="删除" onClick={() => {
                       setConfirmationMessage('确定删除吗，这将会导致后续所有内容丢失！');
                       setOnConfirmCallback(() => () => {
                         dispatch(deleteMessage({ messageId: msg.id }));
@@ -808,7 +808,7 @@ const ChatPanel = memo(() => {
                     {/* )} */}
                   </div>
                   <div className="message-actions">
-                    <button title="复制" onClick={() => {
+                    <button title="复制" aria-label="复制" onClick={() => {
                         navigator.clipboard.writeText(msg.content);
                         setNotification({ show: true, message: '复制成功' });
                     }}><FontAwesomeIcon icon={faCopy} /></button>
@@ -816,7 +816,7 @@ const ChatPanel = memo(() => {
                       dispatch(startEditing({ messageId: msg.id }));
                       setEditingText(msg.content);
                     }}><FontAwesomeIcon icon={faPencil} /></button> */}
-                    <button title="删除" onClick={() => {
+                    <button title="删除" aria-label="删除" onClick={() => {
                       setConfirmationMessage('确定删除吗，这将会导致后续所有内容丢失！');
                       setOnConfirmCallback(() => () => {
                         dispatch(deleteMessage({ messageId: msg.id }));
@@ -923,6 +923,7 @@ const ChatPanel = memo(() => {
           </div>
           <textarea
             id="chatInput"
+            aria-label="输入指令"
             placeholder="输入指令..."
             rows="4"
             onKeyPress={(e) => {
@@ -933,7 +934,7 @@ const ChatPanel = memo(() => {
               }
             }}
           ></textarea>
-          <button id="sendMessage" className="send-icon" onClick={() => {
+          <button id="sendMessage" className="send-icon" aria-label="发送消息" onClick={() => {
             const chatInput = document.getElementById('chatInput');
             handleSendMessage(chatInput.value);
             chatInput.value = '';
