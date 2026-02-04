@@ -47,7 +47,6 @@ import KnowledgeBasePanel from './KnowledgeBasePanel'; // 新增：导入知识�
 import './ChatPanel.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock, faTrashCan, faPaperPlane, faGear, faSpinner, faBoxArchive, faCopy, faRedo, faPencil, faPlus, faWrench, faBook } from '@fortawesome/free-solid-svg-icons';
-import CustomProviderSettings from './CustomProviderSettings'; // 新增
 
 // 新增：可重用的工具调用渲染组件
 const ToolCallCard = ({ toolCall }) => {
@@ -81,26 +80,6 @@ const ToolCallCard = ({ toolCall }) => {
       </pre>
     </div>
   );
-};
-
-
-// 辅助函数：根据 insert_content 参数生成预览文本
-const getInsertContentPreview = (currentContent, { paragraph, content: textToInsert }) => {
-  if (typeof currentContent !== 'string' || typeof textToInsert !== 'string') return null;
-
-  const lines = currentContent.split('\n');
-  const paraIndex = parseInt(paragraph, 10);
-
-  // paragraph 0 或无效值表示在末尾追加
-  if (isNaN(paraIndex) || paraIndex <= 0) {
-    lines.push(textToInsert);
-  } else {
-    // paragraph 是 1-based，数组索引是 0-based
-    const insertAtIndex = Math.min(paraIndex - 1, lines.length);
-    lines.splice(insertAtIndex, 0, textToInsert);
-  }
-
-  return lines.join('\n');
 };
 
 const ChatPanel = memo(() => {
@@ -142,8 +121,8 @@ const ChatPanel = memo(() => {
   // 从 novel slice 获取状态
   const { openTabs, activeTabId } = useSelector((state) => state.novel);
   const activeTab = activeTabId ? openTabs.find(tab => tab.id === activeTabId) : null;
- 
-   const chatDisplayRef = useRef(null);
+
+  const chatDisplayRef = useRef(null);
   const currentSessionIdRef = useRef(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState('');
