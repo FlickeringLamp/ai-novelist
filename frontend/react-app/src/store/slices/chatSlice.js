@@ -1,5 +1,4 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { produce } from 'immer'; // 确保导入
 
 // 定义默认系统提示词
 const DEFAULT_SYSTEM_PROMPT = `你是一个**工具使用型AI**，精通使用各种工具来完成用户请求。

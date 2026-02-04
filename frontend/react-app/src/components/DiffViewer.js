@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { Decoration, DecorationSet } from 'prosemirror-view';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { diffChars } from 'diff';
 import './DiffViewer.css';
 import { convertTextToTiptapJson } from '../utils/tiptap-helpers';

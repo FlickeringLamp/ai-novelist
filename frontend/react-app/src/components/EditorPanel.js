@@ -3,7 +3,6 @@ import { useSelector, useDispatch } from 'react-redux';
 import { updateNovelTitle, updateTabContent, startDiff, endDiff } from '../store/slices/novelSlice';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import HardBreak from '@tiptap/extension-hard-break';
 import DiffViewer from './DiffViewer'; // 引入 DiffViewer
 import ContextMenu from './ContextMenu'; // 引入 ContextMenu
 
