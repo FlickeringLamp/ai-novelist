@@ -1,47 +1,45 @@
 import { type ContextMenuItem } from '../../others/ContextMenu';
 import ContextMenu from '../../others/ContextMenu';
 
-interface ProviderContextMenuProps {
+interface ModeContextMenuProps {
   visible: boolean;
   x: number;
   y: number;
-  providerId: string | null;
-  providersData: Record<string, any>;
-  onRename: (providerId: string) => void;
-  onDelete: (providerId: string) => void;
+  modeId: string | null;
+  modesData: Record<string, any>;
+  onRename: (modeId: string) => void;
+  onDelete: (modeId: string) => void;
   onClose: () => void;
   enableKeyboard?: boolean;
   enableAutoAdjust?: boolean;
 }
 
-const ProviderContextMenu = ({
+const ModeContextMenu = ({
   visible,
   x,
   y,
-  providerId,
-  providersData,
+  modeId,
+  modesData,
   onRename,
   onDelete,
   onClose,
   enableKeyboard = true,
   enableAutoAdjust = true
-}: ProviderContextMenuProps) => {
+}: ModeContextMenuProps) => {
   const menuItems: ContextMenuItem[] = (() => {
-    if (!providerId) return [];
+    if (!modeId) return [];
     
-    const isBuiltin = providersData[providerId]?.builtin === true;
     const items: ContextMenuItem[] = [];
 
-    if (!isBuiltin) {
-      items.push({
-        label: '重命名',
-        onClick: () => onRename(providerId)
-      });
-      items.push({
-        label: '删除',
-        onClick: () => onDelete(providerId)
-      });
-    }
+    // 不区分是否为内置模式，都可以重命名和删除
+    items.push({
+      label: '重命名',
+      onClick: () => onRename(modeId)
+    });
+    items.push({
+      label: '删除',
+      onClick: () => onDelete(modeId)
+    });
 
     return items;
   })();
@@ -59,4 +57,4 @@ const ProviderContextMenu = ({
   );
 };
 
-export default ProviderContextMenu;
+export default ModeContextMenu;

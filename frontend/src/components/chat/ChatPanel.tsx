@@ -794,7 +794,7 @@ const handleAutoApproveSettingsChange = (newSettings: AutoApproveSettings) => {
 
 return(
   <div className="flex flex-col h-full">
-    <div className="flex justify-center items-center p-2.5 border-b border-theme-gray1 gap-10">
+    <div className="h-[5%] flex justify-center items-center p-1 border-b border-theme-gray3 gap-2">
       <ChatHistoryPanel onLoadHistory={handleLoadHistory} />
       <ModelSelectorPanel />
       <button

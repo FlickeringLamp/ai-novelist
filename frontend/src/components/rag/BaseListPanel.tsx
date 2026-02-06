@@ -23,30 +23,6 @@ const BaseListPanel = () => {
     (state: RootState) => state.knowledgeSlice
   );
 
-  const providerData = useSelector(
-    (state: RootState) => state.providerSlice.allProvidersData,
-  );
-
-  const getEnabledProviders = () => {
-    const result: {
-      [key: string]: {
-        name: string;
-        embedding: { [key: string]: any };
-      };
-    } = {};
-    for (const [id, provider] of Object.entries(providerData)) {
-      if (provider.enable) {
-        result[id] = {
-          name: provider.name,
-          embedding: provider.favoriteModels.embedding,
-        };
-      }
-    }
-    return result;
-  };
-
-  const enableProvider = getEnabledProviders();
-
   // 右键菜单状态
   const [contextMenu, setContextMenu] = useState<ContextMenu>({
     visible: false,
@@ -171,7 +147,7 @@ const BaseListPanel = () => {
   };
 
   return (
-    <div className="w-[20%] h-full flex flex-col border-r border-theme-gray3">
+    <div className="w-[15%] h-full flex flex-col border-r border-theme-gray3">
       <div className="p-1 border-b border-theme-gray3">
         <button
           onClick={() => setShowAddModal(true)}
@@ -186,12 +162,11 @@ const BaseListPanel = () => {
             key={id}
             onClick={() => dispatch(setSelectedKnowledgeBaseId(id))}
             onContextMenu={(e) => handleContextMenu(e, id)}
-            className={`p-4 cursor-pointer border-b border-theme-gray2 hover:bg-theme-gray2 hover:text-theme-green ${
+            className={`p-2 m-1 cursor-pointer border-1 border-theme-gray3 hover:bg-theme-gray2 hover:text-theme-green ${
               selectedKnowledgeBaseId === id ? 'bg-theme-gray2 text-theme-green' : ''
             }`}
           >
             <div className="font-medium">{kb.name}</div>
-            <div className="text-sm text-theme-gray4">{enableProvider[kb.provider]?.name}/{kb.model}</div>
           </div>
         ))}
       </div>

@@ -12,12 +12,11 @@ export interface UploadProgressRef {
   triggerFileInput: () => void;
 }
 
-const UploadProgress = forwardRef<UploadProgressRef>((props, ref) => {
+const UploadProgress = forwardRef<UploadProgressRef>((_, ref) => {
   const dispatch = useDispatch();
   const { selectedKnowledgeBaseId, uploadProgress, uploading } = useSelector((state: RootState) => state.knowledgeSlice);
   const wsRef = useRef<WebSocket | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [currentUploadingKbId, setCurrentUploadingKbId] = useState<string | null>(null);
 
   // 获取当前选中知识库的进度和上传状态
   const currentUploadProgress = selectedKnowledgeBaseId ? uploadProgress[selectedKnowledgeBaseId] : null;
@@ -28,7 +27,6 @@ const UploadProgress = forwardRef<UploadProgressRef>((props, ref) => {
     if (!selectedKnowledgeBaseId) return;
     
     try {
-      setCurrentUploadingKbId(selectedKnowledgeBaseId);
       dispatch(setUploading({ knowledgeBaseId: selectedKnowledgeBaseId, uploading: true }));
       dispatch(setUploadProgress({
         knowledgeBaseId: selectedKnowledgeBaseId,
@@ -136,7 +134,6 @@ const UploadProgress = forwardRef<UploadProgressRef>((props, ref) => {
         }
         
         dispatch(incrementFileRefreshTrigger());
-        setCurrentUploadingKbId(null);
       }, 2000);
     }
   }, [currentUploadProgress, dispatch, selectedKnowledgeBaseId]);

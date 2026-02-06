@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash, faMinus } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faEyeSlash, faMinus, faPlus } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
 import { setAllProvidersData } from '../../store/provider';
 import httpClient from '../../utils/httpClient';
@@ -97,7 +97,7 @@ const ModelListPanel = () => {
   };
 
   return (
-    <Panel className='border border-theme-gray1 flex flex-col h-[932px]'>
+    <Panel className='border border-theme-gray1 flex flex-col h-full'>
       {selectedProviderId && (
         <>
           {/* 启用/禁用提供商开关 */}
@@ -149,6 +149,18 @@ const ModelListPanel = () => {
         </>
       )}
       <div className="overflow-y-auto flex-1 p-1.25">
+        {selectedProviderId && (
+          <div className="mr-7 flex justify-end">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAddModelModal(true)}
+                className="text-theme-white hover:text-theme-green "
+              >
+                <FontAwesomeIcon icon={faPlus}/>
+              </button>
+            </div>
+          </div>
+        )}
         {modelError ? (
           <div className="p-2.5 rounded-small m-2.5 bg-theme-black text-theme-green">
             {modelError}
@@ -230,16 +242,6 @@ const ModelListPanel = () => {
           </>
         )}
       </div>
-      {selectedProviderId && (
-        <div className="p-2.5">
-          <button
-            onClick={() => setShowAddModelModal(true)}
-            className="w-full bg-theme-green text-theme-white py-2.5 rounded-small hover:opacity-90"
-          >
-            添加模型
-          </button>
-        </div>
-      )}
       <AddModelModal
         isOpen={showAddModelModal}
         onClose={() => setShowAddModelModal(false)}

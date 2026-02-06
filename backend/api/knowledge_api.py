@@ -1,21 +1,20 @@
 import logging
 import os
-import random
 import shutil
-from typing import Dict, Any, List
+from typing import Dict, List
 from pydantic import BaseModel, Field
-from backend.config import settings
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect, BackgroundTasks
-from backend.core.ai_agent.embedding.emb_service import (
+from backend.config.config import settings
+from fastapi import APIRouter, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect, BackgroundTasks
+from backend.ai_agent.embedding import (
     get_files_in_collection,
     add_file_to_collection,
     remove_file_from_collection,
     delete_collection,
     create_collection,
     search_emb,
-    asearch_emb
+    asearch_emb,
+    websocket_manager
 )
-from backend.core.ai_agent.embedding.websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 

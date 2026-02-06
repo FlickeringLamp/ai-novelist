@@ -1,7 +1,6 @@
 import sys
 import logging
-
-from backend.config import settings, initialize_directories_and_files
+from backend import settings, initialize_directories_and_files
 
 # 初始化数据目录和文件
 initialize_directories_and_files()
@@ -33,12 +32,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 
-from backend.api.chat_api import router as chat_router
-from backend.api.history_api import router as history_router
-from backend.api.file_api import router as file_router
-from backend.api.config_api import router as config_router
-from backend.api.knowledge_api import router as knowledge_router
-from backend.api.provider_api import router as model_router
+from backend import chat_router, history_router, file_router, config_router, knowledge_router, model_router, mode_router
 
 # 创建FastAPI应用，禁用默认文档，使用自定义离线文档
 app = FastAPI(
@@ -95,6 +89,7 @@ app.include_router(file_router)
 app.include_router(config_router)
 app.include_router(knowledge_router)
 app.include_router(model_router)
+app.include_router(mode_router)
 
 # 健康检查端点
 

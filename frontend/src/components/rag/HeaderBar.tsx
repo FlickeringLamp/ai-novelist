@@ -28,7 +28,7 @@ const HeaderBar = ({}: HeaderBarProps) => {
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
-  //"守卫子句",属于HeaderBar，当没有选中东西的时候，不应该渲染。
+  //"守卫子句"，当没有选中东西的时候，不应该渲染。
   if (!selectedKnowledgeBaseId) {
     return null;
   }

@@ -4,23 +4,37 @@
 
 ## 后端开发规范
 
-### 1. 导入
+### 1. 导入规范
 
-**规则：后端统一使用绝对导入**
+**规则：本项目严格使用绝对导入，禁止相对导入。**
 
-所有后端模块应使用绝对导入方式，而非相对导入。
-
-**示例：**
+#### ✅ 正确的导入方式
 
 ```python
-# ✅ 正确 - 使用绝对导入
-from backend.config import settings
-from backend.core.ai_agent.core.graph_builder import GraphBuilder
+# 导入标准库
+import os
+import sys
 
-# ❌ 错误 - 使用相对导入
-from ..config import settings
-from .core.graph_builder import GraphBuilder
+# 导入第三方库
+import numpy as np
+
+# 导入本项目模块 - 必须使用绝对路径
+from backend.config.config import settings
+from backend.ai_agent.core.graph_builder import GraphBuilder
+from backend.api.chat_api import router
 ```
+
+#### ❌ 禁止的导入方式
+
+```python
+# 禁止相对导入
+from ..utils import helpers  # 不允许
+from .submodule import func  # 不允许
+```
+
+#### PyCharm 用户注意事项
+
+PyCharm 可能会自动将导入重构为通过 `__init__.py` 简化导入，这是允许的。
 
 **原因：**
 - 提高代码可读性，明确模块层级关系
@@ -31,19 +45,20 @@ from .core.graph_builder import GraphBuilder
 
 **规则：原则上，config.py外的任何文件不允许直接访问store.json配置文件，只能通过config.py提供的settings类方法间接操作**
 
-所有配置读取和修改操作必须通过 [`backend/config.py`](backend/config.py) 中提供的 `settings` 类方法进行。
+所有配置读取和修改操作必须通过 [`backend/config.py`](backend/config/config.py) 中提供的 `settings` 类方法进行。
 
 **示例：**
 
 ```python
 # ✅ 正确 - 通过settings类访问配置
-from backend.config import settings
+from backend.config.config import settings
 
 # 读取配置
 api_key = settings.get_config('mode')
 
 # ❌ 错误 - 直接访问store.json
 import json
+
 with open('backend/data/config/store.json', 'r') as f:
     config = json.load(f)
     api_key = config['openai']['api_key']

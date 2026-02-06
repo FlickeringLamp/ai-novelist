@@ -69,3 +69,51 @@ code {
 h1, h2 {
   color: var(--color-white);
 }
+
+/* ===== Range Input 自定义样式 ===== */
+.range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(to right, var(--color-theme-green) 0%, var(--color-theme-green) var(--progress, 0%), var(--color-theme-gray2) var(--progress, 0%), var(--color-theme-gray2) 100%);
+  cursor: pointer;
+}
+
+/* Webkit (Chrome, Safari, Edge) - 轨道背景 */
+.range-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  background: transparent;
+  border-radius: 3px;
+}
+
+/* Webkit - 滑块拇指 */
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--color-theme-green);
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: -5px; /* 垂直居中: (trackHeight / 2) - (thumbHeight / 2) */
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Firefox - 轨道背景 */
+.range-slider::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  background: var(--color-theme-gray2);
+  border-radius: 3px;
+}
+
+/* Firefox - 滑块拇指 */
+.range-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--color-theme-green);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}

@@ -4,7 +4,7 @@ from typing import Dict, Any
 from pydantic import BaseModel, Field
 from fastapi.responses import Response
 from fastapi import APIRouter, UploadFile, File as FastAPIFile
-from backend.core.file.file_service import (
+from backend.file.file_service import (
     create_item,
     read_file,
     update_file,
@@ -15,7 +15,7 @@ from backend.core.file.file_service import (
     get_file_tree,
     upload_image,
 )
-from backend.config import settings
+from backend.config.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ async def api_create_item(request: CreateItemRequest) -> Dict[str, Any]:
         parent_path=request.parent_path
     )
 
-
+# 暂时没用上
 @router.post("/images", summary="上传图片", response_model=Dict[str, Any])
 async def api_upload_image(file: UploadFile = FastAPIFile(...)) -> Dict[str, Any]:
     """上传图片文件"""

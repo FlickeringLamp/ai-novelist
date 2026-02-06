@@ -22,9 +22,6 @@ const ProviderListPanel = ({}: ProviderListPanelProps) => {
   const providersData = useSelector((state: RootState) => state.providerSlice.allProvidersData);
   const selectedProviderId = useSelector((state: RootState) => state.providerSlice.selectedProviderId);
 
-  // 内置提供商列表
-  const builtinProviders = ['deepseek', 'ollama', 'aliyun', 'openrouter', 'siliconflow', 'kimi', 'zhipuai'];
-
   // 自定义提供商模态框状态
   const [showCustomProviderModal, setShowCustomProviderModal] = useState(false);
 
@@ -156,24 +153,29 @@ const ProviderListPanel = ({}: ProviderListPanelProps) => {
   };
 
   return (
-    <Panel defaultSize={20} minSize={0} maxSize={100} className="h-full flex flex-col">
-      <div className="h-[95%] overflow-y-auto">
-        <ul className="list-none">
-          {Object.keys(providersData).map((providerId, index) => (
-                <div
-                  key={index}
-                  className={`m-2.5 p-2.5 rounded text-center cursor-pointer bg-theme-gray1 border-1 border-theme-gray3 hover:text-theme-green hover:bg-theme-gray2 ${selectedProviderId === providerId ? 'border border-theme-green text-theme-green' : ''}`}
-                  onClick={() => dispatch(setSelectedProviderId(providerId))}
-                  onContextMenu={(e) => handleContextMenu(e, providerId)}
-                >
-              {providersData[providerId]?.name || providerId}
-            </div>
-          ))}
-        </ul>
-      </div>
+    <Panel defaultSize={15} minSize={0} maxSize={100} className="h-full flex flex-col">
       {/* 自定义提供商按钮 */}
-      <div className="h-[5%] m-1 rounded flex items-center justify-center cursor-pointer border-1 border-theme-gray3 hover:text-theme-green hover:bg-theme-gray2" onClick={() => setShowCustomProviderModal(true)}>
-        + 自定义提供商
+      <div className="p-1 border-b border-theme-gray3">
+        <button
+          onClick={() => setShowCustomProviderModal(true)}
+          className="w-full px-4 py-2 rounded hover:bg-theme-gray2 hover:text-theme-green"
+        >
+          添加提供商
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {Object.keys(providersData).map((providerId, index) => (
+          <div
+            key={index}
+            className={`p-2 m-1 cursor-pointer border-1 border-theme-gray3 hover:bg-theme-gray2 hover:text-theme-green ${
+              selectedProviderId === providerId ? 'bg-theme-gray2 text-theme-green' : ''
+            }`}
+            onClick={() => dispatch(setSelectedProviderId(providerId))}
+            onContextMenu={(e) => handleContextMenu(e, providerId)}
+          >
+            {providersData[providerId]?.name || providerId}
+          </div>
+        ))}
       </div>
 
       {/* 通知弹窗 */}
@@ -197,7 +199,7 @@ const ProviderListPanel = ({}: ProviderListPanelProps) => {
         x={contextMenu.x}
         y={contextMenu.y}
         providerId={contextMenu.providerId}
-        builtinProviders={builtinProviders}
+        providersData={providersData}
         onRename={handleRenameProvider}
         onDelete={handleDeleteProvider}
         onClose={closeContextMenu}

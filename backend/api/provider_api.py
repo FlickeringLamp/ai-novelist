@@ -1,10 +1,9 @@
 import logging
 from typing import List, Dict, Any
 from pydantic import BaseModel, Field
-from backend.config import settings
+from backend.config.config import settings
 from fastapi import APIRouter, HTTPException
-from backend.core.ai_agent.models.providers import BUILTIN_PROVIDERS
-from backend.core.ai_agent.models.multi_model_adapter import MultiModelAdapter
+from backend.ai_agent.models import MultiModelAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +38,6 @@ class UpdateProviderRequest(BaseModel):
 router = APIRouter(prefix="/api/provider", tags=["Provider"])
 
 # API端点
-
-# 获取内置提供商列表
-@router.get("/builtin-providers", summary="获取内置提供商列表", response_model=List[str])
-def builtin_providers_list():
-    """获取内置提供商列表"""
-    return BUILTIN_PROVIDERS
 
 # 所有提供商列表
 @router.get("/providers", summary="获取提供商列表", response_model=Dict[str, Dict])
@@ -149,6 +142,7 @@ async def add_custom_provider(request: AddProviderRequest):
     # 添加新的提供商
     settings.update_config({
         "name": request.name,
+        "builtin": False,
         "enable": False,
         "url": "",
         "key": "",
@@ -208,6 +202,10 @@ async def update_custom_provider(provider_id: str, request: UpdateProviderReques
         updated_config["favoriteModels"] = request.favoriteModels
     elif "favoriteModels" in current_config:
         updated_config["favoriteModels"] = current_config["favoriteModels"]
+    
+    # 保留builtin字段
+    if "builtin" in current_config:
+        updated_config["builtin"] = current_config["builtin"]
         
     # 更新提供商配置
     settings.update_config(updated_config, "provider", provider_id)

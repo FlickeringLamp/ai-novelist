@@ -2,7 +2,7 @@ import './App.css';
 import { ThemeProvider } from './context/ThemeContext';
 import LayoutComponent from './components/LayoutComponent';
 import EditorPanel from './components/editor/EditorPanel';
-import ChatPanel from './components/chat/ChatPanel';
+import ChatPanel from './components/chat2/ChatPanel';
 import ChapterTreePanel from './components/chapter/ChapterTreePanel';
 
 function App() {

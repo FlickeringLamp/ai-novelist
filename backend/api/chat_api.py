@@ -7,12 +7,12 @@ import nest_asyncio
 from pydantic import BaseModel, Field
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from backend.config import settings, State
-from backend.core.ai_agent.core.graph_builder import build_graph
-from backend.core.ai_agent.core.tool_load import import_tools_from_directory
-from backend.core.ai_agent.core.system_prompt_builder import system_prompt_builder
-from backend.core.ai_agent.utils.db_utils import get_db_connection
-from backend.core.ai_agent.utils.serialize_langchain_obj import serialize_langchain_object
+from backend.config.config import settings, State
+from backend.ai_agent.core.graph_builder import build_graph
+from backend.ai_agent.core.tool_load import import_tools_from_directory
+from backend.ai_agent.core.system_prompt_builder import system_prompt_builder
+from backend.ai_agent.utils.db_utils import get_db_connection
+from backend.ai_agent.utils.serialize_langchain_obj import serialize_langchain_object
 # 导入LangChain相关类型用于类型检查
 from langgraph.types import Command
 from langgraph.checkpoint.sqlite import SqliteSaver

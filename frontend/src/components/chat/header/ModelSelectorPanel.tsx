@@ -151,10 +151,7 @@ const ModelSelectorPanel = () => {
         {selectedModel ? (
           <span className="text-theme-white text-[14px] font-medium whitespace-nowrap overflow-hidden text-ellipsis">{selectedModel}</span>
         ) : (
-          <>
-            <FontAwesomeIcon icon={faRobot} className="text-theme-white" />
-            <span className="text-theme-white text-[14px]">选择模型</span>
-          </>
+          <span className="text-theme-white text-[14px]">选择模型</span>
         )}
       </button>
       
