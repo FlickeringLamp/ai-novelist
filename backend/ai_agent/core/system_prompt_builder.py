@@ -110,7 +110,7 @@ class SystemPromptBuilder:
             os.makedirs(novel_path, exist_ok=True)
             
             # 获取文件树
-            file_tree_result = {"success": True, "tree": await get_file_tree()}
+            file_tree_result = {"success": True, "tree": await get_file_tree(novel_path, novel_path)}
             
             if not file_tree_result.get("success", False):
                 logger.error(f"获取文件树失败: {file_tree_result.get('error', '未知错误')}")
@@ -191,6 +191,7 @@ class SystemPromptBuilder:
             full_prompt = "\n\n".join(prompt_parts)
             
             logger.info(f"系统提示词构建完成，模式: {mode}，包含文件树: {include_file_tree}，包含持久记忆: {include_persistent_memory}")
+            logger.info(f"构建的完整系统提示词:\n{full_prompt}")
             return full_prompt
             
         except Exception as e:
@@ -205,7 +206,7 @@ class SystemPromptBuilder:
             novel_path = self.get_novel_path()
             
             # 重新获取文件树
-            file_tree_result = {"success": True, "tree": await get_file_tree()}
+            file_tree_result = {"success": True, "tree": await get_file_tree(novel_path, novel_path)}
             
             if file_tree_result.get("success", False):
                 self.file_tree_cache = file_tree_result.get("tree", [])

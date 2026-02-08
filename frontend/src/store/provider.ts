@@ -15,11 +15,13 @@ export interface ProviderData {
 export interface ProviderState {
   allProvidersData: { [key: string]: ProviderData };
   selectedProviderId: string | null;
+  selectedModelId: string | null;
 }
 
 const initialState: ProviderState = {
   allProvidersData: {},
   selectedProviderId: "openrouter",
+  selectedModelId: null,
 };
 
 export const providerSlice = createSlice({
@@ -37,6 +39,12 @@ export const providerSlice = createSlice({
       action: PayloadAction<string | null>
     ) => {
       state.selectedProviderId = action.payload;
+    },
+    setSelectedModelId: (
+      state: Draft<ProviderState>,
+      action: PayloadAction<string | null>
+    ) => {
+      state.selectedModelId = action.payload;
     }
   }
 });
@@ -44,6 +52,7 @@ export const providerSlice = createSlice({
 export const {
   setAllProvidersData,
   setSelectedProviderId,
+  setSelectedModelId,
 } = providerSlice.actions;
 
 export default providerSlice.reducer;

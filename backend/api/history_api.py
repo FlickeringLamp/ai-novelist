@@ -8,12 +8,9 @@ from fastapi import APIRouter, HTTPException
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import HumanMessage
 
-from backend.config.config import State, settings
-from backend.ai_agent.core.graph_builder import build_graph
-from backend.ai_agent.core.tool_load import import_tools_from_directory
-from backend.ai_agent.core.system_prompt_builder import system_prompt_builder
-from backend.ai_agent.utils.serialize_langchain_obj import serialize_langchain_object
-from backend.ai_agent.utils.db_utils import get_db_connection,get_memory_storage
+from backend.config.config import settings
+from backend.ai_agent.core.graph_builder import with_graph_builder
+from backend.config.config import get_db_connection
 import time
 
 logger = logging.getLogger(__name__)
@@ -48,41 +45,6 @@ class OperateMessagesRequest(BaseModel):
 # 创建API路由器
 router = APIRouter(prefix="/api/history", tags=["History"])
 
-def create_graph(mode: Optional[str] = None):
-    """创建新的图实例
-    
-    Args:
-        mode: 模式名称，如果提供则只加载该模式启用的工具
-    """
-    # 根据模式加载工具
-    tools = import_tools_from_directory('tool', mode or "outline")
-    
-    # 构建图实例
-    # 使用全局内存存储，避免重复创建连接
-    memory = get_memory_storage(mode)
-    
-    # 使用 SystemPromptBuilder 构建完整的系统提示词
-    # 使用 nest_asyncio 来允许在已有事件循环中运行异步代码
-    import asyncio
-    try:
-        # 尝试获取当前运行的事件循环
-        loop = asyncio.get_running_loop()
-        # 如果成功获取，说明已有运行中的循环，使用 nest_asyncio
-        import nest_asyncio
-        nest_asyncio.apply()
-        current_prompt = loop.run_until_complete(
-            system_prompt_builder.build_system_prompt(mode=mode or "outline", include_persistent_memory=True)
-        )
-    except RuntimeError:
-        # 没有运行中的循环，可以安全创建新循环
-        current_prompt = asyncio.run(system_prompt_builder.build_system_prompt(mode=mode or "outline", include_persistent_memory=True))
-    
-    graph = build_graph(tools, memory, system_prompt=current_prompt, mode=mode)
-    
-    logger.info(f"Graph created successfully for mode '{mode}': {len(tools)} tools bound")
-    return graph
-
-
 # API端点
 
 @router.post("/checkpoints", summary="获取存档点列表", response_model=List[Dict[str, Any]])
@@ -94,47 +56,54 @@ async def get_checkpoints(request: GetCheckpointsRequest):
     - **mode**: 对话模式 (outline/writing/adjustment)
     """
     thread_id = request.thread_id
-    mode = request.mode
-    # 创建图实例
-    graph = create_graph(mode)
-    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     
-    # 获取存档点历史
-    states = list(graph.get_state_history(config))
-    
-    checkpoints = []
-    for index, state in enumerate(states):
-        # 获取检查点ID
-        checkpoint_id = state.config.get('configurable', {}).get('checkpoint_id', 'unknown')
+    # 使用装饰器创建图操作函数
+    @with_graph_builder
+    async def process_get_checkpoints(graph):
+        """处理获取存档点列表"""
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         
-        # 获取最后一条消息内容
-        messages = state.values.get("messages", [])
-        last_message_type = "unknown"
-        last_message_content = ""
-        tool_calls = None
+        # 获取存档点历史
+        states = []
+        async for state in graph.aget_state_history(config):
+            states.append(state)
         
-        if messages:
-            last_message = messages[-1]
-            last_message_type = last_message.type if hasattr(last_message, 'type') else 'unknown'
-            last_message_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
+        checkpoints = []
+        for index, state in enumerate(states):
+            # 获取检查点ID
+            checkpoint_id = state.config.get('configurable', {}).get('checkpoint_id', 'unknown')
             
-            # 如果是工具调用，显示工具信息
-            if last_message_type == 'ai' and hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-                tool_names = [tc.get('name', 'unknown') for tc in last_message.tool_calls]
-                tool_calls = tool_names
-                last_message_content = f"工具调用: {', '.join(tool_names)}"
+            # 获取最后一条消息内容
+            messages = state.values.get("messages", [])
+            last_message_type = "unknown"
+            last_message_content = ""
+            tool_calls = None
+            
+            if messages:
+                last_message = messages[-1]
+                last_message_type = last_message.type if hasattr(last_message, 'type') else 'unknown'
+                last_message_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
+                
+                # 如果是工具调用，显示工具信息
+                if last_message_type == 'ai' and hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+                    tool_names = [tc.get('name', 'unknown') for tc in last_message.tool_calls]
+                    tool_calls = tool_names
+                    last_message_content = f"工具调用: {', '.join(tool_names)}"
+            
+            checkpoint_info = {
+                "checkpoint_id": checkpoint_id,
+                "index": index,
+                "next_node": state.next,
+                "last_message_type": last_message_type,
+                "last_message_content": last_message_content,
+                "tool_calls": tool_calls
+            }
+            checkpoints.append(checkpoint_info)
         
-        checkpoint_info = {
-            "checkpoint_id": checkpoint_id,
-            "index": index,
-            "next_node": state.next,
-            "last_message_type": last_message_type,
-            "last_message_content": last_message_content,
-            "tool_calls": tool_calls
-        }
-        checkpoints.append(checkpoint_info)
+        return checkpoints
     
-    return checkpoints
+    # 调用装饰器函数
+    return await process_get_checkpoints()
 
 @router.post("/checkpoint/rollback", summary="回档到指定存档点", response_model=Dict[str, Any])
 async def rollback_to_checkpoint(request: RollbackCheckpointRequest):
@@ -149,49 +118,60 @@ async def rollback_to_checkpoint(request: RollbackCheckpointRequest):
     thread_id = request.thread_id
     checkpoint_index = request.checkpoint_index
     new_message = request.new_message
-    mode = request.mode
-    # 创建图实例
-    graph = create_graph(mode)
-    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     
-    # 获取存档点历史
-    states = list(graph.get_state_history(config))
-    
-    if checkpoint_index < 0 or checkpoint_index >= len(states):
-        raise HTTPException(status_code=400, detail="存档点索引无效")
-    
-    # 获取选中的存档点
-    selected_state = states[checkpoint_index]
-    
-    # 更新状态：获取整个消息列表，去掉最后一条用户信息，添加新的用户消息
-    current_messages = selected_state.values.get("messages", [])
-    
-    # 如果消息列表为空，直接添加新消息
-    if not current_messages:
-        new_messages = [HumanMessage(content=new_message)]
-    else:
-        # 检查最后一条消息是否是用户消息
-        last_message = current_messages[-1]
-        if hasattr(last_message, 'type') and last_message.type == 'human':
-            # 如果最后一条是用户消息，替换它
-            new_messages = current_messages[:-1] + [HumanMessage(content=new_message)]
+    # 使用装饰器创建图操作函数
+    @with_graph_builder
+    async def process_rollback(graph):
+        """处理回档操作"""
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+        
+        # 获取存档点历史
+        states = []
+        async for state in graph.aget_state_history(config):
+            states.append(state)
+        
+        if checkpoint_index < 0 or checkpoint_index >= len(states):
+            raise HTTPException(status_code=400, detail="存档点索引无效")
+        
+        # 获取选中的存档点
+        selected_state = states[checkpoint_index]
+        
+        # 更新状态：获取整个消息列表，去掉最后一条用户信息，添加新的用户消息
+        current_messages = selected_state.values.get("messages", [])
+        
+        # 如果消息列表为空，直接添加新消息
+        if not current_messages:
+            new_messages = [HumanMessage(content=new_message)]
         else:
-            # 如果最后一条不是用户消息，直接添加新消息
-            new_messages = current_messages + [HumanMessage(content=new_message)]
+            # 检查最后一条消息是否是用户消息
+            last_message = current_messages[-1]
+            if hasattr(last_message, 'type') and last_message.type == 'human':
+                # 如果最后一条是用户消息，替换它
+                new_messages = current_messages[:-1] + [HumanMessage(content=new_message)]
+            else:
+                # 如果最后一条不是用户消息，直接添加新消息
+                new_messages = current_messages + [HumanMessage(content=new_message)]
+        
+        # 用整个新状态替换原本的旧状态
+        new_config = await graph.aupdate_state(selected_state.config, values={"messages": new_messages})
+        
+        # 触发回复（直接传入消息列表，使用operator.add自动追加）
+        # 执行对话（使用astream异步流式处理）
+        result = None
+        async for chunk in graph.astream(new_messages, new_config):
+            if result is None:
+                result = chunk
+            else:
+                # 合并结果
+                result.update(chunk)
+        
+        return {
+            "new_config": new_config,
+            "result": serialize_langchain_object(result)
+        }
     
-    # 用整个新状态替换原本的旧状态
-    new_config = graph.update_state(selected_state.config, values={"messages": new_messages})
-    
-    # 触发回复
-    input_state = State(messages=new_messages)
-    
-    # 执行对话
-    result = graph.invoke(input_state, new_config)
-    
-    return {
-        "new_config": new_config,
-        "result": serialize_langchain_object(result)
-    }
+    # 调用装饰器函数
+    return await process_rollback()
 
 @router.post("/messages", summary="获取历史消息列表", response_model=List[Dict[str, Any]])
 async def get_messages(request: GetMessagesRequest):
@@ -202,27 +182,32 @@ async def get_messages(request: GetMessagesRequest):
     - **mode**: 对话模式
     """
     thread_id = request.thread_id
-    mode = request.mode
-    # 创建图实例
-    graph = create_graph(mode)
-    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     
-    # 获取当前状态
-    current_state = graph.get_state(config)
-    current_messages = current_state.values.get("messages", [])
+    # 使用装饰器创建图操作函数
+    @with_graph_builder
+    async def process_get_messages(graph):
+        """处理获取历史消息列表"""
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+        
+        # 获取当前状态
+        current_state = await graph.aget_state(config)
+        current_messages = current_state.values.get("messages", [])
+        
+        messages = []
+        for index, msg in enumerate(current_messages):
+            message_info = {
+                "index": index,
+                "message_id": getattr(msg, 'id', f"msg_{index}") or f"msg_{index}",
+                "message_type": msg.type if hasattr(msg, 'type') else 'unknown',
+                "content": msg.content if hasattr(msg, 'content') else str(msg),
+                "tool_calls": getattr(msg, 'tool_calls', None)
+            }
+            messages.append(message_info)
+        
+        return messages
     
-    messages = []
-    for index, msg in enumerate(current_messages):
-        message_info = {
-            "index": index,
-            "message_id": getattr(msg, 'id', f"msg_{index}") or f"msg_{index}",
-            "message_type": msg.type if hasattr(msg, 'type') else 'unknown',
-            "content": msg.content if hasattr(msg, 'content') else str(msg),
-            "tool_calls": getattr(msg, 'tool_calls', None)
-        }
-        messages.append(message_info)
-    
-    return messages
+    # 调用装饰器函数
+    return await process_get_messages()
 
 @router.post("/messages/operation", summary="操作历史消息", response_model=Dict[str, Any])
 async def operate_messages(request: OperateMessagesRequest):
@@ -239,75 +224,94 @@ async def operate_messages(request: OperateMessagesRequest):
     operation_type = request.operation_type
     target_indices = request.target_indices
     target_ids = request.target_ids
-    mode = request.mode
-    # 创建图实例
-    graph = create_graph(mode)
-    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     
-    # 获取当前状态
-    current_state = graph.get_state(config)
-    current_messages = current_state.values.get("messages", [])
-    
-    if operation_type == 'delete_all':
-        # 删除所有消息
-        delete_instruction = HumanMessage(content="/delete all")
-        updated_messages = current_messages + [delete_instruction]
+    # 使用装饰器创建图操作函数
+    @with_graph_builder
+    async def process_operate_messages(graph):
+        """处理操作历史消息"""
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         
-        # 调用图，条件边会自动路由到自定义删除节点
-        result = graph.invoke(
-            {"messages": updated_messages},
-            config
-        )
+        # 获取当前状态
+        current_state = await graph.aget_state(config)
+        current_messages = current_state.values.get("messages", [])
         
-        return {"result": serialize_langchain_object(result)}
-        
-    elif operation_type == 'delete_index' and target_indices:
-        # 删除指定索引的消息
-        result = None
-        for index in target_indices:
-            if 0 <= index < len(current_messages):
-                # 使用自定义删除指令删除特定索引的消息
-                delete_instruction = HumanMessage(content=f"/delete index {index}")
-                updated_messages = current_messages + [delete_instruction]
-                
-                # 调用图，条件边会自动路由到自定义删除节点
-                result = graph.invoke(
-                    {"messages": updated_messages},
-                    config
-                )
-                current_messages = result["messages"]
-            else:
-                logger.warning(f"无效的消息索引: {index}")
-        
-        return {"result": serialize_langchain_object(result)}
-        
-    elif operation_type == 'delete_ids' and target_ids:
-        # 删除指定ID的消息
-        deleted_count = 0
-        result = None
-        for msg_id in target_ids:
-            # 查找消息索引
-            for index, msg in enumerate(current_messages):
-                if getattr(msg, 'id', None) == msg_id:
-                    # 使用自定义删除指令删除特定索引的消息
+        if operation_type == 'delete_all':
+            # 删除所有消息（直接传入消息列表，使用operator.add自动追加）
+            delete_instruction = HumanMessage(content="/delete all")
+            
+            # 调用图，条件边会自动路由到自定义删除节点（使用astream异步流式处理）
+            result = None
+            async for chunk in graph.astream(
+                [delete_instruction],
+                config
+            ):
+                if result is None:
+                    result = chunk
+                else:
+                    result.update(chunk)
+            
+            return {"result": serialize_langchain_object(result)}
+            
+        elif operation_type == 'delete_index' and target_indices:
+            # 删除指定索引的消息
+            result = None
+            for index in target_indices:
+                if 0 <= index < len(current_messages):
+                    # 使用自定义删除指令删除特定索引的消息（直接传入消息列表，使用operator.add自动追加）
                     delete_instruction = HumanMessage(content=f"/delete index {index}")
-                    updated_messages = current_messages + [delete_instruction]
                     
-                    # 调用图，条件边会自动路由到自定义删除节点
-                    result = graph.invoke(
-                        {"messages": updated_messages},
+                    # 调用图，条件边会自动路由到自定义删除节点（使用astream异步流式处理）
+                    chunk_result = None
+                    async for chunk in graph.astream(
+                        [delete_instruction],
                         config
-                    )
+                    ):
+                        if chunk_result is None:
+                            chunk_result = chunk
+                        else:
+                            chunk_result.update(chunk)
+                    result = chunk_result
                     current_messages = result["messages"]
-                    deleted_count += 1
-                    break
+                else:
+                    logger.warning(f"无效的消息索引: {index}")
+            
+            return {"result": serialize_langchain_object(result)}
+            
+        elif operation_type == 'delete_ids' and target_ids:
+            # 删除指定ID的消息
+            deleted_count = 0
+            result = None
+            for msg_id in target_ids:
+                # 查找消息索引
+                for index, msg in enumerate(current_messages):
+                    if getattr(msg, 'id', None) == msg_id:
+                        # 使用自定义删除指令删除特定索引的消息（直接传入消息列表，使用operator.add自动追加）
+                        delete_instruction = HumanMessage(content=f"/delete index {index}")
+                        
+                        # 调用图，条件边会自动路由到自定义删除节点（使用astream异步流式处理）
+                        chunk_result = None
+                        async for chunk in graph.astream(
+                            [delete_instruction],
+                            config
+                        ):
+                            if chunk_result is None:
+                                chunk_result = chunk
+                            else:
+                                chunk_result.update(chunk)
+                        result = chunk_result
+                        current_messages = result["messages"]
+                        deleted_count += 1
+                        break
+            
+            if result is None:
+                result = {"messages": current_messages}
+            return {"result": serialize_langchain_object(result)}
         
-        if result is None:
-            result = {"messages": current_messages}
-        return {"result": serialize_langchain_object(result)}
+        else:
+            raise HTTPException(status_code=400, detail="无效的操作类型或参数")
     
-    else:
-        raise HTTPException(status_code=400, detail="无效的操作类型或参数")
+    # 调用装饰器函数
+    return await process_operate_messages()
 
 # 会话管理API端点
 @router.get("/sessions", summary="获取所有会话列表", response_model=Dict[str, Any])

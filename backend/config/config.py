@@ -2,6 +2,7 @@ import json
 import os
 import time
 import logging
+import aiosqlite
 from pathlib import Path
 from typing import Dict, Any, TypedDict
 from backend.config.providers import PROVIDERS
@@ -174,3 +175,11 @@ class State(TypedDict):
 
 # 创建全局设置实例
 settings = Settings()
+
+def get_db_connection():
+    """获取数据库连接，用于直接查询数据库（如 history_api.py）
+    
+    """
+    conn = sqlite3.connect(settings.CHECKPOINTS_DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row  # 返回字典格式
+    return conn

@@ -4,6 +4,7 @@
   /* 基础颜色 - 使用 CSS 变量以支持动态主题 */
   --color-theme-black: var(--color-black);
   --color-theme-green: var(--color-green);
+  --color-theme-green1: var(--color-green1);
   --color-theme-white: var(--color-white);
   --color-theme-red:   var(--color-red);
   --color-theme-gray1: var(--color-gray1);
@@ -26,6 +27,7 @@
   /* 基础颜色 - 默认值 */
   --color-black: #000000;    /* 纯黑：底色，用于面 */
   --color-green: #34eb5c;    /* 绿色：普通状态，用于小件 */
+  --color-green1: #2ad541;  /* 暗绿色：用于用户消息气泡 */
   --color-white: #FFFFFF;    /* 纯白色：普通状态，多用于字体 */
   --color-red:   #ff0000;      /* 红色：错误/离线状态，用于小件 */
   --color-gray1: #111111;    /* 焦浓重淡清 */

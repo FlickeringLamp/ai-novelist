@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 const defaultTheme = {
   black: '#000000',    // 纯黑：项目底色
   green: '#34eb5c',    // 绿色：普通状态，用于小件
+  green1: '#2ad541',  // 暗绿色：用于用户消息气泡
   white: '#FFFFFF',    // 纯白色：普通状态，多用于字体
   red:   '#ff0000',      // 红色：错误/离线状态，用于小件
   gray1: '#111111',    // 焦浓重淡清
@@ -33,6 +34,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     const root = document.documentElement;
     root.style.setProperty('--color-black', theme.black);
     root.style.setProperty('--color-green', theme.green);
+    root.style.setProperty('--color-green1', theme.green1);
     root.style.setProperty('--color-white', theme.white);
     root.style.setProperty('--color-red', theme.red);
     root.style.setProperty('--color-gray1', theme.gray1);
