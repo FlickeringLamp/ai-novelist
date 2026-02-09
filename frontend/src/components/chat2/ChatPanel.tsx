@@ -3,47 +3,35 @@ import { faFileLines, faPlus, faPaperPlane, faClock, faAngleRight, faAngleUp } f
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../../store/store';
-import { setAllModesData, setSelectedModeId } from '../../store/mode';
+import { setAllModesData, setSelectedModeId, setAvailableTools } from '../../store/mode';
 import ModelSelectorPanel from './ModelSelectorPanel';
+import MessageDisplayPanel, { type Message, type ToolCall } from './MessageDisplayPanel';
 import ContextProgressBar from './ContextProgressBar';
 import httpClient from '../../utils/httpClient';
 
-// 类型定义
-interface ToolCall {
-  name?: string;
-  function?: {
-    name?: string;
-    arguments?: string | Record<string, unknown>;
-  };
-  args?: Record<string, unknown>;
+// 中断信息接口
+interface InterruptInfo {
+  id?: string;
+  tool_name?: string;
+  tool_display_name?: string;
+  description?: string;
+  parameters?: any;
+  isSimpleInterrupt?: boolean;
+  question?: string;
 }
 
-interface UsageMetadata {
-  input_tokens?: number;
-  output_tokens?: number;
-  total_tokens?: number;
-  input_token_details?: {
-    cache_read?: number;
-  };
-  output_token_details?: Record<string, unknown>;
-}
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant' | 'tool' | 'tool_request';
-  content?: string;
-  tool_calls?: ToolCall[];
-  // 存储完整的 LangChain 消息数据，以后使用
-  raw?: any;
-  // 存储使用元数据
-  usage_metadata?: UsageMetadata;
+// 中断响应接口
+interface InterruptResponse {
+  action: 'approve' | 'reject';
+  choice?: string;
+  additionalData?: string;
 }
 
 interface StreamChunk {
   type?: string;
   content?: string;
   error?: string;
-  tool_calls?: ToolCall[];
+  tool_calls?: any[];
   interrupts?: any[];
   // LangChain 消息对象的完整数据
   id?: string;
@@ -51,6 +39,16 @@ interface StreamChunk {
   response_metadata?: any;
   usage_metadata?: any;
   invalid_tool_calls?: any;
+  tool_call_chunks?: Array<{
+    name?: string | null;
+    args?: string | null;
+    id?: string | null;
+    index?: number;
+    type?: string;
+  }>;
+  chunk_position?: string;
+  // 完整state
+  state?: any;
 }
 
 const ChatPanel = () => {
@@ -60,9 +58,10 @@ const ChatPanel = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  // 存储所有接收到的原始数据，以后使用
-  const [rawMessages, setRawMessages] = useState<any[]>([]);
+  // 存储完整的state对象
+  const [state, setState] = useState<any>(null);
+  // 中断信息状态
+  const [interruptInfo, setInterruptInfo] = useState<InterruptInfo | null>(null);
   
   // 从Redux获取状态
   const allProvidersData = useSelector((state: RootState) => state.providerSlice.allProvidersData);
@@ -71,21 +70,26 @@ const ChatPanel = () => {
   const allModesData = useSelector((state: RootState) => state.modeSlice.allModesData);
   const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId);
   
-  // 当前使用的tokens
-  const [currentTokens, setCurrentTokens] = useState(0);
+  // 从state中获取messages
+  const messages = state?.values?.messages || [];
   
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messageIdCounter = useRef(0);
-
-  // 生成唯一消息ID
-  const generateMessageId = () => {
-    messageIdCounter.current += 1;
-    return `${Date.now()}_${messageIdCounter.current}`;
+  // 计算当前使用的tokens（从state中获取）
+  const getCurrentTokens = (): number => {
+    if (!state?.values?.messages) return 0;
+    let totalTokens = 0;
+    for (const msg of state.values.messages) {
+      if (msg.usage_metadata?.total_tokens) {
+        totalTokens += msg.usage_metadata.total_tokens;
+      }
+    }
+    return totalTokens;
   };
-
-  // 自动滚动到最新消息
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const currentTokens = getCurrentTokens();
+  
+  // 生成唯一消息ID（类似LangChain的格式：lc_run--uuid）
+  const generateMessageId = () => {
+    const uuid = crypto.randomUUID();
+    return `lc_run--${uuid}`;
   };
 
   // 计算当前模型的最大上下文长度
@@ -122,16 +126,27 @@ const ChatPanel = () => {
     loadModes();
   }, [dispatch]);
 
+  // 加载可用工具数据
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const loadTools = async () => {
+      try {
+        const toolsResult = await httpClient.get('/api/mode/tool/available-tools');
+        if (toolsResult) {
+          dispatch(setAvailableTools(toolsResult));
+        }
+      } catch (error) {
+        console.error('加载工具数据失败:', error);
+      }
+    };
+    loadTools();
+  }, [dispatch]);
 
   // 发送消息到后端
-  const sendMessage = async function* (message: string) {
+  const sendMessage = async function* (message: string, messageId: string) {
     try {
       const response = await httpClient.streamRequest('/api/chat/message', {
         method: 'POST',
-        body: { message: message }
+        body: { message: message, id: messageId }
       } as any);
 
       if (!response.ok) {
@@ -161,121 +176,169 @@ const ChatPanel = () => {
     if (!message.trim() || isLoading) return;
 
     const inputMessage = message.trim();
-    
-    // 添加用户消息
     const userMessageId = generateMessageId();
-    const userMessage: Message = {
-      id: userMessageId,
-      role: 'user',
-      content: inputMessage
-    };
-    setMessages(prev => [...prev, userMessage]);
     
     setIsLoading(true);
     setError('');
     setMessage('');
-    setCurrentTokens(0); // 重置当前使用的tokens
+
+    // 先添加用户消息到state中
+    setState((prevState: any) => {
+      const newMessages = [...(prevState?.values?.messages || [])];
+      newMessages.push({
+        id: userMessageId,
+        type: 'human',
+        content: inputMessage
+      });
+      return {
+        ...prevState,
+        values: {
+          ...prevState?.values,
+          messages: newMessages
+        }
+      };
+    });
 
     try {
-      const result = sendMessage(inputMessage);
+      const result = sendMessage(inputMessage, userMessageId);
       let currentAiMessageId: string | null = null;
       let newAiResponse = "";
-      let currentToolCalls: ToolCall[] = [];
       let currentRawData: any = null;
+      // 存储流式工具调用chunks，用于累积构建完整的工具调用
+      const toolCallChunksMap = new Map<number, { name?: string; args: string; id?: string }>();
 
       for await (const chunk of result) {
-        // 尝试解析JSON
-        try {
-          const parsedChunk = JSON.parse(chunk) as StreamChunk;
+        // 按行分割chunk，处理多个JSON对象的情况
+        // 原因：后端在每个JSON后添加了换行符\n作为分隔符，但由于网络传输缓冲区的原因，
+        // 前端可能一次收到多个JSON对象（如：{"content": "的吗"}\n{"content": "？"}\n）
+        // 直接对整个chunk进行JSON.parse会失败，需要按行分割后逐个解析
+        // 这样可以避免消息显示不全、隔三岔五缺字符的问题
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        
+        for (const line of lines) {
+          // 尝试解析JSON
+          try {
+            const parsedChunk = JSON.parse(line) as StreamChunk;
+            console.log("解析后的数据：", parsedChunk);
 
-          // 处理不同类型的消息
-          if (parsedChunk.type === 'done') {
-            break;
-          }
+            // 处理不同类型的消息
+            if (parsedChunk.error) {
+              throw new Error(parsedChunk.error);
+            }
 
-          if (parsedChunk.error) {
-            throw new Error(parsedChunk.error);
-          }
-
-          if (parsedChunk.type === 'interrupt') {
-            // 处理中断信息
-            if (parsedChunk.interrupts && parsedChunk.interrupts.length > 0) {
-              const interrupt = parsedChunk.interrupts[0];
-              if (interrupt.value && interrupt.value.tool_name) {
-                currentToolCalls = [{
-                  name: interrupt.value.tool_name,
-                  args: interrupt.value.parameters || {}
-                }];
+            // 处理流式消息
+            if (parsedChunk.type === 'AIMessageChunk') {
+              // 处理 AIMessageChunk 消息对象
+              if (!currentAiMessageId && parsedChunk.id) {
+                // 使用 LangChain 消息对象的 id
+                const messageId = parsedChunk.id;
+                currentAiMessageId = messageId;
+                currentRawData = parsedChunk;
+                
+                // 创建临时AI消息用于流式显示
+                setState((prevState: any) => {
+                  const newMessages = [...(prevState?.values?.messages || [])];
+                  newMessages.push({
+                    id: messageId,
+                    type: 'ai',
+                    content: '',
+                    tool_calls: [],
+                    usage_metadata: parsedChunk.usage_metadata
+                  });
+                  return {
+                    ...prevState,
+                    values: {
+                      ...prevState?.values,
+                      messages: newMessages
+                    }
+                  };
+                });
               }
-            }
-          } else if (parsedChunk.content || parsedChunk.usage_metadata) {
-            // 处理 LangChain 消息对象
-            if (!currentAiMessageId && parsedChunk.id) {
-              // 使用 LangChain 消息对象的 id
-              const messageId = parsedChunk.id;
-              currentAiMessageId = messageId;
-              currentRawData = parsedChunk;
-              
-              // 创建AI消息
-              setMessages(prev => [...prev, {
-                id: messageId,
-                role: 'assistant',
-                content: '',
-                tool_calls: [],
-                raw: parsedChunk,
-                usage_metadata: parsedChunk.usage_metadata
-              }]);
-            } else if (parsedChunk.usage_metadata) {
-              // 更新currentRawData以包含usage_metadata
-              currentRawData = parsedChunk;
-              // 更新当前使用的tokens
-              if (parsedChunk.usage_metadata.total_tokens) {
-                setCurrentTokens(parsedChunk.usage_metadata.total_tokens);
-              }
-            }
 
-            // 累积内容
-            if (parsedChunk.content) {
-              newAiResponse += parsedChunk.content;
-            }
-            
-            // 更新AI消息
-            if (currentAiMessageId) {
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const aiMessageIndex = newMessages.findIndex(msg => msg.id === currentAiMessageId);
-                if (aiMessageIndex !== -1) {
-                  const currentMessage = newMessages[aiMessageIndex];
-                  if (currentMessage) {
-                    newMessages[aiMessageIndex] = {
-                      id: currentMessage.id,
-                      role: currentMessage.role,
-                      content: newAiResponse,
-                      tool_calls: currentMessage.tool_calls || [],
-                      raw: currentRawData,
-                      usage_metadata: currentRawData?.usage_metadata
-                    };
+              // 有content就更新content
+              if (parsedChunk.content) {
+                newAiResponse += parsedChunk.content;
+              }
+
+              // 有工具调用的chunk就更新工具调用
+              if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {
+                for (const chunk of parsedChunk.tool_call_chunks) {
+                  const index = chunk.index ?? 0;
+                  if (!toolCallChunksMap.has(index)) {
+                    toolCallChunksMap.set(index, { args: '' });
+                  }
+                  const existing = toolCallChunksMap.get(index)!;
+                  if (chunk.name !== null && chunk.name !== undefined) {
+                    (existing as any).name = chunk.name;
+                  }
+                  if (chunk.args) {
+                    existing.args += chunk.args;
+                  }
+                  if (chunk.id !== null && chunk.id !== undefined) {
+                    (existing as any).id = chunk.id;
                   }
                 }
-                return newMessages;
-              });
-            }
-          }
-        } catch (e) {
-          // 如果不是JSON，则忽略
-          console.log('无法解析chunk:', chunk);
-        }
-      }
+              }
 
-      // 添加工具请求消息
-      if (currentToolCalls.length > 0) {
-        const toolRequestMessage: Message = {
-          id: generateMessageId(),
-          role: 'tool_request',
-          content: '',
-          tool_calls: currentToolCalls
-        };
-        setMessages(prev => [...prev, toolRequestMessage]);
+              // 有chunk_position: "last"就意味着有元数据，那么再更新一次元数据
+              if (parsedChunk.chunk_position === 'last') {
+                // 更新currentRawData以包含usage_metadata
+                currentRawData = parsedChunk;
+              }
+
+              // 更新AI消息
+              if (currentAiMessageId) {
+                // 将累积的工具调用chunks转换为ToolCall数组
+                const toolCalls: ToolCall[] = [];
+                for (const [index, chunk] of toolCallChunksMap.entries()) {
+                  const chunkWithName = chunk as any;
+                  if (chunk.args) {
+                    try {
+                      const args = JSON.parse(chunk.args);
+                      toolCalls.push({
+                        name: chunkWithName.name || 'unknown',
+                        args: args
+                      });
+                    } catch (e) {
+                      // 如果args不是完整的JSON，仍然显示工具调用，但标记为加载中
+                      toolCalls.push({
+                        name: chunkWithName.name || 'unknown',
+                        args: { _loading: true, _partial_args: chunk.args }
+                      });
+                    }
+                  }
+                }
+
+                setState((prevState: any) => {
+                  const newMessages = [...(prevState?.values?.messages || [])];
+                  const aiMessageIndex = newMessages.findIndex(msg => msg.id === currentAiMessageId);
+                  if (aiMessageIndex !== -1) {
+                    const currentMessage = newMessages[aiMessageIndex];
+                    if (currentMessage) {
+                      newMessages[aiMessageIndex] = {
+                        id: currentMessage.id,
+                        type: currentMessage.type,
+                        content: newAiResponse,
+                        tool_calls: toolCalls,
+                        usage_metadata: currentRawData?.usage_metadata
+                      };
+                    }
+                  }
+                  return {
+                    ...prevState,
+                    values: {
+                      ...prevState?.values,
+                      messages: newMessages
+                    }
+                  };
+                });
+              }
+            }
+          } catch (e) {
+            // 如果不是JSON，则忽略
+            console.log('无法解析chunk:', line);
+          }
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '发送消息失败');
@@ -283,6 +346,36 @@ const ChatPanel = () => {
       setMessage(inputMessage);
     } finally {
       setIsLoading(false);
+      
+      // 流式传输结束后，获取最终状态
+      try {
+        const finalState = await httpClient.get('/api/chat/state');
+        setState(finalState);
+        console.log("获取最终状态成功");
+        
+        // 检查是否有中断信息
+        if (finalState?.interrupts && finalState.interrupts.length > 0) {
+          const interrupt = finalState.interrupts[0];
+          if (interrupt.value && interrupt.value.tool_name) {
+            const toolInfo = interrupt.value;
+            toolInfo.id = interrupt.id;
+            
+            // 对于 ask_user 工具，只传递必要的信息用于渲染按钮
+            if (toolInfo.tool_name === 'ask_user') {
+              setInterruptInfo({
+                ...toolInfo,
+                isSimpleInterrupt: true
+              });
+            } else {
+              setInterruptInfo(toolInfo);
+            }
+          }
+        } else {
+          setInterruptInfo(null);
+        }
+      } catch (error) {
+        console.error('获取最终状态失败:', error);
+      }
     }
   };
 
@@ -294,68 +387,191 @@ const ChatPanel = () => {
     }
   };
 
-  // 渲染消息
-  const renderMessage = (msg: Message) => {
-    const isUser = msg.role === 'user';
-    const isTool = msg.role === 'tool';
-    const isToolRequest = msg.role === 'tool_request';
+  // 处理中断响应
+  const handleInterruptResponse = async (response: InterruptResponse) => {
+    console.log('处理中断响应:', response);
     
-    return (
-      <div
-        key={msg.id}
-        className={`flex flex-col max-w-[80%] p-2.5 rounded-medium break-words overflow-wrap break-word ${
-          isUser
-            ? 'self-end bg-theme-green1 text-theme-white'
-            : 'self-start bg-theme-gray2 text-theme-white'
-        }`}
-      >
-        <div className="font-bold mb-1 text-[0.9em]">
-          {isUser ? '用户' : isTool ? '工具' : isToolRequest ? '工具请求' : 'AI'}
-        </div>
-        <div className="leading-[1.4] overflow-wrap break-word break-words">
-          {isUser ? (
-            <div className="whitespace-pre-wrap">{msg.content}</div>
-          ) : isTool || isToolRequest ? (
-            <div>
-              <div className="whitespace-pre-wrap">{msg.content}</div>
-              {msg.tool_calls && msg.tool_calls.length > 0 && (
-                <div className="mt-2 p-2 bg-black/20 rounded-small">
-                  <div className="font-bold mb-1 text-theme-green">工具:</div>
-                  {msg.tool_calls.map((toolCall, toolIndex) => (
-                    <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
-                      <span className="font-bold text-theme-green">
-                        {toolCall.name || toolCall.function?.name || '未知工具'}
-                      </span>
-                      {toolCall.args && (
-                        <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words">
-                          参数: {JSON.stringify(toolCall.args, null, 2)}
-                        </div>
-                      )}
-                      {toolCall.function?.arguments && (
-                        <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words">
-                          参数: {typeof toolCall.function.arguments === 'string'
-                            ? JSON.stringify(JSON.parse(toolCall.function.arguments), null, 2)
-                            : JSON.stringify(toolCall.function.arguments, null, 2)}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <div className="whitespace-pre-wrap">{msg.content}</div>
-              {msg.usage_metadata && (
-                <div className="mt-2 text-[0.75em] text-theme-gray3">
-                  输入: {msg.usage_metadata.input_tokens} / 输出: {msg.usage_metadata.output_tokens}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    try {
+      const interruptResponse = {
+        interruptId: interruptInfo!.id,
+        choice: response.choice || (response.action === 'approve' ? '1' : '2'), // '1'=恢复, '2'=取消
+        additionalData: response.additionalData || ''
+      };
+      
+      const responseStream = await httpClient.streamRequest('/api/chat/interrupt-response', {
+        method: 'POST',
+        body: {
+          interrupt_id: interruptResponse.interruptId,
+          choice: interruptResponse.choice,
+          additional_data: interruptResponse.additionalData
+        }
+      } as any);
+      
+      // 清除中断信息
+      setInterruptInfo(null);
+      
+      // 获取响应的ReadableStream
+      const reader = responseStream.body!.getReader();
+      const decoder = new TextDecoder();
+      let currentAiMessageId: string | null = null;
+      let newAiResponse = "";
+      let currentRawData: any = null;
+      const toolCallChunksMap = new Map<number, { name?: string; args: string; id?: string }>();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // 解码并处理每个数据块
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        
+        for (const line of lines) {
+          try {
+            const parsedChunk = JSON.parse(line) as StreamChunk;
+            console.log("解析后的数据：", parsedChunk);
+
+            if (parsedChunk.error) {
+              throw new Error(parsedChunk.error);
+            }
+
+            // 处理流式消息
+            if (parsedChunk.type === 'AIMessageChunk') {
+              if (!currentAiMessageId && parsedChunk.id) {
+                const messageId = parsedChunk.id;
+                currentAiMessageId = messageId;
+                currentRawData = parsedChunk;
+                
+                setState((prevState: any) => {
+                  const newMessages = [...(prevState?.values?.messages || [])];
+                  newMessages.push({
+                    id: messageId,
+                    type: 'ai',
+                    content: '',
+                    tool_calls: [],
+                    usage_metadata: parsedChunk.usage_metadata
+                  });
+                  return {
+                    ...prevState,
+                    values: {
+                      ...prevState?.values,
+                      messages: newMessages
+                    }
+                  };
+                });
+              }
+
+              if (parsedChunk.content) {
+                newAiResponse += parsedChunk.content;
+              }
+
+              if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {
+                for (const chunk of parsedChunk.tool_call_chunks) {
+                  const index = chunk.index ?? 0;
+                  if (!toolCallChunksMap.has(index)) {
+                    toolCallChunksMap.set(index, { args: '' });
+                  }
+                  const existing = toolCallChunksMap.get(index)!;
+                  if (chunk.name !== null && chunk.name !== undefined) {
+                    (existing as any).name = chunk.name;
+                  }
+                  if (chunk.args) {
+                    existing.args += chunk.args;
+                  }
+                  if (chunk.id !== null && chunk.id !== undefined) {
+                    (existing as any).id = chunk.id;
+                  }
+                }
+              }
+
+              if (parsedChunk.chunk_position === 'last') {
+                currentRawData = parsedChunk;
+              }
+
+              if (currentAiMessageId) {
+                const toolCalls: ToolCall[] = [];
+                for (const [index, chunk] of toolCallChunksMap.entries()) {
+                  const chunkWithName = chunk as any;
+                  if (chunk.args) {
+                    try {
+                      const args = JSON.parse(chunk.args);
+                      toolCalls.push({
+                        name: chunkWithName.name || 'unknown',
+                        args: args
+                      });
+                    } catch (e) {
+                      toolCalls.push({
+                        name: chunkWithName.name || 'unknown',
+                        args: { _loading: true, _partial_args: chunk.args }
+                      });
+                    }
+                  }
+                }
+
+                setState((prevState: any) => {
+                  const newMessages = [...(prevState?.values?.messages || [])];
+                  const aiMessageIndex = newMessages.findIndex(msg => msg.id === currentAiMessageId);
+                  if (aiMessageIndex !== -1) {
+                    const currentMessage = newMessages[aiMessageIndex];
+                    if (currentMessage) {
+                      newMessages[aiMessageIndex] = {
+                        id: currentMessage.id,
+                        type: currentMessage.type,
+                        content: newAiResponse,
+                        tool_calls: toolCalls,
+                        usage_metadata: currentRawData?.usage_metadata
+                      };
+                    }
+                  }
+                  return {
+                    ...prevState,
+                    values: {
+                      ...prevState?.values,
+                      messages: newMessages
+                    }
+                  };
+                });
+              }
+            }
+          } catch (e) {
+            console.log('无法解析chunk:', line);
+          }
+        }
+      }
+      
+      // 流式传输结束后，获取最终状态
+      try {
+        const finalState = await httpClient.get('/api/chat/state');
+        setState(finalState);
+        console.log("获取最终状态成功");
+        
+        // 检查是否有中断信息
+        if (finalState?.interrupts && finalState.interrupts.length > 0) {
+          const interrupt = finalState.interrupts[0];
+          if (interrupt.value && interrupt.value.tool_name) {
+            const toolInfo = interrupt.value;
+            toolInfo.id = interrupt.id;
+            
+            if (toolInfo.tool_name === 'ask_user') {
+              setInterruptInfo({
+                ...toolInfo,
+                isSimpleInterrupt: true
+              });
+            } else {
+              setInterruptInfo(toolInfo);
+            }
+          }
+        } else {
+          setInterruptInfo(null);
+        }
+      } catch (error) {
+        console.error('获取最终状态失败:', error);
+      }
+    } catch (error) {
+      console.error('处理中断响应失败:', error);
+      setInterruptInfo(null);
+      setError('处理中断响应时发生错误');
+    }
   };
 
   return (
@@ -393,25 +609,45 @@ const ChatPanel = () => {
       <ContextProgressBar currentTokens={currentTokens} />
       
       {/* 消息显示区域 */}
-      <div className="flex-1 overflow-y-auto p-2.5 flex flex-col">
-        <div className="flex-1 overflow-y-auto mt-2.5 flex flex-col gap-2">
-          {messages.length === 0 ? (
-            <div className="text-center text-theme-gray2 text-sm">暂无消息</div>
-          ) : (
-            messages.map(renderMessage)
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
+      <MessageDisplayPanel messages={messages} />
 
       {/* 输入区域 */}
-      <div className="h-[15%] p-2.5 border border-theme-gray3">
+      <div className="h-[15%] p-2.5 border border-theme-gray3 flex flex-col">
+        {/* 工具确认界面 */}
+        {interruptInfo && (
+          <div className="bg-theme-gray1 rounded-medium shadow-light mb-2">
+            {/* 只有非简化中断信息才显示工具描述 */}
+            {!interruptInfo.isSimpleInterrupt && (
+              <div className="bg-theme-black p-2">
+                <span className="text-theme-green text-[15px] leading-[1.4]">
+                  {interruptInfo.description || interruptInfo.tool_display_name || interruptInfo.tool_name || '工具调用请求'}
+                </span>
+              </div>
+            )}
+            
+            <div className="flex gap-0">
+              <button
+                className="bg-theme-green text-theme-white border-none text-[13px] font-medium cursor-pointer transition-all flex-1 text-center py-2"
+                onClick={() => handleInterruptResponse({ action: 'approve', choice: '1', additionalData: message })}
+              >
+                确认
+              </button>
+              <button
+                className="bg-red-500 text-white border-none text-[13px] font-medium cursor-pointer transition-all flex-1 text-center py-2"
+                onClick={() => handleInterruptResponse({ action: 'reject', choice: '2', additionalData: message })}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* 输入框占位 */}
         <div className="flex w-full flex-1 relative overflow-visible">
           <textarea
             className="bg-theme-black text-theme-white border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 focus:outline-none"
-            placeholder="输入@+空格可选择文件，同时按下shift+回车可换行"
-            rows={3}
+            placeholder={interruptInfo ? "请输入额外信息（可选）..." : "输入@+空格可选择文件，同时按下shift+回车可换行"}
+            rows={interruptInfo ? 2 : 3}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -420,7 +656,7 @@ const ChatPanel = () => {
           <button
             className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-white disabled:text-theme-white disabled:cursor-not-allowed"
             onClick={handleSendMessage}
-            disabled={!message.trim() || isLoading}
+            disabled={!message.trim() || isLoading || !!interruptInfo}
           >
             <FontAwesomeIcon icon={faPaperPlane} />
           </button>

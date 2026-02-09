@@ -2,20 +2,39 @@ import json
 import logging
 import time
 import asyncio
-from dataclasses import asdict
 from pydantic import BaseModel, Field
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from backend.config.config import settings
 from backend.ai_agent.core.graph_builder import with_graph_builder
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 # 导入LangChain相关类型用于类型检查
 from langgraph.types import Command
+
+def serialize_messages_with_type(messages):
+    """为消息添加type字段"""
+    result = []
+    for msg in messages:
+        msg_dict = msg.model_dump() if hasattr(msg, 'model_dump') else {}
+        
+        # 根据消息类型添加type字段
+        if isinstance(msg, HumanMessage):
+            msg_dict['type'] = 'human'
+        elif isinstance(msg, AIMessage):
+            msg_dict['type'] = 'ai'
+        elif isinstance(msg, ToolMessage):
+            msg_dict['type'] = 'tool'
+        else:
+            msg_dict['type'] = 'unknown'
+        
+        result.append(msg_dict)
+    return result
 
 # 请求模型
 class ChatMessageRequest(BaseModel):
     """发送聊天消息请求"""
     message: str = Field(..., description="用户消息内容")
+    id: str = Field(default="", description="消息ID")
 
 class InterruptResponseRequest(BaseModel):
     """中断响应请求"""
@@ -39,45 +58,33 @@ async def send_chat_message(request: ChatMessageRequest):
     发送聊天消息给AI Agent
     
     - **message**: 用户消息内容
+    - **id**: 消息ID
     """
     message = request.message
+    message_id = request.id
     thread_id = settings.get_config("thread_id")
     user_id = settings.get_config("user_id", default="default_user")
-    logger.info(f"使用的thread_id: {thread_id}, user_id: {user_id}")
+    logger.info(f"使用的thread_id: {thread_id}, user_id: {user_id}, message_id: {message_id}")
     
     @with_graph_builder
     async def generate_response(graph):
         """处理消息并返回生成器"""
         config = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
         
+        # 构造HumanMessage，包含id
+        human_message = HumanMessage(content=message, id=message_id)
+        
         # 流式处理
-        async for message_chunk, metadata in graph.astream({"messages": [HumanMessage(content=message)]}, config, stream_mode="messages"):
+        async for message_chunk, metadata in graph.astream({"messages": [human_message]}, config, stream_mode="messages"):
             # 在控制台打印流式传输信息
             if message_chunk.content:
                 print(message_chunk.content, end="|", flush=True)
             
             # 使用model_dump方法序列化完整的消息对象
+            # 添加分隔符，避免被多个json对象被拼接到一起，进而造成前端消息显示不全，隔三岔五缺几个字符的问题
             serialized_chunk = message_chunk.model_dump()
-            yield json.dumps(serialized_chunk, ensure_ascii=False)
+            yield json.dumps(serialized_chunk, ensure_ascii=False) + "\n"
             await asyncio.sleep(0)
-        
-        # 检查是否有工具中断
-        final_state = await graph.aget_state(config)
-        if hasattr(final_state, 'interrupts') and final_state.interrupts:
-            logger.info(f"工具中断: {final_state}")
-            for interrupt in final_state.interrupts:
-                logger.info(f"中断信息: {interrupt.value}")
-            
-            # 发送中断信息
-            interrupt_message = {
-                "type": "interrupt",
-                "interrupts": [asdict(interrupt) for interrupt in final_state.interrupts]
-            }
-            yield json.dumps(interrupt_message)
-        
-        # 发送完成标记
-        done_message = {"type": "done"}
-        yield json.dumps(done_message)
     
     return StreamingResponse(generate_response(), media_type="text/event-stream")
 
@@ -118,26 +125,8 @@ async def send_interrupt_response(request: InterruptResponseRequest):
             
             # 使用model_dump方法序列化完整的消息对象
             serialized_chunk = message_chunk.model_dump()
-            yield json.dumps(serialized_chunk, ensure_ascii=False)
+            yield json.dumps(serialized_chunk, ensure_ascii=False) + "\n"
             await asyncio.sleep(0)
-        
-        # 再次检查有无工具中断
-        final_state = await graph.aget_state(config)
-        if hasattr(final_state, 'interrupts') and final_state.interrupts:
-            logger.info(f"工具中断: {final_state}")
-            for interrupt in final_state.interrupts:
-                logger.info(f"中断信息: {interrupt.value}")
-            
-            # 发送中断信息
-            interrupt_message = {
-                "type": "interrupt",
-                "interrupts": [asdict(interrupt) for interrupt in final_state.interrupts]
-            }
-            yield json.dumps(interrupt_message)
-        
-        # 发送完成标记
-        done_message = {"type": "done"}
-        yield json.dumps(done_message)
     
     return StreamingResponse(remove_interrupt_response(), media_type="text/event-stream")
 
@@ -233,6 +222,52 @@ async def summarize_conversation():
     
     # 调用装饰器函数
     return await process_summarize()
+
+
+@router.get("/state", summary="获取当前状态")
+async def get_current_state():
+    """
+    获取当前对话的完整状态
+    
+    返回:
+    - 完整的state对象，包含values、next、config、metadata等
+    """
+    thread_id = settings.get_config("thread_id")
+    user_id = settings.get_config("user_id", default="default_user")
+    logger.info(f"获取状态使用的thread_id: {thread_id}, user_id: {user_id}")
+    
+    @with_graph_builder
+    async def process_get_state(graph):
+        """获取当前状态"""
+        config = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
+        
+        # 获取最终状态
+        final_state = await graph.aget_state(config)
+        
+        # 处理values中的messages，添加type字段
+        values = final_state.values if hasattr(final_state, 'values') else {}
+        if 'messages' in values:
+            values = {**values, 'messages': serialize_messages_with_type(values['messages'])}
+        
+        # 手动构建可序列化的state字典
+        state_dict = {
+            "values": values,
+            "next": final_state.next if hasattr(final_state, 'next') else None,
+            "config": final_state.config if hasattr(final_state, 'config') else {},
+            "metadata": final_state.metadata if hasattr(final_state, 'metadata') else {},
+            "created_at": final_state.created_at if hasattr(final_state, 'created_at') else None,
+            "parent_config": final_state.parent_config if hasattr(final_state, 'parent_config') else None,
+            "tasks": list(final_state.tasks) if hasattr(final_state, 'tasks') else [],
+            "interrupts": list(final_state.interrupts) if hasattr(final_state, 'interrupts') else []
+        }
+        
+        return state_dict
+    
+    # 使用async for遍历生成器并获取结果
+    result = None
+    async for item in process_get_state():
+        result = item
+    return result
 
 
 @router.get("/selected-model", summary="获取选中的模型")

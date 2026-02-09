@@ -34,16 +34,6 @@ const ContextProgressBar = ({ currentTokens }: ContextProgressBarProps) => {
   // 计算模式max_tokens在模型上下文中的百分比位置
   const modePercentage = (modeMaxTokens / modelContextLength) * 100;
 
-  console.log('ContextProgressBar:', {
-    selectedProviderId,
-    selectedModelId,
-    selectedModeId,
-    modelContextLength,
-    modeMaxTokens,
-    modePercentage,
-    currentTokens
-  });
-
   return (
     <div className="px-2.5 py-1.5 border-b border-theme-gray1">
       <div className="flex items-center gap-2">
