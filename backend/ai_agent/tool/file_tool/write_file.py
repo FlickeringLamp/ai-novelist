@@ -2,6 +2,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langgraph.types import interrupt
+from backend.config.config import settings
 
 class WriteFileInput(BaseModel):
     """写入文件的输入参数"""
@@ -10,7 +11,7 @@ class WriteFileInput(BaseModel):
 
 @tool(args_schema=WriteFileInput)
 def write_file(path: str, content: str) -> str:
-    """创建文件并写入内容。注意：1. 如果文件已存在，使用write_file会导致所有内容被覆盖，建议先用read工具了解内容再使用此工具。2. 如果文件不存在，将会创建新文件并写入内容
+    """创建文件并写入内容。注意: 1. 文件使用.md后缀。2. 如果文件已存在, 使用write_file会导致所有内容被覆盖, 建议先用read工具了解内容再使用此工具。3. 如果文件不存在，将会创建新文件并写入内容
     
     Args:
         path: 文件路径（相对于novel目录的相对路径）
@@ -32,7 +33,8 @@ def write_file(path: str, content: str) -> str:
     
     if choice_action == "1":
         try:
-            path = Path(path)
+            # 将相对路径拼接NOVEL_DIR
+            path = Path(settings.NOVEL_DIR) / path
             
             # 确保目录存在
             path.parent.mkdir(parents=True, exist_ok=True)

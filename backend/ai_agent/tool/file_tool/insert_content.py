@@ -2,6 +2,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langgraph.types import interrupt
+from backend.config.config import settings
 
 class InsertContentInput(BaseModel):
     """插入内容的输入参数"""
@@ -35,7 +36,8 @@ def insert_content(path: str, paragraph: int, content: str) -> str:
     
     if choice_action == "1":
         try:
-            file_path = Path(path)
+            # 将相对路径拼接NOVEL_DIR
+            file_path = Path(settings.NOVEL_DIR) / path
             
             with open(file_path, 'r', encoding='utf-8') as f:
                 existing_content = f.read()

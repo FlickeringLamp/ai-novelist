@@ -1,46 +1,37 @@
-import { useRef, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useRef, useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../../store/store';
+import type { Message, AIMessage } from '../../types/langchain';
+import { setAvailableTools } from '../../store/mode';
+import { selectMessages } from '../../store/chat';
+import httpClient from '../../utils/httpClient';
 
-// 类型定义
-interface ToolCall {
-  name?: string;
-  function?: {
-    name?: string;
-    arguments?: string | Record<string, unknown>;
-  };
-  args?: Record<string, unknown>;
-}
-
-interface UsageMetadata {
-  input_tokens?: number;
-  output_tokens?: number;
-  total_tokens?: number;
-  input_token_details?: {
-    cache_read?: number;
-  };
-  output_token_details?: Record<string, unknown>;
-}
-
-interface Message {
-  id: string;
-  type: string; // 'human' | 'ai' | 'tool'，从state中读取
-  content?: string;
-  tool_calls?: ToolCall[];
-  // 存储使用元数据
-  usage_metadata?: UsageMetadata;
-}
-
-interface MessageDisplayPanelProps {
-  messages: Message[];
-}
-
-const MessageDisplayPanel = ({ messages }: MessageDisplayPanelProps) => {
+const MessageDisplayPanel = () => {
+  const dispatch = useDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
+  const [expandedToolResults, setExpandedToolResults] = useState<Set<string>>(new Set());
   
   // 从Redux获取可用工具信息
   const availableTools = useSelector((state: RootState) => state.modeSlice.availableTools);
+  
+  // 从Redux获取消息列表
+  const messages = useSelector((state: RootState) => selectMessages(state));
+
+  // 加载可用工具数据
+  useEffect(() => {
+    const loadTools = async () => {
+      try {
+        const toolsResult = await httpClient.get('/api/mode/tool/available-tools');
+        if (toolsResult) {
+          dispatch(setAvailableTools(toolsResult));
+        }
+      } catch (error) {
+        console.error('加载工具数据失败:', error);
+      }
+    };
+    loadTools();
+  }, []);
 
   // 自动滚动到最新消息
   const scrollToBottom = () => {
@@ -61,6 +52,29 @@ const MessageDisplayPanel = ({ messages }: MessageDisplayPanelProps) => {
     });
   };
 
+  // 切换工具结果展开/折叠状态
+  const toggleToolResultExpand = (msgId: string) => {
+    setExpandedToolResults(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(msgId)) {
+        newSet.delete(msgId);
+      } else {
+        newSet.add(msgId);
+      }
+      return newSet;
+    });
+  };
+
+  // 获取预览内容（第一行或前几个字）
+  const getPreviewContent = (content: string): string => {
+    const lines = content.split('\n');
+    const firstLine = lines[0]?.trim() || '';
+    if (firstLine.length > 50) {
+      return firstLine.substring(0, 50) + '...';
+    }
+    return firstLine || '...';
+  };
+
   // 当消息列表变化时自动滚动到底部
   const scrollRef = useRef(messages.length);
   if (messages.length !== scrollRef.current) {
@@ -71,8 +85,38 @@ const MessageDisplayPanel = ({ messages }: MessageDisplayPanelProps) => {
   // 渲染消息
   const renderMessage = (msg: Message) => {
     const isUser = msg.type === 'human';
-    const isToolRequest = msg.type === 'tool_request';
+    const isToolResult = msg.type === 'tool';
     
+    // 工具结果消息独立渲染
+    if (isToolResult) {
+      const isExpanded = expandedToolResults.has(msg.id);
+      const previewContent = getPreviewContent(msg.content || '');
+      
+      return (
+        <div
+          key={msg.id}
+          className="flex flex-col max-w-[80%] self-start bg-theme-gray1 border border-theme-green p-2.5 rounded-medium break-words overflow-wrap break-word"
+        >
+          <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleToolResultExpand(msg.id)}>
+            <div className="font-bold text-[0.9em] text-theme-white">
+              工具
+            </div>
+            <button className="text-xs text-theme-green hover:text-theme-white ml-2">
+              {isExpanded ? '▼' : '▶'}
+            </button>
+          </div>
+          <div className="leading-[1.4] overflow-wrap break-word break-words text-theme-white mt-1">
+            {isExpanded ? (
+              <div className="whitespace-pre-wrap">{msg.content}</div>
+            ) : (
+              <div className="text-theme-gray3 text-sm">{previewContent}</div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // 用户消息、AI消息
     return (
       <div
         key={msg.id}
@@ -83,24 +127,20 @@ const MessageDisplayPanel = ({ messages }: MessageDisplayPanelProps) => {
         }`}
       >
         <div className="font-bold mb-1 text-[0.9em]">
-          {isUser ? '用户' : isToolRequest ? '工具请求' : 'AI'}
+          {isUser ? '用户' : 'AI'}
         </div>
         <div className="leading-[1.4] overflow-wrap break-word break-words">
           {isUser ? (
             <div className="whitespace-pre-wrap">{msg.content}</div>
-          ) : isToolRequest ? (
+          ) : (
             <div>
-              <div className="text-theme-green font-bold mb-2">
-                {msg.tool_calls && msg.tool_calls.length > 0
-                  ? `工具请求 (${msg.tool_calls.length}个工具)`
-                  : '工具请求'}
-              </div>
-              {msg.tool_calls && msg.tool_calls.length > 0 && (
+              <div className="whitespace-pre-wrap">{msg.content}</div>
+              {msg.type === 'ai' && (msg as AIMessage).tool_calls && (msg as AIMessage).tool_calls.length > 0 && (
                 <div className="mt-2 p-2 bg-black/20 rounded-small">
-                  {msg.tool_calls.map((toolCall, toolIndex) => {
+                  {(msg as AIMessage).tool_calls.map((toolCall, toolIndex) => {
                     const toolKey = `${msg.id}-${toolIndex}`;
                     const isExpanded = expandedTools.has(toolKey);
-                    const args = toolCall.args || toolCall.function?.arguments;
+                    const args = toolCall.args;
                     const path = args && typeof args === 'object' && 'path' in args ? (args as any).path : null;
                     
                     return (
@@ -108,46 +148,6 @@ const MessageDisplayPanel = ({ messages }: MessageDisplayPanelProps) => {
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-theme-green">
                             {availableTools[toolCall.name || '']?.name || toolCall.name || '未知工具'}
-                          </span>
-                          <button
-                            className="text-xs text-theme-green cursor-pointer hover:text-theme-white"
-                            onClick={() => toggleToolExpand(msg.id, toolIndex)}
-                          >
-                            {isExpanded ? '▼' : '▶'}
-                          </button>
-                          {path && (
-                            <span className="text-xs text-theme-gray3">
-                              {path}
-                            </span>
-                          )}
-                        </div>
-                        {isExpanded && args && (
-                          <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words">
-                            {typeof args === 'string' ? JSON.parse(args) : JSON.stringify(args, null, 2)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <div className="whitespace-pre-wrap">{msg.content}</div>
-              {msg.tool_calls && msg.tool_calls.length > 0 && (
-                <div className="mt-2 p-2 bg-black/20 rounded-small">
-                  {msg.tool_calls.map((toolCall, toolIndex) => {
-                    const toolKey = `${msg.id}-${toolIndex}`;
-                    const isExpanded = expandedTools.has(toolKey);
-                    const args = toolCall.args || toolCall.function?.arguments;
-                    const path = args && typeof args === 'object' && 'path' in args ? (args as any).path : null;
-                    
-                    return (
-                      <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-theme-green">
-                            {availableTools[toolCall.name || '']?.name || '未知工具'}
                           </span>
                           <button
                             className="text-xs text-theme-green cursor-pointer hover:text-theme-white"
@@ -188,9 +188,9 @@ const MessageDisplayPanel = ({ messages }: MessageDisplayPanelProps) => {
                   })}
                 </div>
               )}
-              {msg.usage_metadata && (
+              {msg.type === 'ai' && (msg as AIMessage).usage_metadata && (
                 <div className="mt-2 text-[0.75em] text-theme-gray3">
-                  输入: {msg.usage_metadata.input_tokens} / 输出: {msg.usage_metadata.output_tokens}
+                  输入: {(msg as AIMessage).usage_metadata?.input_tokens || 0} / 输出: {(msg as AIMessage).usage_metadata?.output_tokens || 0}
                 </div>
               )}
             </div>
@@ -215,4 +215,3 @@ const MessageDisplayPanel = ({ messages }: MessageDisplayPanelProps) => {
 };
 
 export default MessageDisplayPanel;
-export type { Message, ToolCall, UsageMetadata };

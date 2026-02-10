@@ -119,7 +119,6 @@ async def send_interrupt_response(request: InterruptResponseRequest):
         
         # 流式处理中断响应
         async for message_chunk, metadata in graph.astream(human_response, config, stream_mode="messages"):
-            print("message_chunk长什么样：", message_chunk)
             if message_chunk.content:
                 print(message_chunk.content, end="/", flush=True)
             

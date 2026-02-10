@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from langchain.tools import tool, ToolRuntime
 from langgraph.types import interrupt
+from backend.config.config import settings
 
 
 class SearchAndReplaceInput(BaseModel):
@@ -47,7 +48,8 @@ def search_and_replace(path: str, search: str, replace: str,
     
     if choice_action == "1":
         try:
-            full_path = Path(path)
+            # 将相对路径拼接NOVEL_DIR
+            full_path = Path(settings.NOVEL_DIR) / path
             
             # 检查文件是否存在
             if not full_path.exists():

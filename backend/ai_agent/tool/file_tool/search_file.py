@@ -4,6 +4,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langgraph.types import interrupt
+from backend.config.config import settings
 
 # 导入配置和路径验证器
 import sys
@@ -38,7 +39,8 @@ def search_file(path: str, regex: str) -> str:
     
     if choice_action == "1":
         try:
-            search_path = Path(path)
+            # 将相对路径拼接NOVEL_DIR
+            search_path = Path(settings.NOVEL_DIR) / path
             
             pattern = re.compile(regex)
             results = []

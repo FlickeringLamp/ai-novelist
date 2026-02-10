@@ -1,17 +1,17 @@
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store/store';
+import { selectCurrentTokens } from '../../store/chat';
 
-interface ContextProgressBarProps {
-  currentTokens: number;
-}
-
-const ContextProgressBar = ({ currentTokens }: ContextProgressBarProps) => {
+const ContextProgressBar = () => {
   // 从Redux获取状态
   const allProvidersData = useSelector((state: RootState) => state.providerSlice.allProvidersData);
   const selectedProviderId = useSelector((state: RootState) => state.providerSlice.selectedProviderId);
   const selectedModelId = useSelector((state: RootState) => state.providerSlice.selectedModelId);
   const allModesData = useSelector((state: RootState) => state.modeSlice.allModesData);
   const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId);
+  
+  // 从Redux获取当前使用的tokens
+  const currentTokens = useSelector(selectCurrentTokens);
 
   // 计算当前模型的最大上下文长度
   const getModelContextLength = (): number => {

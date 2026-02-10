@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from langchain.tools import tool
 from langgraph.types import interrupt
+from backend.config.config import settings
 
 
 class ReadFileInput(BaseModel):
@@ -38,7 +39,8 @@ def read_file(file_path: str, start_paragraph: Optional[int] = None,
     
     if choice_action == "1":
         try:
-            path = Path(file_path)
+            # 将相对路径拼接NOVEL_DIR
+            path = Path(settings.NOVEL_DIR) / file_path
             
             # 读取文件内容
             with open(path, 'r', encoding='utf-8') as f:

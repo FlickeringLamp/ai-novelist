@@ -1,24 +1,18 @@
 import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGear, faFolder, faFile, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
-import { useDispatch } from 'react-redux';
-import { collapseAll } from '../../store/file.ts';
+import { useDispatch, useSelector } from 'react-redux';
+import { collapseAll, setChapters } from '../../store/file.ts';
+import type { RootState } from '../../store/store';
 import ChapterContextMenu from './FileContextMenu.tsx';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.ts';
 import ChapterTreeItem from './TreeRender.tsx';
-
-interface ChapterItem {
-  id: string;
-  title?: string;
-  isFolder?: boolean;
-  type?: string;
-  children?: ChapterItem[];
-}
+import type { ChapterItem } from '../../store/file.ts';
 
 function ChapterTreePanel() {
   const dispatch = useDispatch();
-  const [chapters, setChapters] = useState<ChapterItem[]>([]); // 整个章节列表
+  const chapters = useSelector((state: RootState) => state.fileSlice.chapters);
   /*
    * 以下是两个item状态的思路
    * 首先，文件操作分为三类：
@@ -59,7 +53,7 @@ function ChapterTreePanel() {
   const fetchChapters = async () => {
     try {
       const result = await httpClient.get('/api/file/tree');
-      setChapters(result || []);
+      dispatch(setChapters(result || []));
     } catch (error) {
       console.error('获取章节列表失败：', error);
       setModal({ show: true, message: (error as Error).toString(), onConfirm: null, onCancel: null });

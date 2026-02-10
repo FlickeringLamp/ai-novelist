@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from langchain.tools import tool, ToolRuntime
 from langgraph.types import interrupt
+from backend.config.config import settings
 
 class ApplyDiffInput(BaseModel):
     """应用差异的输入参数"""
@@ -245,7 +246,8 @@ def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> s
     
     if choice_action == "1":
         try:
-            file_path = Path(path)
+            # 将相对路径拼接NOVEL_DIR
+            file_path = Path(settings.NOVEL_DIR) / path
             
             # 读取原始文件内容
             with open(file_path, 'r', encoding='utf-8') as f:

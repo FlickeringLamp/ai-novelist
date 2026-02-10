@@ -4,6 +4,7 @@ import fileReducer from './file'
 import providerReducer from './provider'
 import knowledgeReducer from './knowledge'
 import modeReducer from './mode'
+import chatReducer from './chat'
 
 export const store = configureStore({
   reducer: {
@@ -11,7 +12,8 @@ export const store = configureStore({
     fileSlice: fileReducer,
     providerSlice: providerReducer,
     knowledgeSlice: knowledgeReducer,
-    modeSlice: modeReducer
+    modeSlice: modeReducer,
+    chatSlice: chatReducer
   },
 })
 
