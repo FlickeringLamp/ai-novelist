@@ -137,6 +137,13 @@ const MessageInputPanel = () => {
 
               if (parsedChunk.content) {
                 newAiResponse += parsedChunk.content;
+                // 有content时立即更新，实现流式渲染
+                if (currentAiMessageId) {
+                  dispatch(updateAiMessage({
+                    id: currentAiMessageId,
+                    content: newAiResponse
+                  }));
+                }
               }
 
               if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {
@@ -262,6 +269,13 @@ const MessageInputPanel = () => {
 
               if (parsedChunk.content) {
                 newAiResponse += parsedChunk.content;
+                // 有content时立即更新，实现流式渲染
+                if (currentAiMessageId) {
+                  dispatch(updateAiMessage({
+                    id: currentAiMessageId,
+                    content: newAiResponse
+                  }));
+                }
               }
 
               if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {
