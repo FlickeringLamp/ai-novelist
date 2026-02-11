@@ -10,37 +10,39 @@
 *   **章节管理**: 创建、编辑、删除和组织章节。
 *   **内容编辑器**: 强大的文本编辑功能，ai操作友好，非技术用户使用体验略逊
 *   **工具调用**: 支持类似 vibecoding 的工具调用解决问题，目前部分功能仍在完善中。
+*   **rag知识库**: 允许ai获得相关资料，提升效果
 
 ## 技术栈
 
-### 前端技术
+### 前端技术 (TypeScript)
 *   **React**: 前端主流框架之一
 *   **Redux**: 前端状态管理库
 *   **Tailwind CSS**: CSS框架
 *   **monaco-editor**: vscode同款编辑器
 
-### 后端技术
+### 后端技术 (python)
 *   **FastAPI**: python服务器框架
 *   **LangChain**: 用于构建AI应用的工具链
 *   **LangGraph**: 基于图的AI工作流编排框架
-*   **LanceDB**: 向量数据库，提供语义搜索和知识库管理
+*   **ChromaDB**: 向量数据库，提供语义搜索和知识库管理
 
-## Languages
+
+## Languages(2026/2/11)
 | language | files | code | comment | blank | total |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| TypeScript JSX | 37 | 6,076 | 517 | 745 | 7,338 |
-| Python | 38 | 3,151 | 1,012 | 764 | 4,927 |
-| TypeScript | 10 | 628 | 142 | 109 | 879 |
-| Markdown | 3 | 220 | 0 | 80 | 300 |
-| PostCSS | 4 | 155 | 12 | 26 | 193 |
+| TypeScript JSX | 55 | 5,567 | 357 | 709 | 6,633 |
+| Python | 41 | 3,283 | 1,189 | 813 | 5,285 |
+| TypeScript | 15 | 1,096 | 151 | 170 | 1,417 |
+| Markdown | 3 | 234 | 0 | 88 | 322 |
+| PostCSS | 4 | 180 | 18 | 29 | 227 |
+| JavaScript | 4 | 78 | 44 | 12 | 134 |
 | JSON | 1 | 78 | 0 | 1 | 79 |
-| JavaScript | 3 | 75 | 44 | 12 | 131 |
 | JSON with Comments | 1 | 29 | 19 | 7 | 55 |
+| Ignore | 1 | 20 | 5 | 5 | 30 |
 | HTML | 1 | 14 | 0 | 1 | 15 |
 
-Total : 98 files,  10426 codes, 1746 comments, 1745 blanks, all 13917 lines
 
-## 项目结构
+## 项目结构(2026.1.26)
 
 前端：
 📦src
@@ -103,25 +105,21 @@ Total : 98 files,  10426 codes, 1746 comments, 1745 blanks, all 13917 lines
 
 以下是目前已知但暂未修复的问题：
 
-- **工具调用功能不完善**: 部分工具调用功能仍在开发中，可能存在不稳定的情况
-- **错误处理**: 部分异常情况的错误提示不够友好，偶尔有前后端连不上的情况
+- **工具调用功能不完善**: 部分工具调用功能仍在开发中，可能存在不稳定的情况， 且与其他功能（章节栏，标签页等）不协调
+- **聊天栏功能不完善**：目前历史消息，回档，文件补全，模式选择，自动批准，rag知识库，以及部分工具功能能，暂未实现
 
 ## 后续发展规划
 
 ### 短期目标（v0.2.0）
-- 清理前后端大量低效代码
-- 重构langgraph板块，使用官方在1.0推荐的最佳实践
-- 完善工具调用功能，提高稳定性
-- 改进错误提示和用户引导
-- 更稳定的前后端连接
+- 完善工具调用功能
 - 两步rag & 工具rag，两种rag检索并存
-- 重写模型提供商板块。应该内置一些模型，其他模型交由用户自行添加（类似cherrystudio的机制）。
+- 完成聊天栏全部功能
 - 部分功能自动化测试
 
 ### 中期目标（v0.3.0）
 - 可视化工作流编辑器（类dify）
 - 更灵活的AI聊天功能（类酒馆？？？）
-- 更好的文本编辑体验（类obsidian）
+- mcp，skills功能
 
 ### 长期目标（v1.0.0）
 - 暂无
@@ -173,8 +171,6 @@ Total : 98 files,  10426 codes, 1746 comments, 1745 blanks, all 13917 lines
 - 提交的代码与 [MIT 协议](LICENSE) 兼容
 - 避免引入与 MIT 协议不兼容的代码
 
-**关于 DCO 的说明**：先前本项目有 DCO（开发者来源证书）要求，但检查未正确移除。现已完全移除所有 DCO 检查和要求。贡献者不再需要在提交时进行签名确认。
-
 感谢每一位贡献者的支持！
 
 ## 许可证
@@ -186,12 +182,6 @@ Total : 98 files,  10426 codes, 1746 comments, 1745 blanks, all 13917 lines
 
 ## 致谢 (Acknowledgements)
 
-本项目的开发在很大程度上借鉴了 `roo-code` 项目。我们对 `roo-code` 的开发者们表示衷心的感谢。
+本项目的开发在一定程度上借鉴了 `roo-code` 项目。我们对 `roo-code` 的开发者们表示衷心的感谢。
 
 `roo-code` 项目基于 Apache License 2.0 开源。根据其许可证要求，我们在项目中包含了其原始的许可证声明，您可以在 [`LICENSE-roo-code.txt`](./LICENSE-roo-code.txt) 文件中查看。
-
-## Acknowledgements
-
-This project is heavily inspired by and based on the work of the `roo-code` project. We extend our sincere gratitude to the developers of `roo-code`.
-
-The `roo-code` project is licensed under the Apache License, Version 2.0. In compliance with its terms, we have included the original license notice within our project, which can be found in the [`LICENSE-roo-code.txt`](./LICENSE-roo-code.txt) file.
