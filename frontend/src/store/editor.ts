@@ -15,6 +15,7 @@ export interface EditorState {
   activeTabBarId: string;
   currentData: Record<string, string>; // id → content，用户实时操作的数据
   backUp: Record<string, string>; // id → content，备份用的，主要功能是对比，显示脏数据情况，后续可能用于ai编辑操作
+  diffModeTabs: Record<string, boolean>; // 处于差异对比模式的标签ID集合
 }
 
 // 定义 RootState 类型
@@ -33,6 +34,7 @@ const editorState: EditorState = {
   activeTabBarId: "bar1",
   currentData: {},
   backUp: {},
+  diffModeTabs: {},
 };
 
 // 其他给reducer用的辅助函数
@@ -322,6 +324,62 @@ export const tabSlice = createSlice({
       delete state.currentData[tabId];
       delete state.backUp[tabId];
     },
+    // 创建临时标签用于差异对比（用于文件工具调用）
+    createTempDiffTab: (
+      state: Draft<EditorState>,
+      action: PayloadAction<{ id: string; originalContent: string; modifiedContent: string }>,
+    ) => {
+      const { id, originalContent, modifiedContent } = action.payload;
+
+      // 找到第一个有内容的标签栏，如果没有则使用第一个标签栏
+      const tabBarIds = Object.keys(state.tabBars);
+      let targetTabBarId = tabBarIds[0];
+      
+      for (const tabBarId of tabBarIds) {
+        if (state.tabBars[tabBarId]!.tabs.length > 0) {
+          targetTabBarId = tabBarId;
+          break;
+        }
+      }
+
+      if (targetTabBarId) {
+        const targetTabBar = state.tabBars[targetTabBarId]!;
+        
+        // 如果标签不存在，则添加
+        if (!targetTabBar.tabs.find((tab) => tab === id)) {
+          targetTabBar.tabs.push(id);
+        }
+        
+        // 设置为活跃标签
+        targetTabBar.activeTabId = id;
+        
+        // 设置活跃标签栏
+        state.activeTabBarId = targetTabBarId;
+      }
+
+      // 设置backUp为原内容，currentData为修改后的内容
+      state.backUp[id] = originalContent;
+      state.currentData[id] = modifiedContent;
+      
+      // 添加到差异模式标签集合
+      state.diffModeTabs[id] = true;
+    },
+    // 更新差异模式标签的内容（流式更新）
+    updateDiffTabContent: (
+      state: Draft<EditorState>,
+      action: PayloadAction<{ id: string; content: string }>,
+    ) => {
+      const { id, content } = action.payload;
+      state.currentData[id] = content;
+    },
+    // 退出差异模式
+    exitDiffMode: (
+      state: Draft<EditorState>,
+      action: PayloadAction<{ id: string }>,
+    ) => {
+      const { id } = action.payload;
+      delete state.diffModeTabs[id];
+    },
   },
 });
 
@@ -339,6 +397,9 @@ export const {
   closeSavedTabs,
   closeAllTabs,
   deleteTabFromAllBars,
+  createTempDiffTab,
+  updateDiffTabContent,
+  exitDiffMode,
 } = tabSlice.actions;
 
 export default tabSlice.reducer;
@@ -378,5 +439,13 @@ export const getTabBarsWithContent = createSelector(
       }
     });
     return result;
+  },
+);
+
+// 返回指定标签是否处于差异模式
+export const isTabInDiffMode = createSelector(
+  [(state: RootState) => state.tabSlice.diffModeTabs, (_: RootState, tabId: string) => tabId],
+  (diffModeTabs, tabId): boolean => {
+    return diffModeTabs[tabId] || false;
   },
 );

@@ -32,8 +32,54 @@ export const fileSlice = createSlice({
     setChapters: (state: FileState, action: PayloadAction<ChapterItem[]>) => {
       state.chapters = action.payload;
     },
+    // 临时添加文件/文件夹（用于write_file工具调用时临时显示）
+    addTempFile: (state: FileState, action: PayloadAction<{ path: string }>) => {
+      const { path } = action.payload;
+      const parts = path.split('/');
+      
+      // 递归查找或创建文件夹
+      const findOrCreateFolder = (items: ChapterItem[], partIndex: number): ChapterItem[] => {
+        if (partIndex >= parts.length - 1) {
+          // 最后一个部分是文件
+          const fileName = parts[parts.length - 1] || 'file';
+          // 检查文件是否已存在
+          const existingFile = items.find(item => item.id === path);
+          if (!existingFile) {
+            items.push({
+              id: path,
+              title: fileName,
+              isFolder: false,
+              type: 'file',
+            });
+          }
+          return items;
+        }
+        
+        const folderName = parts[partIndex] || 'folder';
+        const folderPath = parts.slice(0, partIndex + 1).join('/');
+        let folder = items.find(item => item.id === folderPath);
+        
+        if (!folder) {
+          folder = {
+            id: folderPath,
+            title: folderName,
+            isFolder: true,
+            children: [],
+          };
+          items.push(folder);
+        }
+        
+        if (folder && folder.children) {
+          findOrCreateFolder(folder.children, partIndex + 1);
+        }
+        
+        return items;
+      };
+      
+      findOrCreateFolder(state.chapters, 0);
+    },
   },
 });
 
-export const { toggleCollapse, collapseAll, setChapters } = fileSlice.actions;
+export const { toggleCollapse, collapseAll, setChapters, addTempFile } = fileSlice.actions;
 export default fileSlice.reducer;

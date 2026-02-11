@@ -11,8 +11,12 @@ import {
   setMessage,
   selectInterrupt,
 } from '../../store/chat';
+import { exitDiffMode, saveTabContent, updateTabContent, decreaseTab } from '../../store/editor';
 import type { ToolCall, UsageMetadata } from '../../types/langchain';
 import httpClient from '../../utils/httpClient';
+
+// 支持的文件工具列表
+const FILE_TOOLS = ['write_file', 'insert_content', 'apply_diff', 'search_and_replace'];
 
 // 中断响应接口
 interface InterruptResponse {
@@ -52,12 +56,46 @@ interface StreamChunk {
   chunk_position?: string | null;
 }
 
+// 尝试补全不完整的JSON字符串（只考虑完成path，写content时的json结构补全。前者不补全也不影响，只有一些不重要的报错）
+const tryCompleteJSON = (jsonStr: string): string => {
+  let result = jsonStr.trim();
+  
+  // 如果已经是完整的JSON，直接返回
+  try {
+    JSON.parse(result);
+    return result;
+  } catch (e) {
+    // JSON不完整，尝试补全
+  }
+  
+  // 尝试补全：添加引号和右大括号
+  const testStr = result + '"}';
+  try {
+    JSON.parse(testStr);
+    return testStr;
+  } catch (e) {
+    // 补全失败，尝试只添加右大括号
+  }
+  
+  // 尝试补全：只添加右大括号
+  const testStr2 = result + '}';
+  try {
+    JSON.parse(testStr2);
+    return testStr2;
+  } catch (e) {
+    // 补全失败，返回原字符串
+  }
+  
+  return result;
+};
+
 const MessageInputPanel = () => {
   const dispatch = useDispatch();
   
   // 从Redux获取状态
   const interrupt = useSelector((state: RootState) => selectInterrupt(state));
   const message = useSelector((state: RootState) => state.chatSlice.message);
+  const backUpData = useSelector((state: RootState) => state.tabSlice.backUp);
   
   // 本地错误状态
   const [error, setError] = useState('');
@@ -175,10 +213,11 @@ const MessageInputPanel = () => {
                       type: 'tool_call'
                     });
                   } catch (e) {
+                    const completedArgs = tryCompleteJSON(existing.args);
                     toolCalls.push({
                       id: (existing as any).id || 'unknown',
                       name: (existing as any).name || 'unknown',
-                      args: { _loading: true, _partial_args: existing.args },
+                      args: { _loading: true, _partial_args: completedArgs },
                       type: 'tool_call'
                     });
                   }
@@ -229,6 +268,24 @@ const MessageInputPanel = () => {
         choice: response.choice || (response.action === 'approve' ? '1' : '2'),
         additionalData: response.additionalData || ''
       };
+      
+      // 处理所有文件工具的差异对比模式
+      const toolName = interrupt?.value?.tool_name;
+      if (toolName && FILE_TOOLS.includes(toolName)) {
+        const path = interrupt.value.parameters?.path as string | undefined;
+        if (path) {
+          // 关闭差异对比模式
+          dispatch(exitDiffMode({ id: path }));
+          
+          if (response.action === 'approve') {
+            // 批准：同步 currentData 到 backUp
+            dispatch(saveTabContent({ id: path }));
+          } else {
+            // 拒绝：关闭标签栏里的标签
+            dispatch(decreaseTab({ tabId: path }));
+          }
+        }
+      }
       
       const responseStream = await httpClient.streamRequest('/api/chat/interrupt-response', {
         method: 'POST',
@@ -309,10 +366,11 @@ const MessageInputPanel = () => {
                       type: 'tool_call'
                     });
                   } catch (e) {
+                    const completedArgs = tryCompleteJSON(existing.args);
                     toolCalls.push({
                       id: (existing as any).id || 'unknown',
                       name: (existing as any).name || 'unknown',
-                      args: { _loading: true, _partial_args: existing.args },
+                      args: { _loading: true, _partial_args: completedArgs },
                       type: 'tool_call'
                     });
                   }

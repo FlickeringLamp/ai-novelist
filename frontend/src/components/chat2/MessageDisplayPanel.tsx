@@ -1,10 +1,17 @@
 import { useRef, useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faAngleRight, faAngleUp } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
 import type { Message, AIMessage } from '../../types/langchain';
 import { setAvailableTools } from '../../store/mode';
 import { selectMessages } from '../../store/chat';
+import { addTempFile } from '../../store/file';
+import { createTempDiffTab, updateDiffTabContent } from '../../store/editor';
 import httpClient from '../../utils/httpClient';
+
+// 支持的文件工具列表
+const FILE_TOOLS = ['write_file', 'insert_content', 'apply_diff', 'search_and_replace'];
 
 const MessageDisplayPanel = () => {
   const dispatch = useDispatch();
@@ -32,6 +39,202 @@ const MessageDisplayPanel = () => {
     };
     loadTools();
   }, []);
+
+  // 验证文件名是否以.md结尾。"测试文件.md"√，"侧"×，"测试"×，"测试文"×，"测试文件.m"×
+  const isValidMdFile = (path: string): boolean => {
+    return path.endsWith('.md');
+  };
+
+  // 解析diff内容，计算修改后的内容
+  const applyDiff = (originalContent: string, diff: string): string => {
+    const lines = originalContent.split('\n');
+    const result = [...lines];
+    const blocks = diff.split('<<<<<<< SEARCH');
+    
+    for (const block of blocks) {
+      if (!block.trim()) continue;
+      
+      const parts = block.split('=======');
+      if (parts.length < 2) continue;
+      
+      const searchPart = parts[0];
+      const replacePart = parts[1]?.split('>>>>>>> REPLACE')[0];
+      
+      if (!searchPart || !replacePart) continue;
+      
+      // 提取起始行号
+      const lineMatch = searchPart.match(/:start_line:(\d+)/);
+      if (!lineMatch || !lineMatch[1]) continue;
+      
+      const startLine = parseInt(lineMatch[1], 10) - 1; // 转换为0-based
+      
+      // 提取要搜索的内容
+      const searchStart = searchPart.indexOf('-------') + 7;
+      const searchText = searchPart.substring(searchStart).trim();
+      
+      // 查找匹配的行
+      let matchIndex = -1;
+      const searchLines = searchText.split('\n');
+      
+      for (let i = startLine; i <= result.length - searchLines.length; i++) {
+        let match = true;
+        for (let j = 0; j < searchLines.length; j++) {
+          if (result[i + j] !== searchLines[j]) {
+            match = false;
+            break;
+          }
+        }
+        if (match) {
+          matchIndex = i;
+          break;
+        }
+      }
+      
+      if (matchIndex !== -1) {
+        // 替换内容
+        const replaceLines = replacePart.trim().split('\n');
+        result.splice(matchIndex, searchLines.length, ...replaceLines);
+      }
+    }
+    
+    return result.join('\n');
+  };
+
+  // 搜索并替换文本
+  const searchAndReplace = (content: string, search: string, replace: string, useRegex: boolean = false, ignoreCase: boolean = false): string => {
+    if (useRegex) {
+      const flags = ignoreCase ? 'gi' : 'g';
+      const regex = new RegExp(search, flags);
+      return content.replace(regex, replace);
+    } else {
+      if (ignoreCase) {
+        const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        return content.replace(regex, replace);
+      } else {
+        return content.split(search).join(replace);
+      }
+    }
+  };
+
+  // 在指定位置插入内容
+  const insertContent = (content: string, paragraph: number, newContent: string): string => {
+    const lines = content.split('\n');
+    
+    if (paragraph === 0) {
+      // 在文件末尾追加
+      lines.push(newContent);
+    } else {
+      // 在指定段落插入
+      const insertIndex = Math.min(paragraph - 1, lines.length);
+      lines.splice(insertIndex, 0, newContent);
+    }
+    
+    return lines.join('\n');
+  };
+
+  // 获取文件内容
+  const fetchFileContent = async (path: string): Promise<string> => {
+    try {
+      const result = await httpClient.get(`/api/file/read/${encodeURIComponent(path)}`);
+      return result?.content || '';
+    } catch (error) {
+      console.error(`读取文件 ${path} 失败:`, error);
+      return '';
+    }
+  };
+
+  // 处理文件工具调用
+  const handleFileToolCall = async (toolName: string, args: any) => {
+    const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
+    const path = parsedArgs.path;
+    
+    if (!path || !isValidMdFile(path)) {
+      return;
+    }
+
+    // 添加临时文件到文件树
+    dispatch(addTempFile({ path }));
+
+    // 获取原文件内容（所有工具都需要获取原内容）
+    const originalContent = await fetchFileContent(path);
+    let modifiedContent = originalContent;
+
+    // 根据工具类型计算修改后的内容
+    switch (toolName) {
+      case 'write_file': {
+        const content = parsedArgs.content;
+        if (content !== undefined) {
+          modifiedContent = content;
+        }
+        break;
+      }
+      
+      case 'insert_content': {
+        const paragraph = parsedArgs.paragraph;
+        const content = parsedArgs.content;
+        
+        if (paragraph !== undefined && content !== undefined) {
+          modifiedContent = insertContent(originalContent, paragraph, content);
+        }
+        break;
+      }
+      
+      case 'apply_diff': {
+        const diff = parsedArgs.diff;
+        
+        if (diff) {
+          modifiedContent = applyDiff(originalContent, diff);
+        }
+        break;
+      }
+      
+      case 'search_and_replace': {
+        const search = parsedArgs.search;
+        const replace = parsedArgs.replace;
+        const useRegex = parsedArgs.use_regex || false;
+        const ignoreCase = parsedArgs.ignore_case || false;
+        
+        if (search !== undefined && replace !== undefined) {
+          modifiedContent = searchAndReplace(originalContent, search, replace, useRegex, ignoreCase);
+        }
+        break;
+      }
+    }
+
+    // 创建差异对比标签页（backUp为原内容，currentData为修改后的内容）
+    dispatch(createTempDiffTab({ id: path, originalContent, modifiedContent }));
+  };
+
+  // 实时监测文件工具调用（只检查最后一条消息）
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    
+    // 只有当最后一条消息是AI消息且有工具调用时才处理
+    if (lastMessage!.type === 'ai' && (lastMessage as AIMessage).tool_calls) {
+      (lastMessage as AIMessage).tool_calls.forEach(toolCall => {
+        const toolName = toolCall.name;
+        
+        // 只处理支持的文件工具
+        if (FILE_TOOLS.includes(toolName || '')) {
+          const args = toolCall.args;
+          
+          if ((args as any)._loading && (args as any)._partial_args) {
+            // 处理加载中的_partial_args
+            try {
+              const partialArgs = JSON.parse((args as any)._partial_args);
+              handleFileToolCall(toolName || '', partialArgs);
+            } catch (e) {
+              console.error("解析_partial_args失败:", e);
+            }
+          } else {
+            // 处理完整的args
+            handleFileToolCall(toolName || '', args);
+          }
+        }
+      });
+    }
+  }, [messages, dispatch]);
 
   // 自动滚动到最新消息
   const scrollToBottom = () => {
@@ -98,12 +301,10 @@ const MessageDisplayPanel = () => {
           className="flex flex-col max-w-[80%] self-start bg-theme-gray1 border border-theme-green p-2.5 rounded-medium break-words overflow-wrap break-word"
         >
           <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleToolResultExpand(msg.id)}>
-            <div className="font-bold text-[0.9em] text-theme-white">
-              工具
+            <div className="flex items-center">
+              <FontAwesomeIcon icon={isExpanded ? faAngleUp : faAngleRight} className="text-theme-green hover:text-theme-white text-xs mr-2" />
+              <span className="font-bold text-[0.9em] text-theme-white">工具</span>
             </div>
-            <button className="text-xs text-theme-green hover:text-theme-white ml-2">
-              {isExpanded ? '▼' : '▶'}
-            </button>
           </div>
           <div className="leading-[1.4] overflow-wrap break-word break-words text-theme-white mt-1">
             {isExpanded ? (
@@ -146,15 +347,14 @@ const MessageDisplayPanel = () => {
                     return (
                       <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
                         <div className="flex items-center gap-2">
+                          <FontAwesomeIcon
+                            icon={isExpanded ? faAngleUp : faAngleRight}
+                            className="text-xs text-theme-green cursor-pointer hover:text-theme-white"
+                            onClick={() => toggleToolExpand(msg.id, toolIndex)}
+                          />
                           <span className="font-bold text-theme-green">
                             {availableTools[toolCall.name || '']?.name || toolCall.name || '未知工具'}
                           </span>
-                          <button
-                            className="text-xs text-theme-green cursor-pointer hover:text-theme-white"
-                            onClick={() => toggleToolExpand(msg.id, toolIndex)}
-                          >
-                            {isExpanded ? '▼' : '▶'}
-                          </button>
                           {path && (
                             <span className="text-xs text-theme-gray3">
                               {path}
@@ -163,24 +363,26 @@ const MessageDisplayPanel = () => {
                         </div>
                         {isExpanded && args && (
                           <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words">
-                            {(args as any)._loading
-                              ? `加载中... ${(args as any)._partial_args || ''}`
-                              : (() => {
-                                  const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
-                                  const content = parsedArgs.content;
-                                  if (content !== undefined) {
-                                    return content;
-                                  }
-                                  // 如果没有content，显示所有键值对，但排除content键（如果存在）
-                                  const result: Record<string, any> = {};
-                                  for (const [key, value] of Object.entries(parsedArgs)) {
-                                    if (key !== 'content') {
-                                      result[key] = value;
+                            {(() => {
+                              const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
+                              
+                              return (args as any)._loading
+                                ? `加载中... ${(args as any)._partial_args || ''}`
+                                : (() => {
+                                    const content = parsedArgs.content;
+                                    if (content !== undefined) {
+                                      return content;
                                     }
-                                  }
-                                  return JSON.stringify(result, null, 2);
-                                })()
-                            }
+                                    // 如果没有content，显示所有键值对，但排除content键（如果存在）
+                                    const result: Record<string, any> = {};
+                                    for (const [key, value] of Object.entries(parsedArgs)) {
+                                      if (key !== 'content') {
+                                        result[key] = value;
+                                      }
+                                    }
+                                    return JSON.stringify(result, null, 2);
+                                  })();
+                            })()}
                           </div>
                         )}
                       </div>

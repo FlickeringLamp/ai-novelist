@@ -1,10 +1,10 @@
 import React, { forwardRef, useRef, useEffect, useState } from 'react';
-import Editor, { type OnMount } from '@monaco-editor/react';
+import Editor, { type OnMount, DiffEditor } from '@monaco-editor/react';
 import loader from '@monaco-editor/loader';
 import type * as Monaco from 'monaco-editor';
 import { useTheme } from '../../../context/ThemeContext.tsx';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateTabContent, saveTabContent, type RootState } from '../../../store/editor.ts';
+import { updateTabContent, saveTabContent, isTabInDiffMode, type RootState } from '../../../store/editor.ts';
 import api from '../../../utils/httpClient.ts';
 import UnifiedModal from '../../others/UnifiedModal';
 
@@ -68,7 +68,9 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
   const tabBar = useSelector((state: RootState) => state.tabSlice.tabBars[tabBarId!] || null);
   const activeTab = tabBar?.tabs.find((tab: string) => tab === tabBar?.activeTabId);
   const currentData = useSelector((state: RootState) => state.tabSlice.currentData);
+  const backUpData = useSelector((state: RootState) => state.tabSlice.backUp);
   const value = activeTab ? (currentData[activeTab] || '') : '';
+  const isDiffMode = useSelector((state: RootState) => activeTab ? isTabInDiffMode(state, activeTab) : false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorModal, setErrorModal] = useState<string | null>(null);
 
@@ -183,33 +185,63 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
         />
       )}
       
-      <Editor
-        height="100%"
-        defaultLanguage="markdown" // 暂时没用，以后根据文件后缀动态切换多语言可能有点用
-        language="markdown"
-        beforeMount={(monaco) => {
-          // 在编辑器挂载前定义主题
-          defineTheme(monaco, theme);
-        }}
-        theme="theme-green"
-        value={value}
-        onChange={handleEditorChange}
-        onMount={(editor, monaco) => {
-          editorRef.current = editor;
-          handleEditorDidMount(editor, monaco);
-        }}
-        options={{
-          minimap: { enabled: true },
-          fontSize: 14,
-          lineNumbers: 'on',
-          wordWrap: 'on', // 自动换行（视觉上的自动换行，并非添加换行符）
-          automaticLayout: true, // 当容器大小变化时自动重新计算编辑器尺寸
-          scrollBeyondLastLine: true, // 允许最后一行向上滚动，直到视窗顶部
-          tabSize: 2,
-          renderWhitespace:"all",
-          renderControlCharacters: true,
-        }}
-      />
+      {isDiffMode ? (
+        <DiffEditor
+          height="100%"
+          language="markdown"
+          beforeMount={(monaco) => {
+            defineTheme(monaco, theme);
+          }}
+          theme="theme-green"
+          original={activeTab ? (backUpData[activeTab] || '') : ''}
+          modified={value}
+          onMount={(editor, monaco) => {
+            editorRef.current = editor.getModifiedEditor();
+            handleEditorDidMount(editor.getModifiedEditor(), monaco);
+          }}
+          options={{
+            minimap: { enabled: true },
+            fontSize: 14,
+            lineNumbers: 'on',
+            wordWrap: 'on',
+            automaticLayout: true,
+            scrollBeyondLastLine: true,
+            renderWhitespace: "all",
+            renderControlCharacters: true,
+            readOnly: true, // 差异模式下只读
+            enableSplitViewResizing: true,
+            renderSideBySide: true,
+          }}
+        />
+      ) : (
+        <Editor
+          height="100%"
+          defaultLanguage="markdown" // 暂时没用，以后根据文件后缀动态切换多语言可能有点用
+          language="markdown"
+          beforeMount={(monaco) => {
+            // 在编辑器挂载前定义主题
+            defineTheme(monaco, theme);
+          }}
+          theme="theme-green"
+          value={value}
+          onChange={handleEditorChange}
+          onMount={(editor, monaco) => {
+            editorRef.current = editor;
+            handleEditorDidMount(editor, monaco);
+          }}
+          options={{
+            minimap: { enabled: true },
+            fontSize: 14,
+            lineNumbers: 'on',
+            wordWrap: 'on', // 自动换行（视觉上的自动换行，并非添加换行符）
+            automaticLayout: true, // 当容器大小变化时自动重新计算编辑器尺寸
+            scrollBeyondLastLine: true, // 允许最后一行向上滚动，直到视窗顶部
+            tabSize: 2,
+            renderWhitespace:"all",
+            renderControlCharacters: true,
+          }}
+        />
+      )}
     </div>
   );
 });
