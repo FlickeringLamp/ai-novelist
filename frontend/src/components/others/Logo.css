@@ -1,0 +1,69 @@
+/* 定义旋转动画 */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 定义逆时针旋转动画 */
+@keyframes rotate-reverse {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* 定义上下飘动动画 */
+@keyframes float1 {
+  0%, 100% {
+    transform: translateY(0.25vw);
+  }
+  50% {
+    transform: translateY(-0.25vw);
+  }
+}
+/* 反向飘动 */
+@keyframes float2 {
+  0%, 100% {
+    transform: translateY(-0.25vw);
+  }
+  50% {
+    transform: translateY(0.25vw);
+  }
+}
+
+/* 应用动画 */
+.auto-rotate1 {
+  animation: rotate 40s linear infinite;
+  transform-origin: center;
+}
+
+.auto-rotate2 {
+  animation: rotate 12s linear infinite;
+  transform-origin: center;
+}
+
+.auto-rotate3 {
+  animation: rotate-reverse 20s linear infinite;
+  transform-origin: center;
+}
+
+.auto-rotate4 {
+  animation: rotate-reverse 40s linear infinite;
+  transform-origin:center ;
+}
+
+.float-animation1 {
+  animation: float1 6600ms ease-in-out infinite;
+  transform-origin: center;
+}
+
+.float-animation2{
+  animation: float2 6600ms ease-in-out infinite;
+  transform-origin: center;
+}

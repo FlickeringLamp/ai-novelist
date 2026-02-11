@@ -1,0 +1,16 @@
+/* 定义呼吸灯动画 - 亮度闪烁 */
+@keyframes breathing {
+  0%, 100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.9;
+    filter: brightness(0.9);
+  }
+}
+
+/* 应用呼吸灯动画 */
+.breathing-animation {
+  animation: breathing 10s ease-in-out infinite;
+}

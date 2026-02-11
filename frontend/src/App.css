@@ -1,0 +1,19 @@
+@layer utilities {
+  /* 滚动条样式 - 只支持WebKit (Chrome, Edge)，firefox对滑动条自定义样式支持不高 */
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-black);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-gray3);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-green);
+  }
+}

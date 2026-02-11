@@ -1,0 +1,133 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+frontend/node_modules/
+backend_env/
+python安装包/
+
+# Build artifacts
+dist/
+frontend/build/
+
+# IDE and Editor files
+.idea/
+.vscode/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# User data
+uploads/
+study/
+develop_note/
+启动说明.txt
+backend/data
+*.bat
+test_files/
+archive/
+.VSCodeCounter/
+
+# Lock files
+mcp-filesystem-server.lock
+# Other ignored files
+*.bak
+
+# Runtime and dependency files
+node/
+python_portable/
+
+# Database files
+db/
+
+# Build outputs and temporary files
+*.tmp
+*.temp
+.cache/
+.nyc_output/
+coverage/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.backup
+*.swp
+*.swo
+*~
+
+
+# Node-gyp cache directory
+.node-gyp-cache/
+
+
+# Test files
+test-additional-info.js
+
+# Batch files (if not needed for deployment)
+*~
+
+# Portable Git (for distribution, not version control)
+PortableGit/
+
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.tox/
+
+# ChromaDB and vector database files
+chroma.sqlite3
+chroma.sqlite3-journal
+*.chroma
+*.db
+
+# Electron specific
+app/build/
+app/dist/
+*.dmg
+*.deb
+*.rpm
+*.AppImage
+*.snap
+
+# Development and testing
+.nyc_output/
+.nyc_output/*
+test-results/
+jest-test-results.xml
+cypress/videos/
+cypress/screenshots/
+
+# Package managers
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# IDE specific (additional)
+*.swp
+*.swo
+*~
+.~lock.*
+
+# Executable files
+*.exe

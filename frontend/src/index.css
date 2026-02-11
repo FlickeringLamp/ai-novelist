@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@theme {
+  /* 基础颜色 - 使用 CSS 变量以支持动态主题 */
+  --color-theme-black: var(--color-black);
+  --color-theme-green: var(--color-green);
+  --color-theme-green1: var(--color-green1);
+  --color-theme-white: var(--color-white);
+  --color-theme-red:   var(--color-red);
+  --color-theme-gray1: var(--color-gray1);
+  --color-theme-gray2: var(--color-gray2);
+  --color-theme-gray3: var(--color-gray3);
+  --color-theme-gray4: var(--color-gray4);
+  --color-theme-gray5: var(--color-gray5);
+
+  /* 圆角配置 */
+  --radius-small: 4px;
+  --radius-medium: 8px;
+
+  /* 阴影配置 */
+  --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-deep: 0 8px 12px rgba(0, 0, 0, 0.5);
+}
+
+:root {
+  /* 基础颜色 - 默认值 */
+  --color-black: #000000;    /* 纯黑：底色，用于面 */
+  --color-green: #34eb5c;    /* 绿色：普通状态，用于小件 */
+  --color-green1: #2ad541;  /* 暗绿色：用于用户消息气泡 */
+  --color-white: #FFFFFF;    /* 纯白色：普通状态，多用于字体 */
+  --color-red:   #ff0000;      /* 红色：错误/离线状态，用于小件 */
+  --color-gray1: #111111;    /* 焦浓重淡清 */
+  --color-gray2: #333333;
+  --color-gray3: #666666;
+  --color-gray4: #999999;
+  --color-gray5: #cccccc;
+}
+
+/* ===== 全局基础样式 ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-black);
+  color: var(--color-white);
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+  color: var(--color-white);
+}
+
+h1, h2 {
+  color: var(--color-white);
+}
+
+/* ===== Range Input 自定义样式 ===== */
+.range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(to right, var(--color-theme-green) 0%, var(--color-theme-green) var(--progress, 0%), var(--color-theme-gray2) var(--progress, 0%), var(--color-theme-gray2) 100%);
+  cursor: pointer;
+}
+
+/* Webkit (Chrome, Safari, Edge) - 轨道背景 */
+.range-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  background: transparent;
+  border-radius: 3px;
+}
+
+/* Webkit - 滑块拇指 */
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--color-theme-green);
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: -5px; /* 垂直居中: (trackHeight / 2) - (thumbHeight / 2) */
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Firefox - 轨道背景 */
+.range-slider::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  background: var(--color-theme-gray2);
+  border-radius: 3px;
+}
+
+/* Firefox - 滑块拇指 */
+.range-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--color-theme-green);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
