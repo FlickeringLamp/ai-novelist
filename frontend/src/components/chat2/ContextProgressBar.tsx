@@ -1,6 +1,5 @@
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store/store';
-import { selectCurrentTokens } from '../../store/chat';
 
 const ContextProgressBar = () => {
   // 从Redux获取状态
@@ -10,8 +9,12 @@ const ContextProgressBar = () => {
   const allModesData = useSelector((state: RootState) => state.modeSlice.allModesData);
   const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId);
   
-  // 从Redux获取当前使用的tokens
-  const currentTokens = useSelector(selectCurrentTokens);
+  // 从state获取最新AI消息的tokens
+  const currentTokens = useSelector((state: RootState) => {
+    const messages = state.chatSlice.state?.values?.messages || [];
+    const lastAiMessage = messages.filter(msg => msg.type === 'ai').pop();
+    return lastAiMessage?.usage_metadata?.total_tokens || 0;
+  });
 
   // 计算当前模型的最大上下文长度
   const getModelContextLength = (): number => {

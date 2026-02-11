@@ -175,20 +175,3 @@ export const selectInterrupt = (state: RootState): Interrupt | null => {
   return interrupts.length > 0 ? (interrupts[0] ?? null) : null;
 };
 
-// Selector: 判断是否正在加载（有中断时视为加载中）
-export const selectIsLoading = (state: RootState): boolean => {
-  const interrupts = state.chatSlice.state?.interrupts || [];
-  return interrupts.length > 0;
-};
-
-// Selector: 计算当前使用的tokens（从messages中获取）
-export const selectCurrentTokens = (state: RootState): number => {
-  const messages = state.chatSlice.state?.values?.messages || [];
-  let totalTokens = 0;
-  for (const msg of messages) {
-    if (msg.type === 'ai' && msg.usage_metadata?.total_tokens) {
-      totalTokens += msg.usage_metadata.total_tokens;
-    }
-  }
-  return totalTokens;
-};

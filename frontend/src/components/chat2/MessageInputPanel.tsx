@@ -10,7 +10,6 @@ import {
   setState,
   setMessage,
   selectInterrupt,
-  selectIsLoading,
 } from '../../store/chat';
 import type { ToolCall, UsageMetadata } from '../../types/langchain';
 import httpClient from '../../utils/httpClient';
@@ -58,7 +57,6 @@ const MessageInputPanel = () => {
   
   // 从Redux获取状态
   const interrupt = useSelector((state: RootState) => selectInterrupt(state));
-  const isLoading = useSelector((state: RootState) => selectIsLoading(state));
   const message = useSelector((state: RootState) => state.chatSlice.message);
   
   // 本地错误状态
@@ -103,7 +101,7 @@ const MessageInputPanel = () => {
 
   // 处理发送消息
   const handleSendMessage = async () => {
-    if (!message.trim() || isLoading) return;
+    if (!message.trim()) return;
 
     const inputMessage = message.trim();
     const userMessageId = generateMessageId();
@@ -147,8 +145,6 @@ const MessageInputPanel = () => {
               }
 
               if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {
-                const toolCalls: ToolCall[] = [];
-                
                 for (const chunk of parsedChunk.tool_call_chunks) {
                   const index = chunk.index ?? 0;
                   if (!toolCallChunksMap.has(index)) {
@@ -164,23 +160,27 @@ const MessageInputPanel = () => {
                   if (chunk.id !== null && chunk.id !== undefined) {
                     (existing as any).id = chunk.id;
                   }
+                }
 
+                // 将 Map 转换为数组，保留所有工具调用
+                const toolCalls: ToolCall[] = [];
+                for (const [index, existing] of toolCallChunksMap.entries()) {
                   // 尝试解析 args 并构建 toolCalls
                   try {
                     const args = JSON.parse(existing.args);
-                    toolCalls[index] = {
+                    toolCalls.push({
                       id: (existing as any).id || 'unknown',
                       name: (existing as any).name || 'unknown',
                       args: args,
                       type: 'tool_call'
-                    };
+                    });
                   } catch (e) {
-                    toolCalls[index] = {
+                    toolCalls.push({
                       id: (existing as any).id || 'unknown',
                       name: (existing as any).name || 'unknown',
                       args: { _loading: true, _partial_args: existing.args },
                       type: 'tool_call'
-                    };
+                    });
                   }
                 }
 
@@ -279,8 +279,6 @@ const MessageInputPanel = () => {
               }
 
               if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {
-                const toolCalls: ToolCall[] = [];
-                
                 for (const chunk of parsedChunk.tool_call_chunks) {
                   const index = chunk.index ?? 0;
                   if (!toolCallChunksMap.has(index)) {
@@ -296,23 +294,27 @@ const MessageInputPanel = () => {
                   if (chunk.id !== null && chunk.id !== undefined) {
                     (existing as any).id = chunk.id;
                   }
+                }
 
+                // 将 Map 转换为数组，保留所有工具调用
+                const toolCalls: ToolCall[] = [];
+                for (const [index, existing] of toolCallChunksMap.entries()) {
                   // 尝试解析 args 并构建 toolCalls
                   try {
                     const args = JSON.parse(existing.args);
-                    toolCalls[index] = {
+                    toolCalls.push({
                       id: (existing as any).id || 'unknown',
                       name: (existing as any).name || 'unknown',
                       args: args,
                       type: 'tool_call'
-                    };
+                    });
                   } catch (e) {
-                    toolCalls[index] = {
+                    toolCalls.push({
                       id: (existing as any).id || 'unknown',
                       name: (existing as any).name || 'unknown',
                       args: { _loading: true, _partial_args: existing.args },
                       type: 'tool_call'
-                    };
+                    });
                   }
                 }
 
@@ -393,12 +395,11 @@ const MessageInputPanel = () => {
             value={message}
             onChange={(e) => dispatch(setMessage(e.target.value))}
             onKeyDown={handleKeyDown}
-            disabled={isLoading}
           />
           <button
             className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-white disabled:text-theme-white disabled:cursor-not-allowed"
             onClick={handleSendMessage}
-            disabled={!message.trim() || isLoading || !!interrupt}
+            disabled={!message.trim() || !!interrupt}
           >
             <FontAwesomeIcon icon={faPaperPlane} />
           </button>
