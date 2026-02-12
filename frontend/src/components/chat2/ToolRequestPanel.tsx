@@ -2,12 +2,11 @@ import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../store/store';
 import {
   selectInterrupt,
-  addUserMessage,
   createAiMessage,
   updateAiMessage,
   setState,
   setMessage,
-  setToolRequestVisible,
+  clearInterrupt,
 } from '../../store/chat';
 import { exitDiffMode, saveTabContent, decreaseTab } from '../../store/editor';
 import type { ToolCall, UsageMetadata } from '../../types/langchain';
@@ -117,6 +116,9 @@ const ToolRequestPanel = () => {
           }
         }
       }
+      
+      // 立即清除中断，关闭操作栏
+      dispatch(clearInterrupt());
       
       const responseStream = await httpClient.streamRequest('/api/chat/interrupt-response', {
         method: 'POST',

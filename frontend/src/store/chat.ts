@@ -157,6 +157,13 @@ export const chatSlice = createSlice({
     setToolRequestVisible: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
       state.toolRequestVisible = action.payload;
     },
+
+    // 清除中断
+    clearInterrupt: (state: Draft<ChatState>) => {
+      if (state.state) {
+        state.state.interrupts = [];
+      }
+    },
   },
 });
 
@@ -170,6 +177,7 @@ export const {
   toggleAutoApproveExpanded,
   clearChat,
   setToolRequestVisible,
+  clearInterrupt,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
