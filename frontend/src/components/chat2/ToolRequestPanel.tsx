@@ -1,27 +1,26 @@
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
-import { useDispatch, useSelector } from 'react-redux';
-import { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../store/store';
 import {
+  selectInterrupt,
   addUserMessage,
   createAiMessage,
   updateAiMessage,
   setState,
   setMessage,
+  setToolRequestVisible,
 } from '../../store/chat';
+import { exitDiffMode, saveTabContent, decreaseTab } from '../../store/editor';
 import type { ToolCall, UsageMetadata } from '../../types/langchain';
 import httpClient from '../../utils/httpClient';
 
 // 支持的文件工具列表
 const FILE_TOOLS = ['write_file', 'insert_content', 'apply_diff', 'search_and_replace'];
 
-// 无效工具调用接口
-interface InvalidToolCall {
-  name?: string;
-  id?: string;
-  args?: string;
-  error?: string;
+// 中断响应接口
+interface InterruptResponse {
+  action: 'approve' | 'reject';
+  choice?: string;
+  additionalData?: string;
 }
 
 // 工具调用接口
@@ -41,17 +40,16 @@ interface StreamChunk {
   name?: string | null;
   additional_kwargs?: Record<string, unknown>;
   response_metadata?: Record<string, unknown>;
-  usage_metadata?: UsageMetadata | null; // 当chunk_position为"last"时才不为null
-  invalid_tool_calls?: InvalidToolCall[];
+  usage_metadata?: UsageMetadata | null;
+  invalid_tool_calls?: any[];
   tool_call_chunks?: ToolCallChunk[];
   chunk_position?: string | null;
 }
 
-// 尝试补全不完整的JSON字符串（只考虑完成path，写content时的json结构补全。前者不补全也不影响，只有一些不重要的报错）
+// 尝试补全不完整的JSON字符串
 const tryCompleteJSON = (jsonStr: string): string => {
   let result = jsonStr.trim();
   
-  // 如果已经是完整的JSON，直接返回
   try {
     JSON.parse(result);
     return result;
@@ -59,7 +57,6 @@ const tryCompleteJSON = (jsonStr: string): string => {
     // JSON不完整，尝试补全
   }
   
-  // 尝试补全：添加引号和右大括号
   const testStr = result + '"}';
   try {
     JSON.parse(testStr);
@@ -68,7 +65,6 @@ const tryCompleteJSON = (jsonStr: string): string => {
     // 补全失败，尝试只添加右大括号
   }
   
-  // 尝试补全：只添加右大括号
   const testStr2 = result + '}';
   try {
     JSON.parse(testStr2);
@@ -80,68 +76,70 @@ const tryCompleteJSON = (jsonStr: string): string => {
   return result;
 };
 
-const MessageInputPanel = () => {
+const ToolRequestPanel = () => {
   const dispatch = useDispatch();
-  
-  // 从Redux获取状态
+  const interrupt = useSelector((state: RootState) => selectInterrupt(state));
   const message = useSelector((state: RootState) => state.chatSlice.message);
-  
-  // 本地错误状态
-  const [error, setError] = useState('');
-  
-  // 生成唯一消息ID
-  const generateMessageId = () => {
-    const uuid = crypto.randomUUID();
-    return `lc_run--${uuid}`;
-  };
 
-  // 发送消息到后端
-  const sendMessage = async function* (message: string, messageId: string) {
+  // 判断是否是简单中断（ask_user工具）
+  const isSimpleInterrupt = interrupt?.value?.tool_name === 'ask_user';
+
+  // 没有中断时不显示
+  if (!interrupt) {
+    return null;
+  }
+
+  // 处理中断响应
+  const handleInterruptResponse = async (response: InterruptResponse) => {
+    console.log('处理中断响应:', response);
+    
     try {
-      const response = await httpClient.streamRequest('/api/chat/message', {
-        method: 'POST',
-        body: { message: message, id: messageId }
-      } as any);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const interruptResponse = {
+        interruptId: interrupt!.id,
+        choice: response.choice || (response.action === 'approve' ? '1' : '2'),
+        additionalData: response.additionalData || ''
+      };
+      
+      // 处理所有文件工具的差异对比模式
+      const toolName = interrupt?.value?.tool_name;
+      if (toolName && FILE_TOOLS.includes(toolName)) {
+        const path = interrupt.value.parameters?.path as string | undefined;
+        if (path) {
+          // 关闭差异对比模式
+          dispatch(exitDiffMode({ id: path }));
+          
+          if (response.action === 'approve') {
+            // 批准：同步 currentData 到 backUp
+            dispatch(saveTabContent({ id: path }));
+          } else {
+            // 拒绝：关闭标签栏里的标签
+            dispatch(decreaseTab({ tabId: path }));
+          }
+        }
       }
-
-      const reader = response.body!.getReader();
+      
+      const responseStream = await httpClient.streamRequest('/api/chat/interrupt-response', {
+        method: 'POST',
+        body: {
+          interrupt_id: interruptResponse.interruptId,
+          choice: interruptResponse.choice,
+          additional_data: interruptResponse.additionalData
+        }
+      } as any);
+      
+      dispatch(setMessage(''));
+      
+      const reader = responseStream.body!.getReader();
       const decoder = new TextDecoder();
+      let currentAiMessageId: string | null = null;
+      let newAiResponse = "";
+      const toolCallChunksMap = new Map<number, { name?: string; args: string; id?: string }>();
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        yield chunk;
-      }
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
-  };
-
-  // 处理发送消息
-  const handleSendMessage = async () => {
-    if (!message.trim()) return;
-
-    const inputMessage = message.trim();
-    const userMessageId = generateMessageId();
-    
-    setError('');
-    dispatch(setMessage(''));
-
-    dispatch(addUserMessage({ id: userMessageId, content: inputMessage }));
-
-    try {
-      const result = sendMessage(inputMessage, userMessageId);
-      let currentAiMessageId: string | null = null;
-      let newAiResponse = "";
-      const toolCallChunksMap = new Map<number, { name?: string; args: string; id?: string }>();
-
-      for await (const chunk of result) {
         const lines = chunk.split('\n').filter(line => line.trim() !== '');
         
         for (const line of lines) {
@@ -159,7 +157,6 @@ const MessageInputPanel = () => {
 
               if (parsedChunk.content) {
                 newAiResponse += parsedChunk.content;
-                // 有content时立即更新，实现流式渲染
                 if (currentAiMessageId) {
                   dispatch(updateAiMessage({
                     id: currentAiMessageId,
@@ -186,10 +183,8 @@ const MessageInputPanel = () => {
                   }
                 }
 
-                // 将 Map 转换为数组，保留所有工具调用
                 const toolCalls: ToolCall[] = [];
                 for (const [index, existing] of toolCallChunksMap.entries()) {
-                  // 尝试解析 args 并构建 toolCalls
                   try {
                     const args = JSON.parse(existing.args);
                     toolCalls.push({
@@ -215,77 +210,63 @@ const MessageInputPanel = () => {
                   tool_calls: toolCalls
                 }));
               }
+            } else if (parsedChunk.type === 'tool') {
+              console.log('收到ToolMessage，刷新文件树');
+              try {
+                const { setChapters } = await import('../../store/file');
+                const chapters = await httpClient.get('/api/file/tree');
+                dispatch(setChapters(chapters || []));
+              } catch (error) {
+                console.error('刷新文件树失败:', error);
+              }
             }
           } catch (e) {
             console.log('无法解析chunk:', line);
           }
         }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '发送消息失败');
-      dispatch(setMessage(inputMessage));
-    }
-    
-    // 获取最终状态
-    try {
-      const finalState = await httpClient.get('/api/chat/state');
-      dispatch(setState(finalState));
-      console.log("获取最终状态成功");
+      
+      // 获取最终状态
+      try {
+        const finalState = await httpClient.get('/api/chat/state');
+        dispatch(setState(finalState));
+        console.log("获取最终状态成功");
+      } catch (error) {
+        console.error('获取最终状态失败:', error);
+      }
     } catch (error) {
-      console.error('获取最终状态失败:', error);
+      console.error('处理中断响应失败:', error);
     }
   };
-
-  // 处理键盘事件
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
 
   return (
-    <>
-      {/* 输入区域 */}
-      <div className="h-[15%] p-2.5 border border-theme-gray3 flex flex-col">
-        {/* 输入框占位 */}
-        <div className="flex w-full flex-1 relative overflow-visible">
-          <textarea
-            className="bg-theme-black text-theme-white border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 focus:outline-none"
-            placeholder="输入@+空格可选择文件，同时按下shift+回车可换行"
-            rows={3}
-            value={message}
-            onChange={(e) => dispatch(setMessage(e.target.value))}
-            onKeyDown={handleKeyDown}
-          />
-          <button
-            className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-white disabled:text-theme-white disabled:cursor-not-allowed"
-            onClick={handleSendMessage}
-            disabled={!message.trim()}
-          >
-            <FontAwesomeIcon icon={faPaperPlane} />
-          </button>
-        </div>
-      </div>
-
-      {/* 错误弹窗 */}
-      {error && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-          <div className="bg-theme-black border border-theme-gray3 rounded-small p-4 max-w-md w-full mx-4">
-            <div className="text-theme-green text-lg mb-2">错误</div>
-            <div className="text-theme-white text-sm mb-4">{error}</div>
-            <button
-              className="w-full bg-theme-green text-theme-white border-none rounded-small py-2 cursor-pointer hover:bg-theme-white hover:text-theme-green transition-all"
-              onClick={() => setError('')}
-            >
-              确定
-            </button>
-          </div>
+    <div className="w-full bg-theme-gray1">
+      {/* 工具描述 */}
+      {!isSimpleInterrupt && interrupt.value.description && (
+        <div className="bg-theme-black rounded-small">
+          <span className="text-theme-green text-[13px] leading-[1.5]">
+            {interrupt.value.description}
+          </span>
         </div>
       )}
-    </>
+
+      {/* 操作按钮 */}
+      <div className="flex gap-4">
+        <button
+          className="flex-1 text-theme-white border-none rounded-small py-2 px-4 text-[13px] font-medium cursor-pointer transition-all hover:border-1 hover:border-solid hover:border-theme-green hover:text-theme-green"
+          onClick={() => handleInterruptResponse({ action: 'approve', choice: '1', additionalData: message || '' })}
+        >
+          确认
+        </button>
+        <button
+          className="flex-1 text-theme-white border-none rounded-small py-2 px-4 text-[13px] font-medium cursor-pointer transition-all hover:border-1 hover:border-solid hover:border-theme-green hover:text-theme-green"
+          onClick={() => handleInterruptResponse({ action: 'reject', choice: '2', additionalData: message || '' })}
+        >
+          取消
+        </button>
+      </div>
+    </div>
   );
 };
 
-export default MessageInputPanel;
+export default ToolRequestPanel;
