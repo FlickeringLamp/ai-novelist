@@ -11,39 +11,10 @@ import {
 import { exitDiffMode, saveTabContent, decreaseTab } from '../../store/editor';
 import type { ToolCall, StreamChunk, InterruptResponse } from '../../types/langchain';
 import httpClient from '../../utils/httpClient';
+import { tryCompleteJSON } from '../../utils/jsonUtils';
 
 // 支持的文件工具列表
 const FILE_TOOLS = ['write_file', 'insert_content', 'apply_diff', 'search_and_replace'];
-
-// 尝试补全不完整的JSON字符串
-const tryCompleteJSON = (jsonStr: string): string => {
-  let result = jsonStr.trim();
-  
-  try {
-    JSON.parse(result);
-    return result;
-  } catch (e) {
-    // JSON不完整，尝试补全
-  }
-  
-  const testStr = result + '"}';
-  try {
-    JSON.parse(testStr);
-    return testStr;
-  } catch (e) {
-    // 补全失败，尝试只添加右大括号
-  }
-  
-  const testStr2 = result + '}';
-  try {
-    JSON.parse(testStr2);
-    return testStr2;
-  } catch (e) {
-    // 补全失败，返回原字符串
-  }
-  
-  return result;
-};
 
 const ToolRequestPanel = () => {
   const dispatch = useDispatch();
