@@ -116,6 +116,16 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
     }
   }, [theme]);
 
+  // 组件卸载时清理编辑器实例
+  useEffect(() => {
+    return () => {
+      if (editorRef.current) {
+        editorRef.current.dispose();
+        editorRef.current = null;
+      }
+    };
+  }, []);
+
   // 处理编辑器容器的键盘事件，阻止冒泡到全局监听器
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // 检测 Ctrl+S 或 Cmd+S (Mac)
