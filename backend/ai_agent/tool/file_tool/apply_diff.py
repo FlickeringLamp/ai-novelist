@@ -1,10 +1,11 @@
 import re
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional
-from langchain.tools import tool, ToolRuntime
+from typing import List
+from langchain.tools import tool
 from langgraph.types import interrupt
 from backend.config.config import settings
+from rapidfuzz import distance as rapidfuzz_distance
 
 class ApplyDiffInput(BaseModel):
     """应用差异的输入参数"""
@@ -13,46 +14,57 @@ class ApplyDiffInput(BaseModel):
 
 # ==================== Diff应用相关辅助函数 ====================
 
-def levenshtein_distance(s1: str, s2: str) -> int:
-    """计算两个字符串之间的Levenshtein距离"""
-    if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
+# 智能引号和排版字符映射
+NORMALIZATION_MAPS = {
+    # 智能引号转换为普通引号
+    '\u201C': '"',  # 左双引号 (U+201C)
+    '\u201D': '"',  # 右双引号 (U+201D)
+    '\u2018': "'",  # 左单引号 (U+2018)
+    '\u2019': "'",  # 右单引号 (U+2019)
+    # 排版字符转换
+    '\u2026': "...",  # 省略号
+    '\u2014': "-",   # 长破折号
+    '\u2013': "-",   # 短破折号
+    '\u00A0': " ",   # 不换行空格
+}
+
+def normalize_text(text: str) -> str:
+    """
+    增强的文本归一化函数
     
-    if len(s2) == 0:
-        return len(s1)
+    处理：
+    - 智能引号（" " ' '）→ 普通引号
+    - 排版字符（… — –）→ 普通字符
+    - 多余空格压缩
+    - 大小写转换
+    """
+    # 替换智能引号和排版字符
+    for special, normal in NORMALIZATION_MAPS.items():
+        text = text.replace(special, normal)
     
-    previous_row = range(len(s2) + 1)
-    for i, c1 in enumerate(s1):
-        current_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1
-            deletions = current_row[j] + 1
-            substitutions = previous_row[j] + (c1 != c2)
-            current_row.append(min(insertions, deletions, substitutions))
-        previous_row = current_row
-    
-    return previous_row[-1]
+    # 压缩多余空格并转换为小写
+    return ' '.join(text.lower().split())
 
 def get_similarity(original: str, search: str) -> float:
-    """计算两个字符串之间的相似度"""
+    """
+    计算两个字符串之间的相似度
+    
+    使用rapidfuzz库进行高效的Levenshtein距离计算
+    """
     if search == "":
         return 0.0
     
-    # 简单的文本归一化
-    def normalize_text(text: str) -> str:
-        # 移除多余空格，转换为小写
-        return ' '.join(text.lower().split())
-    
+    # 使用增强的文本归一化
     normalized_original = normalize_text(original)
     normalized_search = normalize_text(search)
     
     if normalized_original == normalized_search:
         return 1.0
     
-    dist = levenshtein_distance(normalized_original, normalized_search)
-    max_length = max(len(normalized_original), len(normalized_search))
+    # 使用rapidfuzz计算Levenshtein距离
+    dist = rapidfuzz_distance.Levenshtein.normalized_similarity(normalized_original, normalized_search)
     
-    return 1.0 - dist / max_length if max_length > 0 else 0.0
+    return dist
 
 def add_line_numbers(content: str, start_line: int = 1) -> str:
     """为内容添加行号"""
@@ -200,7 +212,7 @@ def fuzzy_search(lines: List[str], search_chunk: str, start_index: int, end_inde
 
 
 @tool(args_schema=ApplyDiffInput)
-def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> str:
+def apply_diff(path: str, diff: str) -> str:
     """应用差异修改
     用于替换已有文本
     
@@ -220,14 +232,13 @@ def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> s
     重要说明：
     1. 必须使用 <<<<<<< SEARCH 和 >>>>>>> REPLACE 标记
     2. 使用 :start_line:行号 指定搜索起始行（可选，但推荐）
-    3. 使用 ------- 分隔元数据和搜索内容
+    3. 使用 ------- 分隔元数据和搜索内容（可选）
     4. 使用 ======= 分隔搜索内容和替换内容
     5. 不支持git diff格式或其他diff格式
     
     Args:
         path: 文件路径（相对于novel目录的相对路径）
         diff: 差异内容，必须使用SEARCH/REPLACE块格式
-        runtime: LangChain运行时上下文
     """
     # 构造包含工具具体信息的中断数据
     interrupt_data = {
@@ -259,7 +270,13 @@ def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> s
                 return f"【工具结果】：应用差异失败: {valid_seq['error']} ;**【用户信息】：{choice_data}**"
     
             # 解析diff块
-            diff_block_pattern = r'(?:^|\n)(?<!\\)<<<<<<< SEARCH\s*\n([\s\S]*?)(?<!\\)-------\s*\n([\s\S]*?)(?:\n)?(?:(?<=\n)(?<!\\)=======\s*\n)([\s\S]*?)(?:\n)?(?:(?<=\n)(?<!\\)>>>>>>> REPLACE)(?=\n|$)'
+            # 支持的格式：
+            # 1. <<<<<<< SEARCH 或 <<<<<<< SEARCH>（允许末尾的 >）
+            # 2. :start_line: 标记（可选）
+            # 3. ------- 分隔符（可选）
+            # 4. ======= 分隔符
+            # 5. >>>>>>> REPLACE 标记
+            diff_block_pattern = r'(?:^|\n)(?<!\\)<<<<<<< SEARCH>?\s*\n((?:\:start_line:\s*(\d+)\s*\n))?((?<!\\)-------\s*\n)?([\s\S]*?)(?:\n)?(?:(?<=\n)(?<!\\)=======\s*\n)([\s\S]*?)(?:\n)?(?:(?<=\n)(?<!\\)>>>>>>> REPLACE)(?=\n|$)'
             matches = list(re.finditer(diff_block_pattern, diff))
     
             if not matches:
@@ -275,14 +292,19 @@ def apply_diff(path: str, diff: str, runtime: Optional[ToolRuntime] = None) -> s
             # 解析所有替换操作并按起始行排序
             replacements = []
             for match in matches:
-                metadata_block = match.group(1)
-                search_content = match.group(2)
-                replace_content = match.group(3)
-        
+                # 正则表达式捕获组：
+                # group(1): :start_line: 行（包含标记本身）
+                # group(2): :start_line: 的数字
+                # group(3): ------- 行（包含分隔符本身）
+                # group(4): 搜索内容
+                # group(5): 替换内容
+                
                 start_line = 0
-                start_line_match = re.search(r':(?:start_line|start_paragraph):\s*(\d+)', metadata_block)
-                if start_line_match:
-                    start_line = int(start_line_match.group(1))
+                if match.group(2):  # :start_line: 标记存在
+                    start_line = int(match.group(2))
+                
+                search_content = match.group(4) or ""
+                replace_content = match.group(5) or ""
         
                 replacements.append({
                     "start_line": start_line,

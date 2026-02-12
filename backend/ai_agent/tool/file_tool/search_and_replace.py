@@ -1,8 +1,7 @@
 import re
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import Optional
-from langchain.tools import tool, ToolRuntime
+from langchain.tools import tool
 from langgraph.types import interrupt
 from backend.config.config import settings
 
@@ -17,8 +16,7 @@ class SearchAndReplaceInput(BaseModel):
 
 @tool(args_schema=SearchAndReplaceInput)
 def search_and_replace(path: str, search: str, replace: str,
-                           use_regex: bool = False, ignore_case: bool = False,
-                           runtime: Optional[ToolRuntime] = None) -> str:
+                           use_regex: bool = False, ignore_case: bool = False) -> str:
     """搜索并替换文本
     
     Args:
@@ -27,7 +25,6 @@ def search_and_replace(path: str, search: str, replace: str,
         replace: 替换文本
         use_regex: 是否使用正则表达式
         ignore_case: 是否忽略大小写
-        runtime: LangChain运行时上下文
     """
     # 构造包含工具具体信息的中断数据
     interrupt_data = {
