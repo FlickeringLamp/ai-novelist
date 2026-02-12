@@ -190,6 +190,14 @@ export const tabSlice = createSlice({
       const { id } = action.payload;
       state.backUp[id] = state.currentData[id]!;
     },
+    // 更新备份内容（用于文件工具调用时缓存文件内容）
+    updateBackUp: (
+      state: Draft<EditorState>,
+      action: PayloadAction<{ id: string; content: string }>,
+    ) => {
+      const { id, content } = action.payload;
+      state.backUp[id] = content;
+    },
     // 重新排序标签
     reorderTabs: (
       state: Draft<EditorState>,
@@ -400,6 +408,7 @@ export const {
   createTempDiffTab,
   updateDiffTabContent,
   exitDiffMode,
+  updateBackUp,
 } = tabSlice.actions;
 
 export default tabSlice.reducer;

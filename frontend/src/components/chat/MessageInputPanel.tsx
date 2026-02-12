@@ -13,9 +13,11 @@ import {
 import type { ToolCall,  StreamChunk } from '../../types/langchain';
 import httpClient from '../../utils/httpClient';
 import { tryCompleteJSON } from '../../utils/jsonUtils';
+import { useFileToolHandler } from '../../utils/fileToolHandler';
 
 const MessageInputPanel = () => {
   const dispatch = useDispatch();
+  const { processFileToolCalls } = useFileToolHandler();
   
   // 从Redux获取状态
   const message = useSelector((state: RootState) => state.chatSlice.message);
@@ -148,6 +150,9 @@ const MessageInputPanel = () => {
                   content: newAiResponse,
                   tool_calls: toolCalls
                 }));
+
+                // 立即处理文件工具调用
+                processFileToolCalls(toolCalls);
               }
             }
           } catch (e) {

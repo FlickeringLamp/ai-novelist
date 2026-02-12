@@ -12,12 +12,11 @@ import { exitDiffMode, saveTabContent, decreaseTab } from '../../store/editor';
 import type { ToolCall, StreamChunk, InterruptResponse } from '../../types/langchain';
 import httpClient from '../../utils/httpClient';
 import { tryCompleteJSON } from '../../utils/jsonUtils';
-
-// 支持的文件工具列表
-const FILE_TOOLS = ['write_file', 'insert_content', 'apply_diff', 'search_and_replace'];
+import { useFileToolHandler, FILE_TOOLS } from '../../utils/fileToolHandler';
 
 const ToolRequestPanel = () => {
   const dispatch = useDispatch();
+  const { processFileToolCalls } = useFileToolHandler();
   const interrupt = useSelector((state: RootState) => selectInterrupt(state));
   const message = useSelector((state: RootState) => state.chatSlice.message);
 
@@ -152,6 +151,9 @@ const ToolRequestPanel = () => {
                   content: newAiResponse,
                   tool_calls: toolCalls
                 }));
+
+                // 立即处理文件工具调用
+                processFileToolCalls(toolCalls);
               }
             } else if (parsedChunk.type === 'tool') {
               console.log('收到ToolMessage，刷新文件树');
