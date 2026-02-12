@@ -9,41 +9,11 @@ import {
   clearInterrupt,
 } from '../../store/chat';
 import { exitDiffMode, saveTabContent, decreaseTab } from '../../store/editor';
-import type { ToolCall, UsageMetadata } from '../../types/langchain';
+import type { ToolCall, StreamChunk, InterruptResponse } from '../../types/langchain';
 import httpClient from '../../utils/httpClient';
 
 // 支持的文件工具列表
 const FILE_TOOLS = ['write_file', 'insert_content', 'apply_diff', 'search_and_replace'];
-
-// 中断响应接口
-interface InterruptResponse {
-  action: 'approve' | 'reject';
-  choice?: string;
-  additionalData?: string;
-}
-
-// 工具调用接口
-interface ToolCallChunk {
-  name?: string | null;
-  args?: string | null;
-  id?: string | null;
-  index?: number;
-  type?: string;
-}
-
-interface StreamChunk {
-  type?: string;
-  content?: string;
-  tool_calls?: ToolCall[];
-  id?: string;
-  name?: string | null;
-  additional_kwargs?: Record<string, unknown>;
-  response_metadata?: Record<string, unknown>;
-  usage_metadata?: UsageMetadata | null;
-  invalid_tool_calls?: any[];
-  tool_call_chunks?: ToolCallChunk[];
-  chunk_position?: string | null;
-}
 
 // 尝试补全不完整的JSON字符串
 const tryCompleteJSON = (jsonStr: string): string => {

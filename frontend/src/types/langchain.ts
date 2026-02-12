@@ -80,6 +80,13 @@ export interface Interrupt {
   value: InterruptValue;
 }
 
+// 中断响应接口
+export interface InterruptResponse {
+  action: 'approve' | 'reject';
+  choice?: string;
+  additionalData?: string;
+}
+
 // 任务
 export interface PregelTask {
   id: string;
