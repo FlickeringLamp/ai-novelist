@@ -22,6 +22,8 @@ export interface ChatState {
   modeExpanded: boolean;
   // 自动批准展开状态
   autoApproveExpanded: boolean;
+  // 工具请求栏显示状态
+  toolRequestVisible: boolean;
 }
 
 // 初始状态
@@ -30,6 +32,7 @@ const initialState: ChatState = {
   message: '',
   modeExpanded: false,
   autoApproveExpanded: false,
+  toolRequestVisible: false,
 };
 
 export const chatSlice = createSlice({
@@ -147,6 +150,12 @@ export const chatSlice = createSlice({
       state.message = '';
       state.modeExpanded = false;
       state.autoApproveExpanded = false;
+      state.toolRequestVisible = false;
+    },
+
+    // 设置工具请求栏显示状态
+    setToolRequestVisible: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
+      state.toolRequestVisible = action.payload;
     },
   },
 });
@@ -160,6 +169,7 @@ export const {
   toggleModeExpanded,
   toggleAutoApproveExpanded,
   clearChat,
+  setToolRequestVisible,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

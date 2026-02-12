@@ -429,13 +429,13 @@ const MessageInputPanel = () => {
              
             <div className="flex gap-0">
               <button
-                className="bg-theme-green text-theme-white border-none text-[13px] font-medium cursor-pointer transition-all flex-1 text-center py-2"
+                className="text-theme-white border-none text-[13px] font-medium cursor-pointer transition-all flex-1 text-center py-2"
                 onClick={() => handleInterruptResponse({ action: 'approve', choice: '1', additionalData: message || '' })}
               >
                 确认
               </button>
               <button
-                className="bg-red-500 text-white border-none text-[13px] font-medium cursor-pointer transition-all flex-1 text-center py-2"
+                className="text-white border-none text-[13px] font-medium cursor-pointer transition-all flex-1 text-center py-2"
                 onClick={() => handleInterruptResponse({ action: 'reject', choice: '2', additionalData: message || '' })}
               >
                 取消
