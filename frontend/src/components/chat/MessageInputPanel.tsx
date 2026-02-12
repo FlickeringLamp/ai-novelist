@@ -10,75 +10,9 @@ import {
   setState,
   setMessage,
 } from '../../store/chat';
-import type { ToolCall, UsageMetadata } from '../../types/langchain';
+import type { ToolCall,  StreamChunk } from '../../types/langchain';
 import httpClient from '../../utils/httpClient';
-
-// 支持的文件工具列表
-const FILE_TOOLS = ['write_file', 'insert_content', 'apply_diff', 'search_and_replace'];
-
-// 无效工具调用接口
-interface InvalidToolCall {
-  name?: string;
-  id?: string;
-  args?: string;
-  error?: string;
-}
-
-// 工具调用接口
-interface ToolCallChunk {
-  name?: string | null;
-  args?: string | null;
-  id?: string | null;
-  index?: number;
-  type?: string;
-}
-
-interface StreamChunk {
-  type?: string;
-  content?: string;
-  tool_calls?: ToolCall[];
-  id?: string;
-  name?: string | null;
-  additional_kwargs?: Record<string, unknown>;
-  response_metadata?: Record<string, unknown>;
-  usage_metadata?: UsageMetadata | null; // 当chunk_position为"last"时才不为null
-  invalid_tool_calls?: InvalidToolCall[];
-  tool_call_chunks?: ToolCallChunk[];
-  chunk_position?: string | null;
-}
-
-// 尝试补全不完整的JSON字符串（只考虑完成path，写content时的json结构补全。前者不补全也不影响，只有一些不重要的报错）
-const tryCompleteJSON = (jsonStr: string): string => {
-  let result = jsonStr.trim();
-  
-  // 如果已经是完整的JSON，直接返回
-  try {
-    JSON.parse(result);
-    return result;
-  } catch (e) {
-    // JSON不完整，尝试补全
-  }
-  
-  // 尝试补全：添加引号和右大括号
-  const testStr = result + '"}';
-  try {
-    JSON.parse(testStr);
-    return testStr;
-  } catch (e) {
-    // 补全失败，尝试只添加右大括号
-  }
-  
-  // 尝试补全：只添加右大括号
-  const testStr2 = result + '}';
-  try {
-    JSON.parse(testStr2);
-    return testStr2;
-  } catch (e) {
-    // 补全失败，返回原字符串
-  }
-  
-  return result;
-};
+import { tryCompleteJSON } from '../../utils/jsonUtils';
 
 const MessageInputPanel = () => {
   const dispatch = useDispatch();
