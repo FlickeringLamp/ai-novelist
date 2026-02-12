@@ -8,6 +8,7 @@ import ModelSelectorPanel from './ModelSelectorPanel';
 import MessageDisplayPanel from './MessageDisplayPanel';
 import ContextProgressBar from './ContextProgressBar';
 import MessageInputPanel from './MessageInputPanel';
+import ToolRequestPanel from './ToolRequestPanel';
 import { setState } from '../../store/chat';
 import httpClient from '../../utils/httpClient';
 
@@ -66,6 +67,9 @@ const ChatPanel = () => {
       
       {/* 消息显示区域 */}
       <MessageDisplayPanel />
+
+      {/* 工具请求栏 */}
+      <ToolRequestPanel />
 
       {/* 输入区域 */}
       <MessageInputPanel />
