@@ -1,9 +1,9 @@
 import re
-from pathlib import Path
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langgraph.types import interrupt
-from backend.config.config import settings
+from backend.file.file_service import read_file as file_service_read_file
+from backend.file.file_service import update_file as file_service_update_file
 
 
 class SearchAndReplaceInput(BaseModel):
@@ -15,7 +15,7 @@ class SearchAndReplaceInput(BaseModel):
     ignore_case: bool = Field(default=False, description="是否忽略大小写")
 
 @tool(args_schema=SearchAndReplaceInput)
-def search_and_replace(path: str, search: str, replace: str,
+async def search_and_replace(path: str, search: str, replace: str,
                            use_regex: bool = False, ignore_case: bool = False) -> str:
     """搜索并替换文本
     
@@ -45,19 +45,7 @@ def search_and_replace(path: str, search: str, replace: str,
     
     if choice_action == "1":
         try:
-            # 将相对路径拼接NOVEL_DIR
-            full_path = Path(settings.NOVEL_DIR) / path
-            
-            # 检查文件是否存在
-            if not full_path.exists():
-                return f"【工具结果】：错误：文件 '{path}' 不存在 ;**【用户信息】：{choice_data}**"
-            
-            # 检查是否为文件而非目录
-            if not full_path.is_file():
-                return f"【工具结果】：错误：'{path}' 不是一个文件 ;**【用户信息】：{choice_data}**"
-            
-            with open(full_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            content = await file_service_read_file(path)
             
             if use_regex:
                 flags = re.IGNORECASE if ignore_case else 0
@@ -71,8 +59,7 @@ def search_and_replace(path: str, search: str, replace: str,
                 else:
                     new_content = content.replace(search, replace)
             
-            with open(full_path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
+            await file_service_update_file(path, new_content)
             
             return f"【工具结果】：在文件 '{path}' 中成功完成搜索替换操作 ;**【用户信息】：{choice_data}**"
         

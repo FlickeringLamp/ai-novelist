@@ -1,8 +1,9 @@
-from pathlib import Path
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langgraph.types import interrupt
-from backend.config.config import settings
+from backend.file.file_service import read_file as file_service_read_file
+from backend.file.file_service import update_file as file_service_update_file
+from backend.ai_agent.utils.file_utils import split_paragraphs
 
 class InsertContentInput(BaseModel):
     """插入内容的输入参数"""
@@ -11,7 +12,7 @@ class InsertContentInput(BaseModel):
     content: str = Field(description="要插入的内容")
 
 @tool(args_schema=InsertContentInput)
-def insert_content(path: str, paragraph: int, content: str) -> str:
+async def insert_content(path: str, paragraph: int, content: str) -> str:
     """在指定位置插入内容
     
     Args:
@@ -36,13 +37,10 @@ def insert_content(path: str, paragraph: int, content: str) -> str:
     
     if choice_action == "1":
         try:
-            # 将相对路径拼接NOVEL_DIR
-            file_path = Path(settings.NOVEL_DIR) / path
+            existing_content = await file_service_read_file(path)
             
-            with open(file_path, 'r', encoding='utf-8') as f:
-                existing_content = f.read()
-            
-            lines = existing_content.split('\n')
+            # 使用统一的段落分割函数
+            lines, paragraph_ending = split_paragraphs(existing_content)
             
             if paragraph == 0:  # 在文件末尾追加
                 lines.append(content)
@@ -51,10 +49,10 @@ def insert_content(path: str, paragraph: int, content: str) -> str:
                 insert_pos = min(max(0, paragraph - 1), len(lines))
                 lines.insert(insert_pos, content)
             
-            new_content = '\n'.join(lines)
+            # 使用检测到的换行符连接段落
+            new_content = paragraph_ending.join(lines)
             
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
+            await file_service_update_file(path, new_content)
             
             return f"【工具结果】：内容已成功插入到文件 '{path}' 的第 {paragraph} 段 ;**【用户信息】：{choice_data}**"
         except Exception as e:

@@ -14,23 +14,23 @@ const isValidMdFile = (path: string): boolean => {
 
 // 解析replacements内容，计算修改后的内容
 const applyDiff = (originalContent: string, replacements: any[]): string => {
-  const lines = originalContent.split('\n');
-  const result = [...lines];
+  const paragraphs = originalContent.split('\n');
+  const result = [...paragraphs];
   
-  // 按行号排序，删除操作需要从后往前处理以避免行号偏移
-  const sortedReplacements = [...replacements].sort((a, b) => b.line - a.line);
+  // 按段落号排序，删除操作需要从后往前处理以避免段落号偏移
+  const sortedReplacements = [...replacements].sort((a, b) => b.paragraph - a.paragraph);
   
   for (const replacement of sortedReplacements) {
-    const lineNum = replacement.line;
+    const paragraphNum = replacement.paragraph;
     const oldContent = replacement.old;
     const newContent = replacement.new;
     
     // 转换为0-based索引
-    const index = lineNum - 1;
+    const index = paragraphNum - 1;
     
-    // 检查行号是否有效
+    // 检查段落号是否有效
     if (index < 0 || index >= result.length) {
-      console.warn(`行号 ${lineNum} 超出文件范围（文件共 ${result.length} 行）`);
+      console.warn(`段落号 ${paragraphNum} 超出文件范围（文件共 ${result.length} 段）`);
       continue;
     }
     
@@ -39,16 +39,16 @@ const applyDiff = (originalContent: string, replacements: any[]): string => {
     
     // 验证内容是否匹配
     if (actualContent !== oldContent) {
-      console.warn(`行 ${lineNum} 的内容不匹配\n期望: ${oldContent}\n实际: ${actualContent}`);
+      console.warn(`段 ${paragraphNum} 的内容不匹配\n期望: ${oldContent}\n实际: ${actualContent}`);
       continue;
     }
     
     // 执行替换或删除
     if (newContent === null) {
-      // 删除该行
+      // 删除该段
       result.splice(index, 1);
     } else {
-      // 替换该行
+      // 替换该段
       result[index] = newContent;
     }
   }
@@ -74,18 +74,18 @@ const searchAndReplace = (content: string, search: string, replace: string, useR
 
 // 在指定位置插入内容
 const insertContent = (content: string, paragraph: number, newContent: string): string => {
-  const lines = content.split('\n');
+  const paragraphs = content.split('\n');
   
   if (paragraph === 0) {
     // 在文件末尾追加
-    lines.push(newContent);
+    paragraphs.push(newContent);
   } else {
     // 在指定段落插入
-    const insertIndex = Math.min(paragraph - 1, lines.length);
-    lines.splice(insertIndex, 0, newContent);
+    const insertIndex = Math.min(paragraph - 1, paragraphs.length);
+    paragraphs.splice(insertIndex, 0, newContent);
   }
   
-  return lines.join('\n');
+  return paragraphs.join('\n');
 };
 
 // 自定义 Hook：处理文件工具调用
@@ -142,7 +142,10 @@ export const useFileToolHandler = () => {
     switch (toolName) {
       case 'write_file': {
         const content = parsedArgs.content;
-        if (content !== undefined) {
+        // content为null时表示删除文件
+        if (content === null) {
+          modifiedContent = '该文件将被删除';
+        } else if (content !== undefined) {
           modifiedContent = content;
         }
         break;

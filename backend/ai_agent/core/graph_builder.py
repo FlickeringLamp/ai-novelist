@@ -167,13 +167,13 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             return {"messages": [response]}
 
         # 自定义工具节点（0.3的预构建组件在1.0教程并未提及，故按照langgraph官方文档，手动处理tool_node）
-        def tool_node(state: State):
+        async def tool_node(state: State):
             """执行工具调用"""
             result = []
             # 处理最后一条消息中的工具调用
             for tool_call in state["messages"][-1].tool_calls:
                 tool = tools_by_name[tool_call["name"]]
-                observation = tool.invoke(tool_call["args"])
+                observation = await tool.ainvoke(tool_call["args"])
                 result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
             
             print(f"看看长什么样，是否有自动生成ToolMessage: {result}")

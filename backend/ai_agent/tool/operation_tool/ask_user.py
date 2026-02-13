@@ -12,7 +12,7 @@ class AskUserQuestionInput(BaseModel):
     question: str = Field(description="问题内容")
 
 @tool(args_schema=AskUserQuestionInput)
-def ask_user_question(question: str) -> str:
+async def ask_user_question(question: str) -> str:
     """向用户提问
     
     Args:
