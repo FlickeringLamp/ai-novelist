@@ -13,7 +13,8 @@ from backend.ai_agent.embedding import (
     create_collection,
     search_emb,
     asearch_emb,
-    websocket_manager
+    websocket_manager,
+    get_all_knowledge_bases
 )
 
 logger = logging.getLogger(__name__)
@@ -64,8 +65,7 @@ def get_knowledge_bases():
     Returns:
         Dict[str, Dict]: 所有知识库配置
     """
-    knowledge_base = settings.get_config("knowledgeBase", default={})
-    return knowledge_base
+    return get_all_knowledge_bases()
 
 
 @router.post("/bases", summary="添加知识库", response_model=Dict[str, Dict])

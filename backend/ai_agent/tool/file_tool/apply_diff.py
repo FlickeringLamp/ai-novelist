@@ -1,9 +1,10 @@
-from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Union
 from langchain.tools import tool
 from langgraph.types import interrupt
-from backend.config.config import settings
+from backend.file.file_service import read_file as file_service_read_file
+from backend.file.file_service import update_file as file_service_update_file
+from backend.ai_agent.utils.file_utils import split_paragraphs
 from rapidfuzz import distance as rapidfuzz_distance
 
 
@@ -63,52 +64,52 @@ def get_similarity(original: str, search: str) -> float:
 
 
 class LineReplacement(BaseModel):
-    """单行替换操作"""
-    line: int = Field(description="行号", ge=1)
-    old: str = Field(description="要替换的原始内容（单行文本）")
-    new: Union[str, None] = Field(description="替换后的新内容（单行文本），为None时表示删除该行，空字符串表示将行变为空行")
+    """单段替换操作"""
+    paragraph: int = Field(description="段落号", ge=1)
+    old: str = Field(description="要替换的原始内容（单段文本）")
+    new: Union[str, None] = Field(description="替换后的新内容（单段文本），为None时表示删除该段，空字符串表示将段变为空段")
 
 
 class ApplyDiffInput(BaseModel):
     """应用差异的输入参数"""
     path: str = Field(description="文件路径（相对于novel目录的相对路径）")
-    replacements: List[LineReplacement] = Field(description="替换操作列表，每个包含行号、原始内容和新内容")
+    replacements: List[LineReplacement] = Field(description="替换操作列表，每个包含段落号、原始内容和新内容")
 
 
 @tool(args_schema=ApplyDiffInput)
-def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
+async def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
     """应用差异修改
     
-    使用行号定位并替换内容
+    使用段落号定位并替换内容
     
     参数格式：
     {
         "path": "文件路径",
         "replacements": [
             {
-                "line": 10,
+                "paragraph": 10,
                 "old": "原始内容",
                 "new": "新内容"
             },
             {
-                "line": 25,
+                "paragraph": 25,
                 "old": "要删除的内容",
                 "new": null
             }
             {
-                "line": 30,
-                "old": "要换成空行的内容",
+                "paragraph": 30,
+                "old": "要换成空段的内容",
                 "new": ""
             }
         ]
     }
     
     重要说明：
-    1. line 指定行号
+    1. paragraph 指定段落号
     2. old 必须与文件中指定位置的内容完全匹配
-    3. new 将替换 old 的所有内容，new为null时删除该行，new为空字符串时清空该行
+    3. new 将替换 old 的所有内容，new为null时删除该段，new为空字符串时清空该段
     4. 支持最低一个替换块，到多个替换块(上不封顶)
-    5. 当使用该工具**删除**文本后，建议使用read_file工具重新读取内容，因为删除n行后，该行数往后的文本会向上偏移n行，line不再准确。
+    5. 当使用该工具**删除**文本后，建议使用read_file工具重新读取内容，因为删除n段后，该段数往后的文本会向上偏移n段，paragraph不再准确。
     
     Args:
         path: 文件路径
@@ -121,7 +122,7 @@ def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
         "description": f"应用差异: {path}",
         "parameters": {
             "path": path,
-            "replacements": [{"line": r.line, "old": r.old[:50] + "..." if len(r.old) > 50 else r.old, "new": r.new[:50] + "..." if r.new is not None and len(r.new) > 50 else r.new} for r in replacements]
+            "replacements": [{"paragraph": r.paragraph, "old": r.old[:50] + "..." if len(r.old) > 50 else r.old, "new": r.new[:50] + "..." if r.new is not None and len(r.new) > 50 else r.new} for r in replacements]
         }
     }
     user_choice = interrupt(interrupt_data)
@@ -131,41 +132,35 @@ def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
     
     if choice_action == "1":
         try:
-            # 将相对路径拼接NOVEL_DIR
-            file_path = Path(settings.NOVEL_DIR) / path
+            original_content = await file_service_read_file(path)
             
-            # 读取原始文件内容
-            with open(file_path, 'r', encoding='utf-8') as f:
-                original_content = f.read()
+            # 使用统一的段落分割函数
+            paragraphs, paragraph_ending = split_paragraphs(original_content)
             
-            # 确定行结束符
-            line_ending = "\r\n" if "\r\n" in original_content else "\n"
-            lines = original_content.splitlines()
-            
-            # 按行号排序，删除操作需要从后往前处理以避免行号偏移
-            sorted_replacements = sorted(replacements, key=lambda x: x.line, reverse=True)
+            # 按段落号排序，删除操作需要从后往前处理以避免段落号偏移
+            sorted_replacements = sorted(replacements, key=lambda x: x.paragraph, reverse=True)
             
             applied_count = 0
             fail_parts = []
             
             for replacement in sorted_replacements:
-                line_num = replacement.line
+                paragraph_num = replacement.paragraph
                 old_content = replacement.old
                 new_content = replacement.new
                 
                 # 转换为0-based索引
-                index = line_num - 1
+                index = paragraph_num - 1
                 
-                # 检查行号是否有效
-                if index < 0 or index >= len(lines):
+                # 检查段落号是否有效
+                if index < 0 or index >= len(paragraphs):
                     fail_parts.append({
                         "success": False,
-                        "error": f"行号 {line_num} 超出文件范围（文件共 {len(lines)} 行）"
+                        "error": f"段落号 {paragraph_num} 超出文件范围（文件共 {len(paragraphs)} 段）"
                     })
                     continue
                 
                 # 获取文件中的实际内容
-                actual_content = lines[index]
+                actual_content = paragraphs[index]
                 
                 # 使用相似度验证内容是否匹配（默认阈值0.9）
                 similarity = get_similarity(actual_content, old_content)
@@ -174,17 +169,17 @@ def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
                 if similarity < similarity_threshold:
                     fail_parts.append({
                         "success": False,
-                        "error": f"行 {line_num} 的内容不匹配（相似度: {similarity:.2f}, 阈值: {similarity_threshold}）\n期望: {old_content}\n实际: {actual_content}"
+                        "error": f"段 {paragraph_num} 的内容不匹配（相似度: {similarity:.2f}, 阈值: {similarity_threshold}）\n期望: {old_content}\n实际: {actual_content}"
                     })
                     continue
                 
                 # 执行替换或删除
                 if new_content is None:
-                    # 删除该行
-                    del lines[index]
+                    # 删除该段
+                    del paragraphs[index]
                 else:
-                    # 替换该行
-                    lines[index] = new_content
+                    # 替换该段
+                    paragraphs[index] = new_content
                 applied_count += 1
             
             # 检查应用结果
@@ -193,9 +188,8 @@ def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
                 return f"【工具结果】：应用差异失败: 未应用任何更改。所有替换操作都失败了。\n失败详情:\n{error_details} ;**【用户信息】：{choice_data}**"
             
             # 写入修改后的内容
-            new_content = line_ending.join(lines)
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
+            new_content = paragraph_ending.join(paragraphs)
+            await file_service_update_file(path, new_content)
             
             success_msg = f"【工具结果】：差异已成功应用到文件 '{path}'，应用了 {applied_count} 个更改 ;**【用户信息】：{choice_data}**"
             if fail_parts:

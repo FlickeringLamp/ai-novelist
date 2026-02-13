@@ -11,6 +11,7 @@ import logging
 
 from backend.config.config import settings
 from backend.file.file_service import get_file_tree
+from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,83 @@ class SystemPromptBuilder:
             logger.error(f"获取持久记忆信息失败: {e}")
             return ""
     
+    def _get_knowledge_bases_info(self) -> str:
+        """获取知识库列表信息
+        
+        Returns:
+            格式化的知识库列表信息字符串
+        """
+        try:
+            knowledge_bases = get_all_knowledge_bases()
+            
+            if not knowledge_bases:
+                return ""
+            
+            # 构建格式化的知识库列表
+            kb_parts = []
+            for kb_id, kb_config in knowledge_bases.items():
+                name = kb_config.get("name", "")
+                
+                if name:
+                    kb_parts.append(f"id: {kb_id}\nname: {name}")
+            
+            if kb_parts:
+                return "\n\n".join(kb_parts)
+            else:
+                return ""
+                
+        except Exception as e:
+            logger.error(f"获取知识库列表信息失败: {e}")
+            return ""
+    
+    async def _perform_rag_search(self, user_input: str) -> str:
+        """执行RAG检索，获取相关文档内容
+        
+        Args:
+            user_input: 用户输入文本，作为检索查询
+            
+        Returns:
+            格式化的RAG检索结果字符串
+        """
+        try:
+            # 获取所有知识库
+            knowledge_bases = get_all_knowledge_bases()
+            
+            if not knowledge_bases:
+                logger.info("没有可用的知识库，跳过RAG检索")
+                return ""
+            
+            # 获取第一个知识库的ID（按字典序排序，确保一致性）
+            first_kb_id = sorted(knowledge_bases.keys())[0]
+            kb_config = knowledge_bases[first_kb_id]
+            
+            logger.info(f"使用第一个知识库进行RAG检索: {kb_config.get('name', first_kb_id)} (ID: {first_kb_id})")
+            
+            # 执行异步检索
+            results = await asearch_emb(
+                collection_name=first_kb_id,
+                search_input=user_input
+            )
+            
+            if not results:
+                logger.info("RAG检索未返回结果")
+                return ""
+            
+            # 格式化检索结果
+            rag_parts = []
+            for doc, score in results:
+                filename = doc.metadata.get('original_filename', '未知文件')
+                rag_parts.append(f"[来源: {filename}, 相似度: {score:.4f}]\n{doc.page_content}")
+            
+            rag_content = "\n\n".join(rag_parts)
+            logger.info(f"RAG检索完成，共找到 {len(results)} 条相关文档")
+            
+            return rag_content
+            
+        except Exception as e:
+            logger.error(f"RAG检索失败: {e}")
+            return ""
+    
     async def get_file_tree_content(self) -> str:
         """获取格式化的文件树内容
         
@@ -158,7 +236,9 @@ class SystemPromptBuilder:
         mode: Optional[str] = None,
         include_file_tree: bool = True,
         include_persistent_memory: bool = True,
-        rag_content: str = ""
+        include_knowledge_bases: bool = True,
+        user_input: Optional[str] = None,
+        enable_rag: bool = True
     ) -> str:
         """构建完整的系统提示词
         
@@ -166,7 +246,9 @@ class SystemPromptBuilder:
             mode: 对话模式 (outline/writing/adjustment)
             include_file_tree: 是否包含文件树结构
             include_persistent_memory: 是否包含持久记忆信息
-            rag_content: RAG内容
+            include_knowledge_bases: 是否包含知识库列表信息
+            user_input: 用户输入文本，用于RAG检索
+            enable_rag: 是否启用RAG检索
             
         Returns:
             完整的系统提示词
@@ -175,7 +257,13 @@ class SystemPromptBuilder:
             prompt_configs = settings.get_config("mode", mode, "prompt", default="你是一个AI助手，负责为用户解决各种需求。")
             # 构建完整提示词
             prompt_parts = [prompt_configs]
-            
+
+            # 添加知识库列表信息
+            if include_knowledge_bases:
+                knowledge_bases_info = self._get_knowledge_bases_info()
+                if knowledge_bases_info:
+                    prompt_parts.append(f"[可用知识库]:\n{knowledge_bases_info}")
+
             # 添加文件树结构
             if include_file_tree:
                 file_tree_content = await self.get_file_tree_content()
@@ -187,10 +275,16 @@ class SystemPromptBuilder:
                 if persistent_memory:
                     prompt_parts.append(f"[持久记忆信息]:\n{persistent_memory}")
             
+            # 执行RAG检索并添加结果
+            if enable_rag and user_input:
+                rag_content = await self._perform_rag_search(user_input)
+                if rag_content:
+                    prompt_parts.append(f"[RAG检索结果]:\n{rag_content}")
+            
             # 合并所有部分
             full_prompt = "\n\n".join(prompt_parts)
             
-            logger.info(f"系统提示词构建完成，模式: {mode}，包含文件树: {include_file_tree}，包含持久记忆: {include_persistent_memory}")
+            logger.info(f"系统提示词构建完成，模式: {mode}，包含文件树: {include_file_tree}，包含持久记忆: {include_persistent_memory}，包含知识库: {include_knowledge_bases}，启用RAG: {enable_rag}")
             logger.info(f"构建的完整系统提示词:\n{full_prompt}")
             return full_prompt
             

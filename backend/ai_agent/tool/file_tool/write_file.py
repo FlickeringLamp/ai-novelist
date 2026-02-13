@@ -1,27 +1,38 @@
-from pathlib import Path
 from pydantic import BaseModel, Field
+from typing import Union
 from langchain.tools import tool
 from langgraph.types import interrupt
-from backend.config.config import settings
+from backend.file.file_service import update_file, delete_file
 
 class WriteFileInput(BaseModel):
     """写入文件的输入参数"""
     path: str = Field(description="文件路径")
-    content: str = Field(description="文件内容")
+    content: Union[str, None] = Field(default=None, description="文件内容，传入null时删除文件")
 
 @tool(args_schema=WriteFileInput)
-def write_file(path: str, content: str) -> str:
-    """创建文件并写入内容。注意: 1. 文件使用.md后缀。2. 如果文件已存在, 使用write_file会导致所有内容被覆盖, 建议先用read工具了解内容再使用此工具。3. 如果文件不存在，将会创建新文件并写入内容
+async def write_file(path: str, content: Union[str, None]) -> str:
+    """写入内容（兼创建/删除文件）
+
+    1. 文件使用.md后缀。
+    2. 如果文件已存在于"[当前工作区文件结构 (novel 目录)]", 使用write_file会导致所有内容被覆盖, 建议先用read工具了解内容再使用此工具。
+    3. 如果文件不存在，将会创建新文件并写入内容
+    4. 如果content填写为null，将会删除文件。
     
     Args:
-        path: 文件路径（相对于novel目录的相对路径）
-        content: 文件内容
+        path: 文件路径
+        content: 文件内容，"content"可以填写null，这将会删除文件
     """
     # 构造包含工具具体信息的中断数据
+    # 构造描述信息
+    if content is None:
+        description = f"删除文件: {path}"
+    else:
+        description = f"写入文件: {path} ({len(content)} 字符)"
+    
     interrupt_data = {
         "tool_name": "write_file",
         "tool_display_name": "写入文件",
-        "description": f"写入文件: {path} ({len(content)} 字符)",
+        "description": description,
         "parameters": {
             "path": path,
             "content": content
@@ -33,18 +44,16 @@ def write_file(path: str, content: str) -> str:
     
     if choice_action == "1":
         try:
-            # 将相对路径拼接NOVEL_DIR
-            path = Path(settings.NOVEL_DIR) / path
+            # 如果content为None，删除文件
+            if content is None:
+                await delete_file(path)
+                return f"【工具结果】：文件 '{path}' 删除成功 ;**【用户信息】：{choice_data}**"
             
-            # 确保目录存在
-            path.parent.mkdir(parents=True, exist_ok=True)
-        
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(content)
-        
-            return f"【工具结果】：文件 '{str(path)}' 写入成功，内容长度: {len(content)} 字符 ;**【用户信息】：{choice_data}**"
+            # 写入文件内容
+            await update_file(path, content)
+            return f"【工具结果】：文件 '{path}' 写入成功，内容长度: {len(content)} 字符 ;**【用户信息】：{choice_data}**"
         
         except Exception as e:
-            return f"【工具结果】：写入文件失败: {str(e)} ;**【用户信息】：{choice_data}**"
+            return f"【工具结果】：操作文件失败: {str(e)} ;**【用户信息】：{choice_data}**"
     else:
         return f"【工具结果】：用户拒绝了工具请求 ;**【用户信息】：{choice_data}**"

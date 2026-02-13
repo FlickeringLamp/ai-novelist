@@ -8,7 +8,7 @@ const DetailPanel = () => {
   const uploadProgressRef = useRef<UploadProgressRef | null>(null);
 
   return (
-    <div className="w-[80%] h-full flex flex-col relative">
+    <div className="w-[85%] h-full flex flex-col relative">
       <HeaderBar />
       <div className="flex-1 flex flex-col">
         <FilesManager

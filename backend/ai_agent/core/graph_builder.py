@@ -101,8 +101,15 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             current_messages = state["messages"]
             print(f"当前消息列表{current_messages}")
             
-            # 异步获取系统提示词
-            system_prompt = await prompt_builder.build_system_prompt(mode=mode, include_persistent_memory=True)
+            # 获取用户输入（最后一条消息）
+            user_input = None
+            if current_messages:
+                last_message = current_messages[-1]
+                if hasattr(last_message, 'content'):
+                    user_input = str(last_message.content)
+            
+            # 异步获取系统提示词，传入用户输入用于RAG检索
+            system_prompt = await prompt_builder.build_system_prompt(mode=mode, user_input=user_input)
             
             # 如果有store可用，检索长期记忆
             memory_context = ""
@@ -167,13 +174,13 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             return {"messages": [response]}
 
         # 自定义工具节点（0.3的预构建组件在1.0教程并未提及，故按照langgraph官方文档，手动处理tool_node）
-        def tool_node(state: State):
+        async def tool_node(state: State):
             """执行工具调用"""
             result = []
             # 处理最后一条消息中的工具调用
             for tool_call in state["messages"][-1].tool_calls:
                 tool = tools_by_name[tool_call["name"]]
-                observation = tool.invoke(tool_call["args"])
+                observation = await tool.ainvoke(tool_call["args"])
                 result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
             
             print(f"看看长什么样，是否有自动生成ToolMessage: {result}")

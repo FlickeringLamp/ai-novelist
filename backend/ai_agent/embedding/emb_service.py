@@ -259,6 +259,17 @@ def get_files_in_collection(collection_name):
     return file_info
 
 
+def get_all_knowledge_bases():
+    """
+    获取所有知识库列表
+    
+    Returns:
+        dict: 所有知识库配置
+    """
+    knowledge_base = settings.get_config("knowledgeBase", default={})
+    return knowledge_base
+
+
 def search_emb(collection_name: str, search_input: str, filename_filter: Optional[str] = None):
     """
     在知识库中搜索相关文档
