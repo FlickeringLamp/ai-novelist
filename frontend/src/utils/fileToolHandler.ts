@@ -12,55 +12,44 @@ const isValidMdFile = (path: string): boolean => {
   return path.endsWith('.md');
 };
 
-// 解析diff内容，计算修改后的内容
-const applyDiff = (originalContent: string, diff: string): string => {
+// 解析replacements内容，计算修改后的内容
+const applyDiff = (originalContent: string, replacements: any[]): string => {
   const lines = originalContent.split('\n');
   const result = [...lines];
-  const blocks = diff.split('<<<<<<< SEARCH');
   
-  for (const block of blocks) {
-    if (!block.trim()) continue;
+  // 按行号排序，删除操作需要从后往前处理以避免行号偏移
+  const sortedReplacements = [...replacements].sort((a, b) => b.line - a.line);
+  
+  for (const replacement of sortedReplacements) {
+    const lineNum = replacement.line;
+    const oldContent = replacement.old;
+    const newContent = replacement.new;
     
-    const parts = block.split('=======');
-    if (parts.length < 2) continue;
+    // 转换为0-based索引
+    const index = lineNum - 1;
     
-    const searchPart = parts[0];
-    const replacePart = parts[1]?.split('>>>>>>> REPLACE')[0];
-    
-    if (!searchPart || !replacePart) continue;
-    
-    // 提取起始行号
-    const lineMatch = searchPart.match(/:start_line:(\d+)/);
-    if (!lineMatch || !lineMatch[1]) continue;
-    
-    const startLine = parseInt(lineMatch[1], 10) - 1; // 转换为0-based
-    
-    // 提取要搜索的内容
-    const searchStart = searchPart.indexOf('-------') + 7;
-    const searchText = searchPart.substring(searchStart).trim();
-    
-    // 查找匹配的行
-    let matchIndex = -1;
-    const searchLines = searchText.split('\n');
-    
-    for (let i = startLine; i <= result.length - searchLines.length; i++) {
-      let match = true;
-      for (let j = 0; j < searchLines.length; j++) {
-        if (result[i + j] !== searchLines[j]) {
-          match = false;
-          break;
-        }
-      }
-      if (match) {
-        matchIndex = i;
-        break;
-      }
+    // 检查行号是否有效
+    if (index < 0 || index >= result.length) {
+      console.warn(`行号 ${lineNum} 超出文件范围（文件共 ${result.length} 行）`);
+      continue;
     }
     
-    if (matchIndex !== -1) {
-      // 替换内容
-      const replaceLines = replacePart.trim().split('\n');
-      result.splice(matchIndex, searchLines.length, ...replaceLines);
+    // 获取文件中的实际内容
+    const actualContent = result[index];
+    
+    // 验证内容是否匹配
+    if (actualContent !== oldContent) {
+      console.warn(`行 ${lineNum} 的内容不匹配\n期望: ${oldContent}\n实际: ${actualContent}`);
+      continue;
+    }
+    
+    // 执行替换或删除
+    if (newContent === null) {
+      // 删除该行
+      result.splice(index, 1);
+    } else {
+      // 替换该行
+      result[index] = newContent;
     }
   }
   
@@ -170,10 +159,10 @@ export const useFileToolHandler = () => {
       }
       
       case 'apply_diff': {
-        const diff = parsedArgs.diff;
+        const replacements = parsedArgs.replacements;
         
-        if (diff) {
-          modifiedContent = applyDiff(originalContent, diff);
+        if (replacements && Array.isArray(replacements)) {
+          modifiedContent = applyDiff(originalContent, replacements);
         }
         break;
       }

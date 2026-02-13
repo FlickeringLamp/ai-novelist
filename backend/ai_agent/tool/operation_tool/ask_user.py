@@ -2,9 +2,9 @@ import os
 import re
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from langchain import tools
-from langchain.tools import tool, ToolRuntime
+from langchain.tools import tool
 from langgraph.types import interrupt,Command
 
 class AskUserQuestionInput(BaseModel):
@@ -12,12 +12,11 @@ class AskUserQuestionInput(BaseModel):
     question: str = Field(description="问题内容")
 
 @tool(args_schema=AskUserQuestionInput)
-def ask_user_question(question: str, runtime: ToolRuntime = None) -> str:
+def ask_user_question(question: str) -> str:
     """向用户提问
     
     Args:
         question: 问题内容
-        runtime: LangChain运行时上下文
     """
     # 构造包含工具具体信息的中断数据，与其他工具保持一致的格式
     interrupt_data = {
