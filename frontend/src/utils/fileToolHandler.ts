@@ -17,8 +17,8 @@ const applyDiff = (originalContent: string, replacements: any[]): string => {
   const lines = originalContent.split('\n');
   const result = [...lines];
   
-  // 按行号排序
-  const sortedReplacements = [...replacements].sort((a, b) => a.line - b.line);
+  // 按行号排序，删除操作需要从后往前处理以避免行号偏移
+  const sortedReplacements = [...replacements].sort((a, b) => b.line - a.line);
   
   for (const replacement of sortedReplacements) {
     const lineNum = replacement.line;
@@ -43,8 +43,14 @@ const applyDiff = (originalContent: string, replacements: any[]): string => {
       continue;
     }
     
-    // 执行替换
-    result[index] = newContent;
+    // 执行替换或删除
+    if (newContent === null) {
+      // 删除该行
+      result.splice(index, 1);
+    } else {
+      // 替换该行
+      result[index] = newContent;
+    }
   }
   
   return result.join('\n');
