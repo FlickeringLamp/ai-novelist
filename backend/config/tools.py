@@ -31,8 +31,8 @@ ALL_AVAILABLE_TOOLS = {
         "name": "向量搜索",
         "description": "在向量数据库中搜索相似内容便于文本参考"
     },
-    "list_knowledge_base": {
-        "name": "列出知识库",
-        "description": "列出所有可用的知识库表"
+    "list_base_files": {
+        "name": "列出知识库文件",
+        "description": "列出指定知识库中的所有文件信息"
     }
 }

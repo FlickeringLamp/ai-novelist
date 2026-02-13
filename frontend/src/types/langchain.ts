@@ -71,6 +71,7 @@ export interface InterruptValue {
   tool_name: string;
   tool_display_name?: string;
   description?: string;
+  question?: string;
   parameters?: Record<string, unknown>;
 }
 

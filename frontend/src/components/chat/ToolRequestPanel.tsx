@@ -186,9 +186,18 @@ const ToolRequestPanel = () => {
 
   return (
     <div className="w-full bg-theme-gray1">
-      {/* 工具描述 */}
+      {/* ask_user 工具：显示问题 */}
+      {isSimpleInterrupt && interrupt.value.question && (
+        <div className="bg-theme-black rounded-small mb-2">
+          <div className="text-theme-green text-[13px] leading-[1.5]">
+            {interrupt.value.question}
+          </div>
+        </div>
+      )}
+
+      {/* 其他工具：显示描述 */}
       {!isSimpleInterrupt && interrupt.value.description && (
-        <div className="bg-theme-black rounded-small">
+        <div className="bg-theme-black rounded-small mb-2">
           <span className="text-theme-green text-[13px] leading-[1.5]">
             {interrupt.value.description}
           </span>

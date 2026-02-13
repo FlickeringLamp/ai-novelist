@@ -101,8 +101,15 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             current_messages = state["messages"]
             print(f"当前消息列表{current_messages}")
             
-            # 异步获取系统提示词
-            system_prompt = await prompt_builder.build_system_prompt(mode=mode, include_persistent_memory=True)
+            # 获取用户输入（最后一条消息）
+            user_input = None
+            if current_messages:
+                last_message = current_messages[-1]
+                if hasattr(last_message, 'content'):
+                    user_input = str(last_message.content)
+            
+            # 异步获取系统提示词，传入用户输入用于RAG检索
+            system_prompt = await prompt_builder.build_system_prompt(mode=mode, user_input=user_input)
             
             # 如果有store可用，检索长期记忆
             memory_context = ""

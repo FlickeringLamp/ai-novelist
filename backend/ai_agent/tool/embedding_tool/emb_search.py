@@ -1,153 +1,123 @@
-# from pydantic import BaseModel, Field
-# from typing import Optional
-# from langchain.tools import tool
-# from langgraph.types import interrupt
-
-# # 导入emb_service中的函数
-# from backend.ai_agent.embedding import (
-#     prepare_emb,
-#     load
-# )
-# from backend.api.embedding_api import get_emb_model_key_url_dimensions
-
-# class SearchEmbeddingInput(BaseModel):
-#     """嵌入搜索的输入参数"""
-#     query: str = Field(description="搜索查询文本")
-#     table_name: str = Field(description="指定搜索的表名")
-#     top_k: Optional[int] = Field(default=5, description="返回的结果数量")
+from pydantic import BaseModel, Field
+from typing import Optional
+from langchain.tools import tool
+from langgraph.types import interrupt
+from backend.ai_agent.embedding.emb_service import asearch_emb, get_files_in_collection
 
 
-# @tool(args_schema=SearchEmbeddingInput)
-# def search_embedding(query: str, table_name: str,
-#                     top_k: Optional[int] = 5) -> str:
-#     """在向量数据库中搜索相似内容便于文本参考
-#     Args:
-#         query: 搜索查询文本
-#         table_name: 指定搜索的表名
-#         top_k: 返回的结果数量
-#     """
-#     # 构造包含工具具体信息的中断数据
-#     interrupt_data = {
-#         "tool_name": "search_embedding",
-#         "tool_display_name": "向量搜索",
-#         "description": f"向量搜索: {query} (表: {table_name or '所有表'}, 结果数: {top_k})",
-#         "parameters": {
-#             "query": query,
-#             "table_name": table_name,
-#             "top_k": top_k
-#         }
-#     }
-#     user_choice = interrupt(interrupt_data)
-#     choice_action = user_choice.get("choice_action", "2")
-#     choice_data = user_choice.get("choice_data", "无附加信息")
+class SearchEmbeddingInput(BaseModel):
+    """嵌入搜索的输入参数"""
+    collection_id: str = Field(description="Knowledge base collection ID (e.g., db_xxx)")
+    query: str = Field(description="搜索查询文本")
+    filename_filter: Optional[str] = Field(default=None, description="可选的文件名筛选条件")
+
+
+@tool(args_schema=SearchEmbeddingInput)
+async def search_embedding(collection_id: str, query: str, filename_filter: Optional[str] = None) -> str:
+    """在向量数据库中搜索相似内容便于文本参考
+    建议生成句子而非词语，便于向量匹配
+    例如：
+        "龙可是帝王之征啊"（√）
+        "龙"，"皇帝"等词语（×）
     
-#     if choice_action != "1":
-#         return f"【工具结果】：用户取消了向量搜索 ;**【用户信息】：{choice_data}**"
+    Args:
+        collection_id: Knowledge base collection ID (e.g., db_xxx)
+        query: 搜索查询文本
+        filename_filter: 可选的文件名筛选条件
+    """
+    interrupt_data = {
+        "tool_name": "search_embedding",
+        "tool_display_name": "向量搜索",
+        "description": f"向量搜索: {query} (集合: {collection_id}, 文件筛选: {filename_filter or '无'})",
+        "parameters": {
+            "collection_id": collection_id,
+            "query": query,
+            "filename_filter": filename_filter
+        }
+    }
+    user_choice = interrupt(interrupt_data)
+    choice_action = user_choice.get("choice_action", "2")
+    choice_data = user_choice.get("choice_data", "无附加信息")
     
-#     try:
-#         # 加载配置
-#         provider, embedding_model, embedding_url, api_key, dimensions = get_emb_model_key_url_dimensions()
+    if choice_action != "1":
+        return f"【工具结果】：用户取消了向量搜索 ;**【用户信息】：{choice_data}**"
+    
+    try:
+        # 使用 emb_service 提供的异步搜索函数
+        results = await asearch_emb(
+            collection_name=collection_id,
+            search_input=query,
+            filename_filter=filename_filter
+        )
         
-#         # 准备嵌入模型
-#         embeddings = prepare_emb(provider, embedding_model, embedding_url, api_key)
+        if not results:
+            return f"【工具结果】：在集合 '{collection_id}' 中没有找到与查询 '{query}' 相关的内容 ;**【用户信息】：{choice_data}**"
         
-        
-#         # 加载指定的向量数据库
-#         vector_store = load(embeddings, db_path, table_name)
-#         if not vector_store:
-#             return f"【工具结果】：无法加载表 '{table_name}'，请检查表名是否正确 ;**【用户信息】：{choice_data}**"
-        
-#         # 执行搜索
-#         results = vector_store.similarity_search_with_score(
-#             query=query,
-#             k=top_k
-#         )
-        
-#         if not results:
-#             return f"【工具结果】：在表 '{table_name}' 中没有找到与查询 '{query}' 相关的内容 ;**【用户信息】：{choice_data}**"
-        
-#         # 格式化搜索结果
-#         formatted_results = []
-#         for i, (doc, score) in enumerate(results):
-#             metadata = doc.metadata
-#             original_filename = metadata.get('original_filename', '未知')
-#             chunk_index = metadata.get('chunk_index', 0)
+        # 格式化搜索结果
+        formatted_results = []
+        for i, (doc, score) in enumerate(results):
+            metadata = doc.metadata
+            original_filename = metadata.get('original_filename', '未知')
             
-#             result_item = f"结果 {i+1} (相似度: {score:.4f}):\n"
-#             result_item += f"来源文件: {original_filename}\n"
-#             result_item += f"内容块索引: {chunk_index}\n"
-#             result_item += f"内容: {doc.page_content}\n"
-#             formatted_results.append(result_item)
+            result_item = f"结果 {i+1} (相似度: {score:.4f}):\n"
+            result_item += f"来源文件: {original_filename}\n"
+            result_item += f"内容: {doc.page_content}\n"
+            formatted_results.append(result_item)
         
-#         results_text = "\n".join(formatted_results)
+        results_text = "\n".join(formatted_results)
         
-#         return f"【工具结果】：在表 '{table_name}' 中找到 {len(results)} 个与查询 '{query}' 相关的结果：\n\n{results_text} ;**【用户信息】：{choice_data}**"
+        return f"【工具结果】：在集合 '{collection_id}' 中找到 {len(results)} 个与查询 '{query}' 相关的结果：\n\n{results_text} ;**【用户信息】：{choice_data}**"
         
-#     except Exception as e:
-#         return f"【工具结果】：搜索过程中发生错误: {str(e)} ;**【用户信息】：{choice_data}**"
+    except Exception as e:
+        return f"【工具结果】：搜索过程中发生错误: {str(e)} ;**【用户信息】：{choice_data}**"
 
 
-# class ListKnowledgeBaseInput(BaseModel):
-#     """列出知识库的输入参数"""
-#     show_details: Optional[bool] = Field(default=True, description="是否显示详细信息")
+class ListKnowledgeBaseInput(BaseModel):
+    """列出知识库的输入参数"""
+    collection_id: str = Field(description="Knowledge base collection ID (e.g., db_xxx)")
 
 
-# @tool(args_schema=ListKnowledgeBaseInput)
-# def list_knowledge_base(show_details: Optional[bool] = True) -> str:
-#     """列出所有可用的知识库表
-#     Args:
-#         show_details: 是否显示详细信息
-#     """
-#     # 构造包含工具具体信息的中断数据
-#     interrupt_data = {
-#         "tool_name": "list_knowledge_base",
-#         "tool_display_name": "列出知识库",
-#         "description": f"列出所有知识库表 (详细信息: {show_details})",
-#         "parameters": {
-#             "show_details": show_details
-#         }
-#     }
-#     user_choice = interrupt(interrupt_data)
-#     choice_action = user_choice.get("choice_action", "2")
-#     choice_data = user_choice.get("choice_data", "无附加信息")
+@tool(args_schema=ListKnowledgeBaseInput)
+async def list_base_files(collection_id: str) -> str:
+    """列出指定知识库中的所有文件信息
     
-#     if choice_action != "1":
-#         return f"【工具结果】：用户取消了列出知识库 ;**【用户信息】：{choice_data}**"
+    Args:
+        collection_id: Knowledge base collection ID (e.g., db_xxx)
+    """
+    interrupt_data = {
+        "tool_name": "list_base_files",
+        "tool_display_name": "列出知识库文件",
+        "description": f"列出知识库 '{collection_id}' 中的所有文件",
+        "parameters": {
+            "collection_id": collection_id
+        }
+    }
+    user_choice = interrupt(interrupt_data)
+    choice_action = user_choice.get("choice_action", "2")
+    choice_data = user_choice.get("choice_data", "无附加信息")
     
-#     try:
-#         # 加载配置
-#         provider, embedding_model, embedding_url, api_key, dimensions = get_emb_model_key_url_dimensions()
+    if choice_action != "1":
+        return f"【工具结果】：用户取消了列出知识库文件 ;**【用户信息】：{choice_data}**"
+    
+    try:
+        # 使用 emb_service 提供的函数获取文件列表
+        file_info = get_files_in_collection(collection_id)
         
-#         # 准备嵌入模型
-#         embeddings = prepare_emb(provider, embedding_model, embedding_url, api_key) if show_details else None
+        if not file_info:
+            return f"【工具结果】：集合 '{collection_id}' 中没有文件 ;**【用户信息】：{choice_data}**"
         
-#         # 列出所有可用表
-#         available_tables = list_available_tables(db_path, embeddings)
+        # 格式化结果
+        formatted_files = []
+        for filename, info in file_info.items():
+            file_item = f"文件名: {filename}\n"
+            file_item += f"  文档块数: {info['chunk_count']}\n"
+            file_item += f"  分块大小: {info['chunk_size']}\n"
+            file_item += f"  重叠大小: {info['chunk_overlap']}\n"
+            formatted_files.append(file_item)
         
-#         if not available_tables:
-#             return f"【工具结果】：没有可用的知识库表 ;**【用户信息】：{choice_data}**"
+        files_text = "\n".join(formatted_files)
         
-#         # 格式化结果
-#         if show_details:
-#             formatted_tables = []
-#             for table in available_tables:
-#                 table_name = table.get("table_name", "未知")
-#                 original_filename = table.get("original_filename", "未知")
-#                 created_at = table.get("created_at", "未知")
-#                 total_chunks = table.get("total_chunks", "未知")
-                
-#                 table_info = f"table_name: {table_name}\n"
-#                 table_info += f"原始文件名: {original_filename}\n"
-#                 table_info += f"创建时间: {created_at}\n"
-#                 table_info += f"文档块数: {total_chunks}\n"
-#                 formatted_tables.append(table_info)
-            
-#             tables_text = "\n".join(formatted_tables)
-#             return f"【工具结果】：找到 {len(available_tables)} 个知识库表：\n\n{tables_text} ;**【用户信息】：{choice_data}**"
-#         else:
-#             table_names = [table.get("table_name", "未知") for table in available_tables]
-#             tables_text = "\n".join([f"- {name}" for name in table_names])
-#             return f"【工具结果】：可用的知识库表：\n{tables_text} ;**【用户信息】：{choice_data}**"
-            
-#     except Exception as e:
-#         return f"【工具结果】：列出知识库时发生错误: {str(e)} ;**【用户信息】：{choice_data}**"
+        return f"【工具结果】：集合 '{collection_id}' 中包含 {len(file_info)} 个文件：\n\n{files_text} ;**【用户信息】：{choice_data}**"
+        
+    except Exception as e:
+        return f"【工具结果】：列出知识库文件时发生错误: {str(e)} ;**【用户信息】：{choice_data}**"
