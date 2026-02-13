@@ -16,11 +16,15 @@ class ReadFileInput(BaseModel):
 @tool(args_schema=ReadFileInput)
 async def read_file(file_path: str, start_paragraph: Optional[int] = None,
                end_paragraph: Optional[int] = None) -> str:
-    """读取文件内容，支持指定段落范围
+    """读取文件内容，支持指定段落范围。
+    1. start_paragraph: 不指定时默认从第1个段落开始
+    2. end_paragraph: 不指定时默认到最后一个段落
+    3. start_paragraph和end_paragraph都不指定，则默认读取整个文件。
+
     Args:
         file_path: 文件路径
-        start_paragraph: 起始段落，不指定时默认从第1个段落开始
-        end_paragraph: 结束段落，不指定时默认到最后一个段落
+        start_paragraph: 起始段落
+        end_paragraph: 结束段落
     """
     # 构造包含工具具体信息的中断数据
     interrupt_data = {
@@ -43,11 +47,14 @@ async def read_file(file_path: str, start_paragraph: Optional[int] = None,
 
             # 使用统一的段落分割函数
             paragraphs, paragraph_ending = split_paragraphs(content)
+            # 先给所有段落编号
+            numbered_paragraphs = [f"{i+1} | {p}" for i, p in enumerate(paragraphs)]
+            # 再根据段落范围筛选
             if start_paragraph is not None or end_paragraph is not None:
                 start = start_paragraph or 1
-                end = end_paragraph or len(paragraphs)
-                paragraphs = paragraphs[start-1:end]
-            numbered_content = paragraph_ending.join([f"{i+1} | {p}" for i, p in enumerate(paragraphs)])
+                end = end_paragraph or len(numbered_paragraphs)
+                numbered_paragraphs = numbered_paragraphs[start-1:end]
+            numbered_content = paragraph_ending.join(numbered_paragraphs)
 
             return f"【工具结果】：成功读取文件 '{file_path}'，共 {len(paragraphs)} 个段落：\n\n{numbered_content} ;**【用户信息】：{choice_data}**"
         except Exception as e:
