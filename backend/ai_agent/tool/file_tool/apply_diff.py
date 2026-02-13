@@ -95,14 +95,20 @@ def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
                 "old": "要删除的内容",
                 "new": null
             }
+            {
+                "line": 30,
+                "old": "要换成空行的内容",
+                "new": ""
+            }
         ]
     }
     
     重要说明：
     1. line 指定行号
     2. old 必须与文件中指定位置的内容完全匹配
-    3. new 将替换 old 的所有内容，new为null时删除该行
+    3. new 将替换 old 的所有内容，new为null时删除该行，new为空字符串时清空该行
     4. 支持最低一个替换块，到多个替换块(上不封顶)
+    5. 当使用该工具**删除**文本后，建议使用read_file工具重新读取内容，因为删除n行后，该行数往后的文本会向上偏移n行，line不再准确。
     
     Args:
         path: 文件路径
