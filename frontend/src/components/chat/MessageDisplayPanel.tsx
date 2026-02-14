@@ -7,6 +7,7 @@ import type { Message, AIMessage } from '../../types/langchain';
 import { setAvailableTools } from '../../store/mode';
 import { selectMessages } from '../../store/chat';
 import httpClient from '../../utils/httpClient';
+import HistoryPanel from './HistoryPanel';
 
 const MessageDisplayPanel = () => {
   const dispatch = useDispatch();
@@ -203,10 +204,12 @@ const MessageDisplayPanel = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-2.5 flex flex-col">
+    <div className="flex-1 overflow-y-auto p-2.5 flex flex-col relative">
       <div className="flex-1 overflow-y-auto mt-2.5 flex flex-col gap-2">
         {messages.length === 0 ? (
-          <div className="text-center text-theme-gray2 text-sm">暂无消息</div>
+          <div className="flex-1 flex items-center justify-center">
+            <HistoryPanel />
+          </div>
         ) : (
           messages.map(renderMessage)
         )}

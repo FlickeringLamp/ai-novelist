@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileLines, faPlus, faClock } from '@fortawesome/free-solid-svg-icons';
+import { faFileLines, faPlus } from '@fortawesome/free-solid-svg-icons';
 import ModeSelectorPanel from './ModeSelectorPanel';
 import AutoApprovePanel from './AutoApprovePanel';
 import ModelSelectorPanel from './ModelSelectorPanel';
@@ -11,11 +11,15 @@ import MessageDisplayPanel from './MessageDisplayPanel';
 import ContextProgressBar from './ContextProgressBar';
 import MessageInputPanel from './MessageInputPanel';
 import ToolRequestPanel from './ToolRequestPanel';
+import HistoryPanel from './HistoryPanel';
 import { setState, clearChat } from '../../store/chat';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../store/store';
 import httpClient from '../../utils/httpClient';
 
 const ChatPanel = () => {
   const dispatch = useDispatch();
+  const historyExpanded = useSelector((state: RootState) => state.chatSlice.historyExpanded);
 
   // 初始化时获取初始 state
   useEffect(() => {
@@ -60,14 +64,6 @@ const ChatPanel = () => {
     <div className="flex flex-col h-full relative">
       {/* 顶部区域 */}
       <div className="h-[5%] w-full flex justify-center items-center p-1 border-b border-theme-gray3 gap-5">
-        {/* 聊天历史面板按钮 */}
-        <button
-          className="flex items-center justify-center w-[2vw] h-[3.5vh] bg-theme-black border-0 rounded-small cursor-pointer transition-all hover:border hover:border-theme-green hover:text-theme-green text-theme-white"
-          title="历史会话"
-        >
-          <FontAwesomeIcon icon={faClock} />
-        </button>
-
         <ModelSelectorPanel />
 
         {/* 总结对话按钮 */}
@@ -87,10 +83,10 @@ const ChatPanel = () => {
           <FontAwesomeIcon icon={faPlus} />
         </button>
       </div>
-      
+
       {/* 上下文进度条 */}
       <ContextProgressBar />
-      
+
       {/* 消息显示区域 */}
       <MessageDisplayPanel />
 
@@ -109,6 +105,13 @@ const ChatPanel = () => {
 
       {/* 两步RAG面板 */}
       <TwoStepRagPanel />
+
+      {/* 历史面板 - 展开时覆盖整个ChatPanel */}
+      {historyExpanded && (
+        <div className="absolute inset-0 z-50 bg-theme-gray2">
+          <HistoryPanel />
+        </div>
+      )}
 
     </div>
   );
