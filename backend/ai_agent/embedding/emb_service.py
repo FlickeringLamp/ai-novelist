@@ -369,3 +369,49 @@ async def asearch_emb(collection_name: str, search_input: str, filename_filter: 
         print(f"* [相似度: {score:.4f}] {doc.page_content} [{doc.metadata}]")
     
     return results
+
+
+def get_two_step_rag_config():
+    """
+    获取两步RAG的配置
+    
+    Returns:
+        dict: 包含id和name的字典，如果没有配置则返回{"id": None, "name": None}
+    """
+    kb_id = settings.get_config("two-step-rag", default=None)
+    
+    if kb_id is None:
+        return {"id": None, "name": None}
+    
+    # 获取知识库名称
+    knowledge_base = settings.get_config("knowledgeBase", default={})
+    kb_config = knowledge_base.get(kb_id)
+    
+    if kb_config:
+        kb_name = kb_config.get("name", "")
+        return {"id": kb_id, "name": kb_name}
+    else:
+        # 如果知识库不存在，清除配置
+        settings.update_config(None, "two-step-rag")
+        return {"id": None, "name": None}
+
+
+def set_two_step_rag_config(kb_id: str | None, kb_name: str | None):
+    """
+    设置或切换两步RAG配置
+    
+    Args:
+        kb_id: 知识库ID，传入None则清除配置
+        kb_name: 知识库名称，传入None则清除配置
+    
+    Returns:
+        dict: 包含id和name的字典
+    """
+    if kb_id is None or kb_name is None:
+        # 清除配置
+        settings.update_config(None, "two-step-rag")
+        return {"id": None, "name": None}
+    
+    # 设置配置
+    settings.update_config(kb_id, "two-step-rag")
+    return {"id": kb_id, "name": kb_name}

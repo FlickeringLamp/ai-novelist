@@ -46,7 +46,8 @@ def initialize_directories_and_files():
             "selectedModel": "",
             "provider": PROVIDERS,
             "thread_id": thread_id,
-            "knowledgeBase":{}
+            "knowledgeBase":{},
+            "two-step-rag": None
         }
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, ensure_ascii=False, indent=2)

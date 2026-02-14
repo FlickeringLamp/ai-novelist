@@ -24,6 +24,10 @@ export interface ChatState {
   autoApproveExpanded: boolean;
   // 工具请求栏显示状态
   toolRequestVisible: boolean;
+  // 两步RAG配置
+  twoStepRagConfig: { id: string | null; name: string | null };
+  // 两步RAG展开状态
+  twoStepRagExpanded: boolean;
 }
 
 // 初始状态
@@ -33,6 +37,8 @@ const initialState: ChatState = {
   modeExpanded: false,
   autoApproveExpanded: false,
   toolRequestVisible: false,
+  twoStepRagConfig: { id: null, name: null },
+  twoStepRagExpanded: false,
 };
 
 export const chatSlice = createSlice({
@@ -164,6 +170,16 @@ export const chatSlice = createSlice({
         state.state.interrupts = [];
       }
     },
+
+    // 设置两步RAG配置
+    setTwoStepRagConfig: (state: Draft<ChatState>, action: PayloadAction<{ id: string | null; name: string | null }>) => {
+      state.twoStepRagConfig = action.payload;
+    },
+
+    // 切换两步RAG展开状态
+    setTwoStepRagExpanded: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
+      state.twoStepRagExpanded = action.payload;
+    },
   },
 });
 
@@ -178,6 +194,8 @@ export const {
   clearChat,
   setToolRequestVisible,
   clearInterrupt,
+  setTwoStepRagConfig,
+  setTwoStepRagExpanded,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

@@ -30,7 +30,7 @@ const initialState: KnowledgeState = {
   selectedKnowledgeBaseId: null,
   fileRefreshTrigger: 0,
   uploadProgress: {},
-  uploading: {}
+  uploading: {},
 };
 
 export const knowledgeSlice = createSlice({
