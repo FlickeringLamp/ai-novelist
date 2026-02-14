@@ -11,7 +11,7 @@ import logging
 
 from backend.config.config import settings
 from backend.file.file_service import get_file_tree
-from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb
+from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb, get_two_step_rag_config
 
 logger = logging.getLogger(__name__)
 
@@ -129,22 +129,25 @@ class SystemPromptBuilder:
             格式化的RAG检索结果字符串
         """
         try:
-            # 获取所有知识库
-            knowledge_bases = get_all_knowledge_bases()
+            # 获取两步RAG配置
+            rag_config = get_two_step_rag_config()
+            kb_id = rag_config.get("id")
+            kb_name = rag_config.get("name")
             
-            if not knowledge_bases:
-                logger.info("没有可用的知识库，跳过RAG检索")
+            if not kb_id:
+                logger.info("未配置两步RAG知识库，跳过RAG检索")
                 return ""
             
-            # 获取第一个知识库的ID（按字典序排序，确保一致性）
-            first_kb_id = sorted(knowledge_bases.keys())[0]
-            kb_config = knowledge_bases[first_kb_id]
-            
-            logger.info(f"使用第一个知识库进行RAG检索: {kb_config.get('name', first_kb_id)} (ID: {first_kb_id})")
-            
+            # 验证知识库是否存在
+            knowledge_bases = get_all_knowledge_bases()
+            if kb_id not in knowledge_bases:
+                logger.warning(f"配置的知识库 {kb_name} (ID: {kb_id}) 不存在，跳过RAG检索")
+                return ""
+            logger.info(f"使用配置的知识库进行RAG检索: {kb_name} (ID: {kb_id})")
+
             # 执行异步检索
             results = await asearch_emb(
-                collection_name=first_kb_id,
+                collection_name=kb_id,
                 search_input=user_input
             )
             
