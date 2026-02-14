@@ -42,6 +42,10 @@ class InterruptResponseRequest(BaseModel):
     choice: str = Field(..., description="用户选择 ('1'=恢复, '2'=取消)")
     additional_data: str = Field(default="", description="附加信息")
 
+class NewThreadRequest(BaseModel):
+    """创建新会话请求"""
+    thread_id: str = Field(..., description="新的thread_id")
+
 class SelectedModelRequest(BaseModel):
     """设置选中模型请求"""
     selectedModel: str = Field(..., description="选中的模型ID")
@@ -130,23 +134,19 @@ async def send_interrupt_response(request: InterruptResponseRequest):
     return StreamingResponse(remove_interrupt_response(), media_type="text/event-stream")
 
 
-@router.post("/new-thread", summary="创建新的会话", response_model=str)
-async def create_new_thread():
+@router.post("/new-thread", summary="创建新的会话")
+async def create_new_thread(request: NewThreadRequest):
     """
-    创建新的thread_id并返回
+    保存前端传来的thread_id
     
-    返回:
-    - 新的thread_id
+    - **thread_id**: 前端生成的thread_id
     """
-    # 创建基于时间戳的新thread_id
-    new_thread_id = f"thread_{int(time.time() * 1000)}"
-    
     # 保存到配置文件
-    settings.update_config({"thread_id": new_thread_id})
+    settings.update_config(request.thread_id, "thread_id")
     
-    logger.info(f"创建新的thread_id: {new_thread_id}")
+    logger.info(f"保存新的thread_id: {request.thread_id}")
     
-    return new_thread_id
+    return {"success": True, "thread_id": request.thread_id}
 
 
 @router.get("/current-thread", summary="获取当前会话ID", response_model=str)

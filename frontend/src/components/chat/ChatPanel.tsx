@@ -11,7 +11,7 @@ import MessageDisplayPanel from './MessageDisplayPanel';
 import ContextProgressBar from './ContextProgressBar';
 import MessageInputPanel from './MessageInputPanel';
 import ToolRequestPanel from './ToolRequestPanel';
-import { setState } from '../../store/chat';
+import { setState, clearChat } from '../../store/chat';
 import httpClient from '../../utils/httpClient';
 
 const ChatPanel = () => {
@@ -33,6 +33,29 @@ const ChatPanel = () => {
     };
     loadInitialState();
   }, [dispatch]);
+
+  // 生成随机thread_id
+  const generateThreadId = () => {
+    return `thread_${Date.now()}`;
+  };
+
+  // 创建新会话
+  const handleNewThread = async () => {
+    try {
+      const newThreadId = generateThreadId();
+      await httpClient.post('/api/chat/new-thread', { thread_id: newThreadId });
+      dispatch(clearChat());
+      // 重新加载初始状态
+      const initialState = await httpClient.get('/api/chat/state');
+      if (initialState && initialState.values) {
+        initialState.values.messages = initialState.values.messages || [];
+      }
+      dispatch(setState(initialState));
+      console.log("创建新会话成功，thread_id:", newThreadId);
+    } catch (error) {
+      console.error('创建新会话失败:', error);
+    }
+  };
   return (
     <div className="flex flex-col h-full relative">
       {/* 顶部区域 */}
@@ -59,6 +82,7 @@ const ChatPanel = () => {
         <button
           className="bg-theme-black text-theme-white rounded-small w-[2vw] h-[3.5vh] text-lg font-bold flex items-center justify-center border-0 transition-all hover:border hover:border-theme-green hover:text-theme-green"
           title="创建新会话"
+          onClick={handleNewThread}
         >
           <FontAwesomeIcon icon={faPlus} />
         </button>
