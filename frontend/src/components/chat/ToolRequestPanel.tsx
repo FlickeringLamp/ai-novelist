@@ -50,6 +50,12 @@ const ToolRequestPanel = () => {
           if (response.action === 'approve') {
             // 批准：同步 currentData 到 backUp
             dispatch(saveTabContent({ id: path }));
+            
+            // 如果是删除文件操作（write_file 且 content 为 null），需要关闭标签页
+            const content = interrupt.value.parameters?.content;
+            if (toolName === 'write_file' && content === null) {
+              dispatch(decreaseTab({ tabId: path }));
+            }
           } else {
             // 拒绝：关闭标签栏里的标签
             dispatch(decreaseTab({ tabId: path }));
