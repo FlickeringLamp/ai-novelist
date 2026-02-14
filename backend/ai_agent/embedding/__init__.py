@@ -1,4 +1,4 @@
-from .emb_service import prepare_emb, get_files_in_collection, add_file_to_collection, remove_file_from_collection, delete_collection, create_collection, search_emb, asearch_emb, get_all_knowledge_bases
+from .emb_service import prepare_emb, get_files_in_collection, add_file_to_collection, remove_file_from_collection, delete_collection, create_collection, search_emb, asearch_emb, get_all_knowledge_bases, get_two_step_rag_config, set_two_step_rag_config
 from .websocket_manager import WebSocketManager, websocket_manager
 
 __all__ = [
@@ -12,5 +12,7 @@ __all__ = [
     "websocket_manager",
     "search_emb",
     "asearch_emb",
-    "get_all_knowledge_bases"
+    "get_all_knowledge_bases",
+    "get_two_step_rag_config",
+    "set_two_step_rag_config"
 ]

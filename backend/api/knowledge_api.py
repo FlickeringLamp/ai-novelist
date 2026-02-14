@@ -14,7 +14,9 @@ from backend.ai_agent.embedding import (
     search_emb,
     asearch_emb,
     websocket_manager,
-    get_all_knowledge_bases
+    get_all_knowledge_bases,
+    get_two_step_rag_config,
+    set_two_step_rag_config
 )
 
 logger = logging.getLogger(__name__)
@@ -49,6 +51,12 @@ class SearchKnowledgeBaseRequest(BaseModel):
     """搜索知识库请求"""
     query: str = Field(..., description="搜索查询文本")
     filename_filter: str = Field(None, description="可选的文件名筛选条件")
+
+
+class SetTwoStepRagRequest(BaseModel):
+    """设置两步RAG请求"""
+    id: str | None = Field(None, description="知识库ID，传入null则清除配置")
+    name: str | None = Field(None, description="知识库名称，传入null则清除配置")
 
 
 # 创建API路由器
@@ -367,3 +375,30 @@ async def search_knowledge_base_async(kb_id: str, request: SearchKnowledgeBaseRe
         "results": formatted_results,
         "total": len(formatted_results)
     }
+
+
+@router.get("/two-step-rag", summary="获取两步RAG配置")
+def get_two_step_rag():
+    """
+    获取两步RAG的配置
+    
+    Returns:
+        Dict: 包含id和name的字典，如果没有配置则返回{"id": None, "name": None}
+    """
+    return get_two_step_rag_config()
+
+
+@router.put("/two-step-rag", summary="设置两步RAG配置")
+def set_two_step_rag(request: SetTwoStepRagRequest):
+    """
+    设置或切换两步RAG配置
+    
+    - **id**: 知识库ID，传入null则清除配置
+    - **name**: 知识库名称，传入null则清除配置
+    
+    Returns:
+        Dict: 包含id和name的字典
+    """
+    result = set_two_step_rag_config(request.id, request.name)
+    logger.info(f"设置两步RAG配置: {result}")
+    return result

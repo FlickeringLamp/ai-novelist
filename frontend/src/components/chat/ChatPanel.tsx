@@ -5,6 +5,8 @@ import { faFileLines, faPlus, faClock } from '@fortawesome/free-solid-svg-icons'
 import ModeSelectorPanel from './ModeSelectorPanel';
 import AutoApprovePanel from './AutoApprovePanel';
 import ModelSelectorPanel from './ModelSelectorPanel';
+import TwoStepRagSelector from './two-step-rag/TwoStepRagSelector';
+import TwoStepRagPanel from './two-step-rag/TwoStepRagPanel';
 import MessageDisplayPanel from './MessageDisplayPanel';
 import ContextProgressBar from './ContextProgressBar';
 import MessageInputPanel from './MessageInputPanel';
@@ -75,11 +77,14 @@ const ChatPanel = () => {
       <MessageInputPanel />
 
       {/* 底部工具栏 */}
-      <div className="w-full flex p-2.5 border-t border-theme-gray1 relative gap-10">
+      <div className="w-full flex p-2.5 border-t border-theme-gray1 relative gap-2">
         <ModeSelectorPanel />
+        <TwoStepRagSelector />
         <AutoApprovePanel />
       </div>
 
+      {/* 两步RAG面板 */}
+      <TwoStepRagPanel />
 
     </div>
   );

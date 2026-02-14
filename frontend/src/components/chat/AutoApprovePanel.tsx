@@ -1,18 +1,26 @@
 import { useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faAngleRight, faAngleUp } from '@fortawesome/free-solid-svg-icons';
 
 const AutoApprovePanel = () => {
-  const [expanded, setExpanded] = useState(false);
+  const [enabled, setEnabled] = useState(false);
 
   return (
-    <div className="relative flex w-[50%] z-[100] box-border">
-      <div 
-        className="flex items-center justify-center w-full p-2 bg-theme-black border border-theme-gray1 rounded-small cursor-pointer transition-all min-h-[36px] box-border hover:border-theme-green hover:bg-theme-gray1 gap-1"
-        onClick={() => setExpanded(!expanded)}
+    <div className="relative flex flex-1 z-[100] box-border items-center justify-center">
+      <div
+        className="relative group"
+        title="自动批准"
       >
-        <FontAwesomeIcon icon={expanded ? faAngleUp : faAngleRight} className="text-theme-white text-[12px]" />
-        <span className="text-theme-white text-[14px] font-medium whitespace-nowrap overflow-hidden text-ellipsis">自动批准已关闭</span>
+        <div
+          className={`w-12 h-6 rounded-full cursor-pointer transition-all duration-300 ${
+            enabled ? 'bg-theme-green' : 'bg-theme-gray2'
+          }`}
+          onClick={() => setEnabled(!enabled)}
+        >
+          <div
+            className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 shadow-md ${
+              enabled ? 'left-7' : 'left-1'
+            }`}
+          />
+        </div>
       </div>
     </div>
   );
