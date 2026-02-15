@@ -181,7 +181,7 @@ const ToolRequestPanel = () => {
       try {
         const finalState = await httpClient.get('/api/chat/state');
         dispatch(setState(finalState));
-        console.log("获取最终状态成功");
+        console.log("获取最终状态成功，",finalState);
       } catch (error) {
         console.error('获取最终状态失败:', error);
       }

@@ -9,6 +9,7 @@ import {
   updateAiMessage,
   setState,
   setMessage,
+  setSelectedThreadId,
 } from '../../store/chat';
 import type { ToolCall,  StreamChunk } from '../../types/langchain';
 import httpClient from '../../utils/httpClient';
@@ -21,6 +22,7 @@ const MessageInputPanel = () => {
   
   // 从Redux获取状态
   const message = useSelector((state: RootState) => state.chatSlice.message);
+  const selectedThreadId = useSelector((state: RootState) => state.chatSlice.selectedThreadId);
   
   // 本地错误状态
   const [error, setError] = useState('');
@@ -29,6 +31,11 @@ const MessageInputPanel = () => {
   const generateMessageId = () => {
     const uuid = crypto.randomUUID();
     return `lc_run--${uuid}`;
+  };
+
+  // 生成随机thread_id
+  const generateThreadId = () => {
+    return `thread_${Date.now()}`;
   };
 
   // 发送消息到后端
@@ -68,6 +75,30 @@ const MessageInputPanel = () => {
     
     setError('');
     dispatch(setMessage(''));
+
+    // 如果没有选中thread_id，则创建新的
+    let actualThreadId = selectedThreadId;
+    if (!actualThreadId) {
+      try {
+        const newThreadId = generateThreadId();
+        const result = await httpClient.post('/api/chat/update-thread', { thread_id: newThreadId });
+        // 从后端返回的结果中获取thread_id
+        actualThreadId = result?.thread_id;
+        dispatch(setSelectedThreadId(actualThreadId));
+        console.log("创建新会话成功，thread_id:", actualThreadId);
+        
+        // 从后端获取state
+        const initialState = await httpClient.get('/api/chat/state');
+        if (initialState && initialState.values) {
+          initialState.values.messages = initialState.values.messages || [];
+        }
+        dispatch(setState(initialState));
+        console.log("获取初始state成功");
+      } catch (error) {
+        console.error('创建新会话失败:', error);
+        return;
+      }
+    }
 
     dispatch(addUserMessage({ id: userMessageId, content: inputMessage }));
 

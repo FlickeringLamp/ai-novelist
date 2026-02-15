@@ -1,24 +1,36 @@
 import { useRef, useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faAngleRight, faAngleUp } from '@fortawesome/free-solid-svg-icons';
+import { faAngleRight, faAngleUp, faTrash } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
 import type { Message, AIMessage } from '../../types/langchain';
 import { setAvailableTools } from '../../store/mode';
-import { selectMessages } from '../../store/chat';
+import { selectMessages, setState } from '../../store/chat';
 import httpClient from '../../utils/httpClient';
+import UnifiedModal from '../others/UnifiedModal';
 
 const MessageDisplayPanel = () => {
   const dispatch = useDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const [expandedToolResults, setExpandedToolResults] = useState<Set<string>>(new Set());
+  // 消息模态框状态
+  const [modal, setModal] = useState<{ show: boolean; message: string; onConfirm: (() => void) | null; onCancel: (() => void) | null }>({
+    show: false,
+    message: '',
+    onConfirm: null,
+    onCancel: null
+  });
   
   // 从Redux获取可用工具信息
   const availableTools = useSelector((state: RootState) => state.modeSlice.availableTools);
   
   // 从Redux获取消息列表
   const messages = useSelector((state: RootState) => selectMessages(state));
+  
+  // 从Redux获取thread_id和mode
+  const threadId = useSelector((state: RootState) => state.chatSlice.selectedThreadId) || 'default';
+  const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId) || 'outline';
 
   // 加载可用工具数据
   useEffect(() => {
@@ -29,7 +41,7 @@ const MessageDisplayPanel = () => {
           dispatch(setAvailableTools(toolsResult));
         }
       } catch (error) {
-        console.error('加载工具数据失败:', error);
+        setModal({ show: true, message: (error as Error).toString(), onConfirm: null, onCancel: null });
       }
     };
     loadTools();
@@ -68,6 +80,55 @@ const MessageDisplayPanel = () => {
     });
   };
 
+  // 删除消息
+  const deleteMessage = async (msgId: string) => {
+    try {
+      // 查找要删除的消息
+      const messageToDelete = messages.find(msg => msg.id === msgId);
+      
+      // 收集所有需要删除的消息 ID
+      const idsToDelete: string[] = [msgId];
+      
+      // 如果是 AI 消息，还需要删除其 tool_calls 对应的 ToolMessage
+      if (messageToDelete?.type === 'ai') {
+        const aiMessage = messageToDelete as AIMessage;
+        if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
+          // 获取所有工具调用的 call_id
+          const toolCallIds = aiMessage.tool_calls.map(toolCall => toolCall.id);
+          
+          // 在所有消息中查找对应的 ToolMessage
+          toolCallIds.forEach(callId => {
+            const toolMessage = messages.find(msg =>
+              msg.type === 'tool' && (msg as any).tool_call_id === callId
+            );
+            if (toolMessage) {
+              idsToDelete.push(toolMessage.id);
+            }
+          });
+
+          // 检查是否所有 tool_calls 都找到了对应的 ToolMessage
+          if (idsToDelete.length < toolCallIds.length + 1) {
+            throw new Error('不可以删除正在调用工具的ai消息');
+          }
+        }
+      }
+      console.log("idsToDelete:",idsToDelete)
+      const a = await httpClient.post('/api/history/messages/operation', {
+        thread_id: threadId,
+        target_ids: idsToDelete,
+        mode: selectedModeId
+      });
+      console.log("a",a)
+
+      // 重新获取状态以刷新显示
+      const finalState = await httpClient.get('/api/chat/state');
+      dispatch(setState(finalState));
+      console.log("state,",finalState)
+    } catch (error) {
+      setModal({ show: true, message: (error as Error).toString(), onConfirm: null, onCancel: null });
+    }
+  };
+
   // 获取预览内容（第一行或前几个字）
   const getPreviewContent = (content: string): string => {
     const lines = content.split('\n');
@@ -100,8 +161,8 @@ const MessageDisplayPanel = () => {
           key={msg.id}
           className="flex flex-col max-w-[80%] self-start bg-theme-gray1 border border-theme-green p-2.5 rounded-medium break-words overflow-wrap break-word"
         >
-          <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleToolResultExpand(msg.id)}>
-            <div className="flex items-center">
+          <div className="flex items-center">
+            <div className="flex items-center cursor-pointer" onClick={() => toggleToolResultExpand(msg.id)}>
               <FontAwesomeIcon icon={isExpanded ? faAngleUp : faAngleRight} className="text-theme-green hover:text-theme-white text-xs mr-2" />
               <span className="font-bold text-[0.9em] text-theme-white">工具</span>
             </div>
@@ -127,8 +188,15 @@ const MessageDisplayPanel = () => {
             : 'self-start bg-theme-gray2 text-theme-white'
         }`}
       >
-        <div className="font-bold mb-1 text-[0.9em]">
-          {isUser ? '用户' : 'AI'}
+        <div className="flex items-center justify-between mb-1">
+          <div className="font-bold text-[0.9em]">
+            {isUser ? '用户' : 'AI'}
+          </div>
+          <FontAwesomeIcon
+            icon={faTrash}
+            className="text-xs cursor-pointer hover:text-theme-red transition-colors"
+            onClick={() => deleteMessage(msg.id)}
+          />
         </div>
         <div className="leading-[1.4] overflow-wrap break-word break-words">
           {isUser ? (
@@ -203,15 +271,21 @@ const MessageDisplayPanel = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-2.5 flex flex-col">
+    <div className="flex-1 overflow-y-auto p-2.5 flex flex-col relative">
       <div className="flex-1 overflow-y-auto mt-2.5 flex flex-col gap-2">
-        {messages.length === 0 ? (
-          <div className="text-center text-theme-gray2 text-sm">暂无消息</div>
-        ) : (
-          messages.map(renderMessage)
-        )}
+        {messages.map(renderMessage)}
         <div ref={messagesEndRef} />
       </div>
+      {/* 模态框管理模块 */}
+      {modal.show && (
+        <UnifiedModal
+          message={modal.message}
+          buttons={[
+            { text: '确定', onClick: modal.onConfirm || (() => setModal({ show: false, message: '', onConfirm: null, onCancel: null })), className: 'bg-theme-green' },
+            { text: '取消', onClick: modal.onCancel || (() => setModal({ show: false, message: '', onConfirm: null, onCancel: null })), className: 'bg-theme-gray3' }
+          ]}
+        />
+      )}
     </div>
   );
 };

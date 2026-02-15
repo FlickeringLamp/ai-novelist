@@ -1,16 +1,15 @@
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.prebuilt import tools_condition
 from langgraph.store.base import BaseStore
-from langgraph.store.sqlite import SqliteStore
+from langgraph.store.sqlite.aio import AsyncSqliteStore
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langchain_core.messages import AnyMessage, ToolMessage, AIMessage, SystemMessage, HumanMessage, RemoveMessage
+from langchain_core.messages import AnyMessage, ToolMessage, AIMessage, SystemMessage, HumanMessage
 from langchain_core.messages.utils import (
     trim_messages,
     count_tokens_approximately
 )
 from typing_extensions import TypedDict, Annotated
-from typing import Callable, Any
-import operator
+from typing import Callable, Any, List
 from backend.config.config import settings
 from backend.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.ai_agent.core.tool_load import import_tools_from_directory
@@ -19,9 +18,9 @@ import uuid
 import asyncio
 
 
-class State(TypedDict):
+class State(MessagesState):
     """包含消息的状态,不包括系统提示词"""
-    messages: Annotated[list[AnyMessage], operator.add]
+    documents: list[str]
 
 
 def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
@@ -44,7 +43,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
 
         # 每次都创建新的store实例，避免线程冲突
         store_db_path = str(settings.DB_DIR) + "/store.db"
-        store = SqliteStore.from_conn_string(store_db_path)
+        store = AsyncSqliteStore.from_conn_string(store_db_path)
 
         # 使用 SystemPromptBuilder 构建完整的系统提示词（每次创建新实例避免并发问题）
         prompt_builder = SystemPromptBuilder()
@@ -187,54 +186,6 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             # 直接返回result，使用operator.add自动追加到状态中
             return {"messages": result}
 
-        # 准备换用官方1.0推荐的删除机制
-        def custom_delete_messages(state: State):
-            """自定义删除消息节点 - 使用RemoveMessage删除消息"""
-            messages = state["messages"]
-            
-            # 检查是否有删除指令
-            delete_instructions = []
-            
-            for msg in messages:
-                # 检查是否是删除指令消息
-                if isinstance(msg, HumanMessage) and msg.content.startswith("/delete"):
-                    delete_instructions.append(msg)
-                elif isinstance(msg, AIMessage) and hasattr(msg, 'content') and msg.content and msg.content.startswith("删除"):
-                    delete_instructions.append(msg)
-            
-            # 如果有删除指令，执行删除逻辑
-            if delete_instructions:
-                print(f"检测到删除指令，执行删除操作...")
-                
-                # 分析删除指令类型
-                for instruction in delete_instructions:
-                    content = instruction.content
-                    
-                    # 删除所有消息
-                    if "/delete all" in content.lower() or "删除所有" in content:
-                        print("执行清空所有消息操作")
-                        # 使用RemoveMessage删除所有消息
-                        return {"messages": [RemoveMessage(id=m.id) for m in messages]}
-                    
-                    # 删除特定索引的消息
-                    elif "/delete index" in content.lower() or "删除索引" in content:
-                        try:
-                            import re
-                            match = re.search(r'/delete\s+index\s+(\d+)', content.lower())
-                            if match:
-                                index = int(match.group(1))
-                            else:
-                                match = re.search(r'删除索引\s*(\d+)', content)
-                                index = int(match.group(1)) if match else -1
-                            
-                            if 0 <= index < len(messages):
-                                print(f"删除索引 {index} 的消息")
-                                return {"messages": [RemoveMessage(id=messages[index].id)]}
-                        except (ValueError, IndexError):
-                            print("删除索引无效")
-                
-                print(f"删除操作完成")
-
         # 创建总结节点，准备换用官方1.0推荐的总结机制，同时应该取消手动添加消息状态的机制
         def summarize_conversation(state: State):
             """总结对话历史"""
@@ -265,80 +216,30 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             print(f"[DEBUG] summarize节点 - 返回结果")
             return {"messages": [summary_user_message, summary_ai_message]}
 
-        # 条件判断函数 - 决定是执行删除操作、总结操作还是调用LLM
-        def route_to_delete_or_llm(state: State):
-            """路由到删除节点、总结节点或LLM节点"""
-            messages = state["messages"]
-            
-            # 检查是否有删除指令
-            has_delete_instructions = False
-            has_summarize_instructions = False
-            
-            # 打印所有消息内容用于调试
-            print(f"[DEBUG] 路由函数检查消息，共 {len(messages)} 条消息:")
-            for i, msg in enumerate(messages):
-                print(f"[DEBUG] 消息 {i}: 类型={type(msg).__name__}, 内容前50字符={str(msg.content)[:50] if hasattr(msg, 'content') else '无内容'}")
-            
-            for msg in messages:
-                if isinstance(msg, HumanMessage):
-                    if msg.content.startswith("/delete"):
-                        has_delete_instructions = True
-                        print(f"[DEBUG] 检测到删除指令: {msg.content}")
-                        break
-                    elif msg.content.startswith("/summarize"):
-                        has_summarize_instructions = True
-                        print(f"[DEBUG] 检测到总结指令: {msg.content}")
-                        break
-            
-            if has_delete_instructions:
-                # 如果有删除指令，执行删除
-                print(f"[DEBUG] 路由决策: 执行删除操作")
-                return "custom_delete"
-            elif has_summarize_instructions:
-                # 如果有总结指令，执行总结
-                print(f"[DEBUG] 路由决策: 执行总结操作")
-                return "summarize"
-            else:
-                # 否则调用LLM
-                print(f"[DEBUG] 路由决策: 调用LLM")
-                return "call_llm"
-
         # 构建图
         builder = StateGraph(State)
 
         # 添加节点
         builder.add_node("call_llm", call_llm)
         builder.add_node("tools", tool_node)  # 使用自定义工具节点函数
-        builder.add_node("custom_delete", custom_delete_messages)  # 使用自定义删除节点
         builder.add_node("summarize", summarize_conversation)  # 添加总结节点
 
         # 添加边
+        builder.add_edge(START, "call_llm")
         builder.add_edge("tools", "call_llm")
         builder.add_conditional_edges(
             "call_llm",
             tools_condition,
         )
-        # 添加从START到删除节点的条件边
-        builder.add_conditional_edges(
-            START,
-            route_to_delete_or_llm,
-            {
-                "custom_delete": "custom_delete",
-                "summarize": "summarize",
-                "call_llm": "call_llm"
-            }
-        )
         # 总结节点执行后结束，避免触发后续节点
         builder.add_edge("summarize", END)
-
-        # 删除节点执行后结束
-        builder.add_edge("custom_delete", END)
 
         # 创建SQLite检查点数据库路径
         checkpoint_db_path = str(settings.DB_DIR) + "/checkpoints.db"
         
-        # 使用异步上下文管理器创建checkpointer
-        async with AsyncSqliteSaver.from_conn_string(checkpoint_db_path) as checkpointer:
+        # 使用异步上下文管理器创建checkpointer和store
+        async with AsyncSqliteSaver.from_conn_string(checkpoint_db_path) as checkpointer, \
+                    AsyncSqliteStore.from_conn_string(store_db_path) as store:
             # 编译图，使用checkpointer和store（长期记忆）
             compiled_graph = builder.compile(checkpointer=checkpointer, store=store)
             

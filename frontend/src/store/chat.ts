@@ -28,6 +28,10 @@ export interface ChatState {
   twoStepRagConfig: { id: string | null; name: string | null };
   // 两步RAG展开状态
   twoStepRagExpanded: boolean;
+  // 历史面板展开状态
+  historyExpanded: boolean;
+  // 选中的thread_id
+  selectedThreadId: string | null;
 }
 
 // 初始状态
@@ -39,6 +43,8 @@ const initialState: ChatState = {
   toolRequestVisible: false,
   twoStepRagConfig: { id: null, name: null },
   twoStepRagExpanded: false,
+  historyExpanded: false,
+  selectedThreadId: null,
 };
 
 export const chatSlice = createSlice({
@@ -180,6 +186,16 @@ export const chatSlice = createSlice({
     setTwoStepRagExpanded: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
       state.twoStepRagExpanded = action.payload;
     },
+
+    // 切换历史面板展开状态
+    setHistoryExpanded: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
+      state.historyExpanded = action.payload;
+    },
+
+    // 设置选中的thread_id
+    setSelectedThreadId: (state: Draft<ChatState>, action: PayloadAction<string | null>) => {
+      state.selectedThreadId = action.payload;
+    },
   },
 });
 
@@ -196,6 +212,8 @@ export const {
   clearInterrupt,
   setTwoStepRagConfig,
   setTwoStepRagExpanded,
+  setHistoryExpanded,
+  setSelectedThreadId,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
