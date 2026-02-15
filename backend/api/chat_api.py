@@ -134,8 +134,8 @@ async def send_interrupt_response(request: InterruptResponseRequest):
     return StreamingResponse(remove_interrupt_response(), media_type="text/event-stream")
 
 
-@router.post("/new-thread", summary="创建新的会话")
-async def create_new_thread(request: NewThreadRequest):
+@router.post("/update-thread", summary="更新会话")
+async def update_thread(request: NewThreadRequest):
     """
     保存前端传来的thread_id
     

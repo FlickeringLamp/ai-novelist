@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileLines, faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -7,58 +6,18 @@ import AutoApprovePanel from './AutoApprovePanel';
 import ModelSelectorPanel from './ModelSelectorPanel';
 import TwoStepRagSelector from './two-step-rag/TwoStepRagSelector';
 import TwoStepRagPanel from './two-step-rag/TwoStepRagPanel';
-import MessageDisplayPanel from './MessageDisplayPanel';
 import ContextProgressBar from './ContextProgressBar';
 import MessageInputPanel from './MessageInputPanel';
-import ToolRequestPanel from './ToolRequestPanel';
-import HistoryPanel from './HistoryPanel';
-import { setState, clearChat } from '../../store/chat';
-import { useSelector } from 'react-redux';
-import type { RootState } from '../../store/store';
-import httpClient from '../../utils/httpClient';
+import MiddlePart from './MiddlePart';
+import { clearChat, setSelectedThreadId } from '../../store/chat';
 
 const ChatPanel = () => {
   const dispatch = useDispatch();
-  const historyExpanded = useSelector((state: RootState) => state.chatSlice.historyExpanded);
-
-  // 初始化时获取初始 state
-  useEffect(() => {
-    const loadInitialState = async () => {
-      try {
-        const initialState = await httpClient.get('/api/chat/state');
-        if (initialState && initialState.values) {
-          initialState.values.messages = initialState.values.messages || [];
-        }
-        dispatch(setState(initialState));
-        console.log("langchain初始state:",initialState)
-      } catch (error) {
-        console.error('加载初始状态失败:', error);
-      }
-    };
-    loadInitialState();
-  }, [dispatch]);
-
-  // 生成随机thread_id
-  const generateThreadId = () => {
-    return `thread_${Date.now()}`;
-  };
 
   // 创建新会话
-  const handleNewThread = async () => {
-    try {
-      const newThreadId = generateThreadId();
-      await httpClient.post('/api/chat/new-thread', { thread_id: newThreadId });
-      dispatch(clearChat());
-      // 重新加载初始状态
-      const initialState = await httpClient.get('/api/chat/state');
-      if (initialState && initialState.values) {
-        initialState.values.messages = initialState.values.messages || [];
-      }
-      dispatch(setState(initialState));
-      console.log("创建新会话成功，thread_id:", newThreadId);
-    } catch (error) {
-      console.error('创建新会话失败:', error);
-    }
+  const handleNewThread = () => {
+    dispatch(setSelectedThreadId(null));
+    console.log("回到初始状态");
   };
   return (
     <div className="flex flex-col h-full relative">
@@ -87,11 +46,8 @@ const ChatPanel = () => {
       {/* 上下文进度条 */}
       <ContextProgressBar />
 
-      {/* 消息显示区域 */}
-      <MessageDisplayPanel />
-
-      {/* 工具请求栏 */}
-      <ToolRequestPanel />
+      {/* 中间部分 - 消息显示区域/历史消息栏 */}
+      <MiddlePart />
 
       {/* 输入区域 */}
       <MessageInputPanel />
@@ -106,12 +62,6 @@ const ChatPanel = () => {
       {/* 两步RAG面板 */}
       <TwoStepRagPanel />
 
-      {/* 历史面板 - 展开时覆盖整个ChatPanel */}
-      {historyExpanded && (
-        <div className="absolute inset-0 z-50 bg-theme-gray2">
-          <HistoryPanel />
-        </div>
-      )}
 
     </div>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../../store/store';
-import { setHistoryExpanded } from '../../store/chat';
+import { setHistoryExpanded, setSelectedThreadId } from '../../store/chat';
 import httpClient from '../../utils/httpClient';
 
 interface Session {
@@ -43,15 +43,18 @@ const HistoryPanel = () => {
   // 加载指定会话
   const handleLoadSession = async (threadId: string) => {
     try {
-      // 切换到指定会话（使用new-thread API，逻辑相同）
-      await httpClient.post('/api/chat/new-thread', { thread_id: threadId });
+      // 切换到指定会话
+      const result = await httpClient.post('/api/chat/update-thread', { thread_id: threadId });
       // 重新加载状态
       const initialState = await httpClient.get('/api/chat/state');
       if (initialState && initialState.values) {
         initialState.values.messages = initialState.values.messages || [];
       }
       dispatch({ type: 'chatSlice/setState', payload: initialState });
-      console.log("切换会话成功，thread_id:", threadId);
+      // 从后端返回的结果中获取thread_id
+      const actualThreadId = result?.thread_id;
+      dispatch(setSelectedThreadId(actualThreadId));
+      console.log("切换会话成功，thread_id:", actualThreadId);
     } catch (error) {
       console.error('切换会话失败:', error);
     }
@@ -68,9 +71,9 @@ const HistoryPanel = () => {
   };
 
   return (
-    <div className="flex flex-col bg-theme-gray2 border border-theme-green rounded-medium w-full h-full">
+    <div className="flex flex-col w-full h-full">
       {/* 标题栏 */}
-      <div className="flex justify-between items-center p-3 border-b border-theme-green">
+      <div className="flex justify-between items-center p-3">
         <h3 className="text-theme-white font-bold text-lg">最近对话</h3>
         {!expanded && (
           <button
@@ -91,13 +94,13 @@ const HistoryPanel = () => {
       </div>
 
       {/* 会话列表 */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="text-theme-gray3 text-center">加载中...</div>
         ) : sessions.length === 0 ? (
           <div className="text-theme-gray3 text-center">暂无历史对话</div>
         ) : (
-          <div className={`flex flex-col gap-2 ${!expanded && 'justify-center items-center h-full'}`}>
+          <div className={`flex flex-col gap-2 ${!expanded && 'items-center'}`}>
             {displaySessions.map((session) => (
               <div
                 key={session.session_id}

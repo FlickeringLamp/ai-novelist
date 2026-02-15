@@ -20,6 +20,9 @@ const MessageDisplayPanel = () => {
   
   // 从Redux获取消息列表
   const messages = useSelector((state: RootState) => selectMessages(state));
+  
+  // 从Redux获取选中的thread_id
+  const selectedThreadId = useSelector((state: RootState) => state.chatSlice.selectedThreadId);
 
   // 加载可用工具数据
   useEffect(() => {
@@ -206,12 +209,14 @@ const MessageDisplayPanel = () => {
   return (
     <div className="flex-1 overflow-y-auto p-2.5 flex flex-col relative">
       <div className="flex-1 overflow-y-auto mt-2.5 flex flex-col gap-2">
-        {messages.length === 0 ? (
+        {selectedThreadId ? (
+          // 有选中thread_id时显示聊天气泡
+          messages.map(renderMessage)
+        ) : (
+          // 没有选中thread_id时显示历史消息栏
           <div className="flex-1 flex items-center justify-center">
             <HistoryPanel />
           </div>
-        ) : (
-          messages.map(renderMessage)
         )}
         <div ref={messagesEndRef} />
       </div>

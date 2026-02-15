@@ -30,6 +30,8 @@ export interface ChatState {
   twoStepRagExpanded: boolean;
   // 历史面板展开状态
   historyExpanded: boolean;
+  // 选中的thread_id
+  selectedThreadId: string | null;
 }
 
 // 初始状态
@@ -42,6 +44,7 @@ const initialState: ChatState = {
   twoStepRagConfig: { id: null, name: null },
   twoStepRagExpanded: false,
   historyExpanded: false,
+  selectedThreadId: null,
 };
 
 export const chatSlice = createSlice({
@@ -188,6 +191,11 @@ export const chatSlice = createSlice({
     setHistoryExpanded: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
       state.historyExpanded = action.payload;
     },
+
+    // 设置选中的thread_id
+    setSelectedThreadId: (state: Draft<ChatState>, action: PayloadAction<string | null>) => {
+      state.selectedThreadId = action.payload;
+    },
   },
 });
 
@@ -205,6 +213,7 @@ export const {
   setTwoStepRagConfig,
   setTwoStepRagExpanded,
   setHistoryExpanded,
+  setSelectedThreadId,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
