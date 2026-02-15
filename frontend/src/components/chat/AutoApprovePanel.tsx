@@ -4,7 +4,7 @@ const AutoApprovePanel = () => {
   const [enabled, setEnabled] = useState(false);
 
   return (
-    <div className="relative flex flex-1 z-[100] box-border items-center justify-center">
+    <div className="relative flex flex-1 box-border items-center justify-center">
       <div
         className="relative group"
         title="自动批准"

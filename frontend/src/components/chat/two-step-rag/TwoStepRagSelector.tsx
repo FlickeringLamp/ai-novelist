@@ -46,7 +46,7 @@ const TwoStepRagSelector = () => {
   const displayName = selectedRag.name || '未选择知识库';
 
   return (
-    <div className="relative flex flex-1 z-[100] box-border">
+    <div className="relative flex flex-1 box-border">
       <div
         className="flex items-center justify-center w-full p-2 bg-theme-black border border-theme-gray1 rounded-small cursor-pointer transition-all min-h-[36px] box-border hover:border-theme-green hover:bg-theme-gray1 gap-1"
         onClick={handleToggleExpanded}

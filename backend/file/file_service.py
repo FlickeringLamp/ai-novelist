@@ -102,6 +102,9 @@ async def create_item(is_folder: bool = False, parent_path: str = "") -> Dict[st
 async def read_file(file_path: str) -> str:
     """读取文件内容"""
     full_path = Path(settings.NOVEL_DIR) / file_path
+    # 如果文件不存在，返回空字符串（用于AI创建新文件的场景）
+    if not full_path.exists():
+        return ''
     async with aiofiles.open(full_path, 'r', encoding='utf-8') as f:
         content = await f.read()
     return content
@@ -110,6 +113,8 @@ async def read_file(file_path: str) -> str:
 async def update_file(file_path: str, content: str):
     """更新文件内容"""
     full_path = Path(settings.NOVEL_DIR) / file_path
+    # 自动创建父文件夹（如果不存在）
+    full_path.parent.mkdir(parents=True, exist_ok=True)
     async with aiofiles.open(full_path, 'w', encoding='utf-8') as f:
         await f.write(content)
 

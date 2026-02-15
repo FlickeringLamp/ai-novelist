@@ -7,16 +7,40 @@ from backend.ai_agent.utils.file_utils import split_paragraphs
 
 class InsertContentInput(BaseModel):
     """插入内容的输入参数"""
-    path: str = Field(description="文件路径（相对于novel目录的相对路径）")
+    path: str = Field(description="文件路径")
     paragraph: int = Field(description="段落号")
     content: str = Field(description="要插入的内容")
 
 @tool(args_schema=InsertContentInput)
 async def insert_content(path: str, paragraph: int, content: str) -> str:
     """在指定位置插入内容
+    使用场景示例：
+    1. 开头插入内容：
+    {
+        "path": "第一章.md",
+        "paragraph": 1,
+        "content": "这是新增的序言内容"
+    }
+    2. 末尾追加内容
+    {
+        "path": "第一章.md",
+        "paragraph": 0,
+        "content": "这是追加到末尾的内容"
+    }
+    3. 指定段落前插入内容
+    {
+        "path": "第一章.md",
+        "paragraph": 10,
+        "content": "这是插入到第10段之前的新段落"
+    }
     
+    重要说明：
+    1. paragraph=1表示在文件开头插入
+    2. paragraph=0表示在文件末尾追加
+    3. paragraph大于1时，在指定段落之前插入新内容
+
     Args:
-        path: 文件路径（相对于novel目录的相对路径）
+        path: 文件路径
         paragraph: 段落号
         content: 要插入的内容
     """

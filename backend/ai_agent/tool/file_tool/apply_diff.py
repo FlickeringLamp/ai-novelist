@@ -67,12 +67,12 @@ class LineReplacement(BaseModel):
     """单段替换操作"""
     paragraph: int = Field(description="段落号", ge=1)
     old: str = Field(description="要替换的原始内容（单段文本）")
-    new: Union[str, None] = Field(description="替换后的新内容（单段文本），为None时表示删除该段，空字符串表示将段变为空段")
+    new: Optional[str] = Field(default=None, description="替换后的新内容（单段文本），不填写此字段时表示删除该段，空字符串表示将段变为空段")
 
 
 class ApplyDiffInput(BaseModel):
     """应用差异的输入参数"""
-    path: str = Field(description="文件路径（相对于novel目录的相对路径）")
+    path: str = Field(description="文件路径")
     replacements: List[LineReplacement] = Field(description="替换操作列表，每个包含段落号、原始内容和新内容")
 
 
@@ -84,7 +84,7 @@ async def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
     
     参数格式：
     {
-        "path": "文件路径",
+        "path": "第一章.md",
         "replacements": [
             {
                 "paragraph": 10,
@@ -93,9 +93,8 @@ async def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
             },
             {
                 "paragraph": 25,
-                "old": "要删除的内容",
-                "new": null
-            }
+                "old": "要删除的内容"
+            },
             {
                 "paragraph": 30,
                 "old": "要换成空段的内容",
@@ -107,7 +106,7 @@ async def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
     重要说明：
     1. paragraph 指定段落号
     2. old 必须与文件中指定位置的内容完全匹配
-    3. new 将替换 old 的所有内容，new为null时删除该段，new为空字符串时清空该段
+    3. new 将替换 old 的所有内容，不填写new字段时删除该段，new为空字符串时清空该段
     4. 支持最低一个替换块，到多个替换块(上不封顶)
     5. 当使用该工具**删除**文本后，建议使用read_file工具重新读取内容，因为删除n段后，该段数往后的文本会向上偏移n段，paragraph不再准确。
     

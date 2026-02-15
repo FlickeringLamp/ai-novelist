@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Union
+from typing import Union, Optional
 from langchain.tools import tool
 from langgraph.types import interrupt
 from backend.file.file_service import update_file, delete_file
@@ -7,20 +7,31 @@ from backend.file.file_service import update_file, delete_file
 class WriteFileInput(BaseModel):
     """写入文件的输入参数"""
     path: str = Field(description="文件路径")
-    content: Union[str, None] = Field(default=None, description="文件内容，传入null时删除文件")
+    content: Optional[str] = Field(default=None, description="文件内容，不填写此字段时删除文件")
 
 @tool(args_schema=WriteFileInput)
-async def write_file(path: str, content: Union[str, None]) -> str:
-    """写入内容（兼创建/删除文件）
-
-    1. 文件使用.md后缀。
-    2. 如果文件已存在于"[当前工作区文件结构 (novel 目录)]", 使用write_file会导致所有内容被覆盖, 建议先用read工具了解内容再使用此工具。
-    3. 如果文件不存在，将会创建新文件并写入内容
-    4. 如果content填写为null，将会删除文件。
+async def write_file(path: str, content: Optional[str]) -> str:
+    """写入内容（兼创建/删除文件）    
+    使用场景示例：
+    1. 写入内容
+    {
+        "path": "新建文件夹/新章节.md",
+        "content": "这是新章节的内容"
+    }
+    2. 删除文件
+    {
+        "path": "新建文件夹/废弃章节.md"
+    }
     
+    重要说明：
+    1. 文件使用.md后缀
+    2. 如果文件已存在于"[当前工作区文件结构 (novel 目录)]"，使用write_file会导致所有内容被覆盖，请确保你想覆盖所有内容，否则不要使用此工具。
+    3. 如果文件不存在，将会创建新文件并写入内容
+    4. 如果不填写content字段，将会删除文件
+
     Args:
         path: 文件路径
-        content: 文件内容，"content"可以填写null，这将会删除文件
+        content: 文件内容
     """
     # 构造包含工具具体信息的中断数据
     # 构造描述信息

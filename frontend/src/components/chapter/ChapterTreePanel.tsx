@@ -8,7 +8,6 @@ import ChapterContextMenu from './FileContextMenu.tsx';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.ts';
 import ChapterTreeItem from './TreeRender.tsx';
-import type { ChapterItem } from '../../store/file.ts';
 
 function ChapterTreePanel() {
   const dispatch = useDispatch();

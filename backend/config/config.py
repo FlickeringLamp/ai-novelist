@@ -2,6 +2,7 @@ import json
 import os
 import time
 import logging
+import sqlite3
 import aiosqlite
 from pathlib import Path
 from typing import Dict, Any, TypedDict
