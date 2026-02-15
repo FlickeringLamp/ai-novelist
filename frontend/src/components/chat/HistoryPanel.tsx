@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrash } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
 import { setHistoryExpanded, setSelectedThreadId } from '../../store/chat';
 import httpClient from '../../utils/httpClient';
@@ -60,6 +62,24 @@ const HistoryPanel = () => {
     }
   };
 
+  // 删除会话
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation(); // 阻止事件冒泡，避免触发会话切换
+    
+    if (!confirm(`确定要删除这个对话吗？`)) {
+      return;
+    }
+    
+    try {
+      await httpClient.delete(`/api/history/sessions/${sessionId}`);
+      // 重新加载会话列表
+      await loadSessions();
+    } catch (error) {
+      console.error('删除会话失败:', error);
+      alert('删除会话失败，请重试');
+    }
+  };
+
   // 显示的会话列表（展开时显示全部，否则显示前4个）
   const displaySessions = expanded ? sessions : sessions.slice(0, 4);
 
@@ -113,11 +133,18 @@ const HistoryPanel = () => {
                   <span className="text-theme-white font-medium text-sm truncate flex-1">
                     {session.preview || '无标题'}
                   </span>
-                  {session.last_accessed && (
-                    <span className="text-theme-gray3 text-xs ml-2 whitespace-nowrap">
-                      {formatTimestamp(session.last_accessed)}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {session.last_accessed && (
+                      <span className="text-theme-gray3 text-xs whitespace-nowrap">
+                        {formatTimestamp(session.last_accessed)}
+                      </span>
+                    )}
+                    <FontAwesomeIcon
+                      icon={faTrash}
+                      className="text-xs cursor-pointer hover:text-theme-red transition-colors"
+                      onClick={(e) => handleDeleteSession(e, session.session_id)}
+                    />
+                  </div>
                 </div>
                 <div className="text-theme-gray3 text-xs">
                   {session.message_count} 条消息

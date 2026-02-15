@@ -9,13 +9,14 @@ import TwoStepRagPanel from './two-step-rag/TwoStepRagPanel';
 import ContextProgressBar from './ContextProgressBar';
 import MessageInputPanel from './MessageInputPanel';
 import MiddlePart from './MiddlePart';
-import { clearChat, setSelectedThreadId } from '../../store/chat';
+import { setState, setSelectedThreadId } from '../../store/chat';
 
 const ChatPanel = () => {
   const dispatch = useDispatch();
 
   // 创建新会话
   const handleNewThread = () => {
+    dispatch(setState(null));
     dispatch(setSelectedThreadId(null));
     console.log("回到初始状态");
   };
