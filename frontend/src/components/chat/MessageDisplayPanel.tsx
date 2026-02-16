@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngleRight, faAngleUp, faTrash } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
-import type { Message, AIMessage } from '../../types/langchain';
+import type { Message, AIMessage } from '../../types/langgraph';
 import { setAvailableTools } from '../../store/mode';
 import { setState } from '../../store/chat';
 import httpClient from '../../utils/httpClient';

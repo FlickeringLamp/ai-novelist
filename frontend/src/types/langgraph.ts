@@ -1,4 +1,4 @@
-// LangChain State类型定义 - 直接对应后端序列化后的结构
+// LangGraph State类型定义 - 直接对应后端序列化后的结构
 
 // 工具调用（从AIMessage中）
 export interface ToolCall {
@@ -117,10 +117,11 @@ export interface StateMetadata {
   user_id: string;
 }
 
-// LangChain State
-export interface LangChainState {
+// LangGraph State
+export interface LangGraphState {
   values: {
     messages: Message[];
+    summary: string;
   };
   next: string[] | null;
   config: Config;

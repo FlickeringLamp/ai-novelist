@@ -4,15 +4,15 @@ import {
   type Draft,
 } from "@reduxjs/toolkit";
 import type {
-  LangChainState,
+  LangGraphState,
   ToolCall,
   UsageMetadata
-} from '../types/langchain';
+} from '../types/langgraph';
 
 // 聊天状态接口
 export interface ChatState {
   // 完整的state对象（）
-  state: LangChainState | null;
+  state: LangGraphState | null;
   // 输入框消息
   message: string;
   // 模式展开状态
@@ -55,7 +55,7 @@ export const chatSlice = createSlice({
   initialState,
   reducers: {
     // 设置完整的state
-    setState: (state: Draft<ChatState>, action: PayloadAction<LangChainState | null>) => {
+    setState: (state: Draft<ChatState>, action: PayloadAction<LangGraphState | null>) => {
       state.state = action.payload;
     },
     

@@ -11,7 +11,7 @@ import {
   setMessage,
   setSelectedThreadId,
 } from '../../store/chat';
-import type { ToolCall,  StreamChunk } from '../../types/langchain';
+import type { ToolCall,  StreamChunk } from '../../types/langgraph';
 import httpClient from '../../utils/httpClient';
 import { tryCompleteJSON } from '../../utils/jsonUtils';
 import { useFileToolHandler } from '../../utils/fileToolHandler';
@@ -235,7 +235,7 @@ const MessageInputPanel = () => {
         <div className="flex w-full flex-1 relative overflow-visible">
           <textarea
             className="bg-theme-black text-theme-white border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 focus:outline-none"
-            placeholder="输入@+空格可选择文件，同时按下shift+回车可换行"
+            placeholder="同时按下shift+回车可换行"
             rows={3}
             value={message}
             onChange={(e) => dispatch(setMessage(e.target.value))}

@@ -161,7 +161,7 @@ class SystemPromptBuilder:
         Returns:
             格式化的文件树文本，如：
             ```
-            [当前工作区文件结构 (novel 目录)]:
+            [当前工作区文件结构]:
             - 文件夹1/
               - 文件1.txt
               - 文件2.txt
@@ -180,16 +180,16 @@ class SystemPromptBuilder:
             
             if not file_tree_result.get("success", False):
                 logger.error(f"获取文件树失败: {file_tree_result.get('error', '未知错误')}")
-                return "[当前工作区文件结构 (novel 目录)]:\n(获取文件树失败)"
+                return "[当前工作区文件结构]:\n(获取文件树失败)"
             
             # 格式化文件树为文本
             tree_text = self._format_tree_to_text(file_tree_result.get("tree", []))
             
-            return f"[当前工作区文件结构 (novel 目录)]:\n{tree_text}"
+            return f"[当前工作区文件结构]:\n{tree_text}"
             
         except Exception as e:
             logger.error(f"获取文件树内容时出错: {e}")
-            return "[当前工作区文件结构 (novel 目录)]:\n(获取文件树出错)"
+            return "[当前工作区文件结构]:\n(获取文件树出错)"
     
     def _format_tree_to_text(self, nodes: list, indent: int = 0) -> str:
         """将文件树节点格式化为文本
@@ -226,7 +226,8 @@ class SystemPromptBuilder:
         include_persistent_memory: bool = True,
         include_knowledge_bases: bool = True,
         user_input: Optional[str] = None,
-        enable_rag: bool = True
+        enable_rag: bool = True,
+        summary: Optional[str] = None
     ) -> str:
         """构建完整的系统提示词
         
@@ -237,6 +238,7 @@ class SystemPromptBuilder:
             include_knowledge_bases: 是否包含知识库列表信息
             user_input: 用户输入文本，用于RAG检索
             enable_rag: 是否启用RAG检索
+            summary: 过往消息总结
             
         Returns:
             完整的系统提示词
@@ -245,6 +247,10 @@ class SystemPromptBuilder:
             prompt_configs = settings.get_config("mode", mode, "prompt", default="你是一个AI助手，负责为用户解决各种需求。")
             # 构建完整提示词
             prompt_parts = [prompt_configs]
+
+            # 添加过往消息总结
+            if summary:
+                prompt_parts.append(f"[过往消息总结]:\n{summary}")
 
             # 添加知识库列表信息
             if include_knowledge_bases:
@@ -272,7 +278,7 @@ class SystemPromptBuilder:
             # 合并所有部分
             full_prompt = "\n\n".join(prompt_parts)
             
-            logger.info(f"系统提示词构建完成，模式: {mode}，包含文件树: {include_file_tree}，包含额外文件: {include_persistent_memory}，包含知识库: {include_knowledge_bases}，启用RAG: {enable_rag}")
+            logger.info(f"系统提示词构建完成，模式: {mode}，包含文件树: {include_file_tree}，包含额外文件: {include_persistent_memory}，包含知识库: {include_knowledge_bases}，启用RAG: {enable_rag}，包含总结: {summary is not None}")
             logger.info(f"构建的完整系统提示词:\n{full_prompt}")
             return full_prompt
             

@@ -1,4 +1,4 @@
-import type { ToolCall, StreamChunk, InterruptResponse } from '../types/langchain';
+import type { ToolCall, StreamChunk, InterruptResponse } from '../types/langgraph';
 import httpClient from './httpClient';
 import { tryCompleteJSON } from './jsonUtils';
 import { createAiMessage, updateAiMessage, setState, setMessage, clearInterrupt } from '../store/chat';

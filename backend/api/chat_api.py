@@ -168,65 +168,6 @@ async def get_current_thread():
     
     return current_thread_id
 
-
-@router.post("/summarize", summary="总结对话", response_model=str)
-async def summarize_conversation():
-    """
-    总结当前对话历史
-    
-    返回:
-    - 对话总结内容
-    """
-    # 从配置文件获取thread_id
-    thread_id = settings.get_config("thread_id")
-    logger.info(f"总结对话使用的thread_id: {thread_id}")
-    
-    # 使用装饰器创建图操作函数
-    @with_graph_builder
-    async def process_summarize(graph):
-        """处理总结对话"""
-        config = {"configurable": {"thread_id": thread_id}}
-        
-        # 获取当前状态
-        current_state = await graph.aget_state(config)
-        current_messages = current_state.values.get("messages", [])
-        
-        # 打印完整消息内容用于调试
-        logger.info(f"总结前的消息数量: {len(current_messages)}")
-        for i, msg in enumerate(current_messages):
-            logger.info(f"消息 {i}: 完整内容={msg}")
-        
-        if not current_messages:
-            return ""
-        
-        # 使用总结指令触发总结（直接传入消息列表，使用operator.add自动追加）
-        summarize_instruction = HumanMessage(content="/summarize")
-        
-        # 调用图处理总结指令（直接传入消息列表，使用operator.add自动追加）
-        async for _ in graph.astream([summarize_instruction], config):
-            pass
-        
-        # 获取更新后的消息
-        updated_state = await graph.aget_state(config)
-        updated_messages_after = updated_state.values.get("messages", [])
-        
-        # 从最后一条消息中获取总结内容
-        updated_summary = ""
-        if updated_messages_after:
-            last_message = updated_messages_after[-1]
-            if hasattr(last_message, 'content'):
-                updated_summary = last_message.content
-        
-        # 打印总结后的完整消息内容
-        logger.info(f"对话总结完成，总结长度: {len(updated_summary)}")
-        logger.info(f"总结后的消息数量: {len(updated_messages_after)}:完整内容={updated_messages_after}")
-        
-        return updated_summary
-    
-    # 调用装饰器函数
-    return await process_summarize()
-
-
 @router.get("/state", summary="获取当前状态")
 async def get_current_state():
     """
