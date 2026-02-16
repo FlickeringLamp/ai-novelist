@@ -117,7 +117,7 @@ const ModeDetailPanel = () => {
       await httpClient.put(`/api/mode/custom-modes/${selectedModeId}`, {
         temperature: temperature,
         top_p: topP,
-        max_tokens: maxTokens
+        max_tokens: maxTokens || 4096
       });
       // 刷新模式列表
       const modesResult = await httpClient.get('/api/mode/modes');
@@ -326,15 +326,13 @@ const ModeDetailPanel = () => {
                   />
                 </div>
 
-                {/* 最大 Tokens */}
+                {/* 最大 Tokens，清空内容时为NaN，错误警告是正常的。设置了默认值则无法将输入框清除干净 */}
                 <div>
                   <label className="block text-theme-white text-sm mb-2">最大 Tokens</label>
                   <input
                     type="number"
-                    min="1"
-                    max="128000"
                     value={maxTokens}
-                    onChange={(e) => setMaxTokens(parseInt(e.target.value) || 4096)}
+                    onChange={(e) => setMaxTokens(parseInt(e.target.value))}
                     onBlur={saveParams}
                     className="w-full p-2 bg-theme-gray2 text-theme-white border border-theme-gray3 rounded focus:outline-none focus:border-theme-green"
                   />
