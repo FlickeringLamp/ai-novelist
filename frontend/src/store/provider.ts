@@ -20,7 +20,7 @@ export interface ProviderState {
 
 const initialState: ProviderState = {
   allProvidersData: {},
-  selectedProviderId: "openrouter",
+  selectedProviderId: "deepseek",
   selectedModelId: null,
 };
 

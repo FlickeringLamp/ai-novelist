@@ -79,7 +79,8 @@ class ListKnowledgeBaseInput(BaseModel):
 
 @tool(args_schema=ListKnowledgeBaseInput)
 async def list_base_files(collection_id: str) -> str:
-    """列出指定知识库中的所有文件信息
+    """列出指定知识库中的文件信息
+    注意：知识库内的文件不可使用普通文件工具操作，只可使用该工具，和search_embedding工具
     
     Args:
         collection_id: Knowledge base collection ID (e.g., db_xxx)

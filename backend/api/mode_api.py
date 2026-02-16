@@ -171,3 +171,19 @@ async def delete_custom_mode(mode_id: str):
     settings.delete_config("mode", mode_id)
     
     return settings.get_config("mode", default={})
+
+@router.get("/current", summary="获取当前选中的模式", response_model=str)
+async def get_current_mode():
+    """获取当前选中的模式ID"""
+    current_mode = settings.get_config("currentMode", default=None)
+    return current_mode
+
+@router.put("/current", summary="设置当前选中的模式", response_model=str)
+async def set_current_mode(request: UpdateModeRequest):
+    """
+    设置当前选中的模式
+    
+    - **name**: 模式ID
+    """
+    settings.update_config(request.name, "currentMode")
+    return request.name

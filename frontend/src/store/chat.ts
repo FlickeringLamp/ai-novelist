@@ -3,25 +3,24 @@ import {
   type PayloadAction,
   type Draft,
 } from "@reduxjs/toolkit";
-import type { RootState } from './store';
 import type {
-  LangChainState,
-  Message,
-  Interrupt,
+  LangGraphState,
   ToolCall,
   UsageMetadata
-} from '../types/langchain';
+} from '../types/langgraph';
 
 // 聊天状态接口
 export interface ChatState {
   // 完整的state对象（）
-  state: LangChainState | null;
+  state: LangGraphState | null;
   // 输入框消息
   message: string;
   // 模式展开状态
   modeExpanded: boolean;
   // 自动批准展开状态
   autoApproveExpanded: boolean;
+  // 自动批准启用状态
+  autoApproveEnabled: boolean;
   // 工具请求栏显示状态
   toolRequestVisible: boolean;
   // 两步RAG配置
@@ -32,6 +31,8 @@ export interface ChatState {
   historyExpanded: boolean;
   // 选中的thread_id
   selectedThreadId: string | null;
+  // 选中的模式ID
+  selectedModeId: string | null;
 }
 
 // 初始状态
@@ -40,11 +41,13 @@ const initialState: ChatState = {
   message: '',
   modeExpanded: false,
   autoApproveExpanded: false,
+  autoApproveEnabled: false,
   toolRequestVisible: false,
   twoStepRagConfig: { id: null, name: null },
   twoStepRagExpanded: false,
   historyExpanded: false,
   selectedThreadId: null,
+  selectedModeId: null,
 };
 
 export const chatSlice = createSlice({
@@ -52,7 +55,7 @@ export const chatSlice = createSlice({
   initialState,
   reducers: {
     // 设置完整的state
-    setState: (state: Draft<ChatState>, action: PayloadAction<LangChainState | null>) => {
+    setState: (state: Draft<ChatState>, action: PayloadAction<LangGraphState | null>) => {
       state.state = action.payload;
     },
     
@@ -155,6 +158,11 @@ export const chatSlice = createSlice({
     toggleAutoApproveExpanded: (state: Draft<ChatState>) => {
       state.autoApproveExpanded = !state.autoApproveExpanded;
     },
+
+    // 设置自动批准启用状态
+    setAutoApproveEnabled: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
+      state.autoApproveEnabled = action.payload;
+    },
     
     // 清除所有聊天数据
     clearChat: (state: Draft<ChatState>) => {
@@ -187,6 +195,11 @@ export const chatSlice = createSlice({
       state.twoStepRagExpanded = action.payload;
     },
 
+    // 设置模式展开状态
+    setModeExpanded: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
+      state.modeExpanded = action.payload;
+    },
+
     // 切换历史面板展开状态
     setHistoryExpanded: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
       state.historyExpanded = action.payload;
@@ -195,6 +208,11 @@ export const chatSlice = createSlice({
     // 设置选中的thread_id
     setSelectedThreadId: (state: Draft<ChatState>, action: PayloadAction<string | null>) => {
       state.selectedThreadId = action.payload;
+    },
+
+    // 设置选中的模式ID
+    setSelectedModeId: (state: Draft<ChatState>, action: PayloadAction<string | null>) => {
+      state.selectedModeId = action.payload;
     },
   },
 });
@@ -207,25 +225,17 @@ export const {
   setMessage,
   toggleModeExpanded,
   toggleAutoApproveExpanded,
+  setAutoApproveEnabled,
   clearChat,
   setToolRequestVisible,
   clearInterrupt,
   setTwoStepRagConfig,
   setTwoStepRagExpanded,
+  setModeExpanded,
   setHistoryExpanded,
   setSelectedThreadId,
+  setSelectedModeId,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
-
-// Selector: 获取消息列表
-export const selectMessages = (state: RootState): Message[] => {
-  return state.chatSlice.state?.values?.messages || [];
-};
-
-// Selector: 获取中断信息
-export const selectInterrupt = (state: RootState): Interrupt | null => {
-  const interrupts = state.chatSlice.state?.interrupts || [];
-  return interrupts.length > 0 ? (interrupts[0] ?? null) : null;
-};
 

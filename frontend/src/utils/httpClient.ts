@@ -80,8 +80,9 @@ const httpClient = {
   },
 
   // 流式请求
-  streamRequest: async (url: string, options: RequestInit & { body?: any }) => {
-    const body = options.body ? JSON.stringify(options.body) : null;
+  streamRequest: async (url: string, options: Omit<RequestInit, 'body'> & { body?: any }) => {
+    // 如果body是对象，才进行序列化；如果是字符串，直接使用
+    const body = typeof options.body === 'string' ? options.body : (options.body ? JSON.stringify(options.body) : null);
     const response = await fetch(`${API_BASE_URL}${url}`, {
       ...options,
       headers: {

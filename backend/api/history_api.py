@@ -2,11 +2,14 @@ import logging
 import sqlite3
 import os
 import msgpack
+import json
+import asyncio
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.messages import RemoveMessage
+from langchain_core.messages import RemoveMessage, HumanMessage
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
 
 from backend.config.config import settings
@@ -36,6 +39,10 @@ class OperateMessagesRequest(BaseModel):
     """操作历史消息请求"""
     thread_id: str = Field(default="default", description="会话ID")
     target_ids: Optional[List[str]] = Field(default=None, description="目标消息ID列表（可选，未传则删除全部）")
+
+class SummarizeRequest(BaseModel):
+    """总结对话请求"""
+    thread_id: str = Field(default="default", description="会话ID")
 
 # 创建API路由器
 router = APIRouter(prefix="/api/history", tags=["History"])
@@ -204,6 +211,37 @@ async def operate_messages(request: OperateMessagesRequest):
     async for item in process_operate_messages():
         result = item
     return result
+
+@router.post("/summarize", summary="总结对话历史")
+async def summarize_conversation(request: SummarizeRequest):
+    """
+    总结对话历史
+    
+    - **thread_id**: 会话ID
+    """
+    thread_id = request.thread_id
+    
+    @with_graph_builder
+    async def generate_summary(graph):
+        """处理总结对话并返回流式响应"""
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+        
+        # 直接传入总结消息，触发图执行
+        summarize_message = HumanMessage(content="@summarize")
+        
+        # 流式处理 - 传入消息列表触发图执行
+        async for message_chunk, metadata in graph.astream({"messages": [summarize_message]}, config, stream_mode="messages"):
+            # 在控制台打印流式传输信息
+            if message_chunk.content:
+                print(f"{message_chunk.content}", end="|", flush=True)
+            
+            # 使用model_dump方法序列化完整的消息对象
+            # 添加分隔符，避免被多个json对象被拼接到一起
+            serialized_chunk = message_chunk.model_dump()
+            yield json.dumps(serialized_chunk, ensure_ascii=False) + "\n"
+            await asyncio.sleep(0)
+    
+    return StreamingResponse(generate_summary(), media_type="text/event-stream")
 
 # 倒是内容返回的内容，可以根据存储到sqlite里面的元数据，返回更多详细情况
 @router.get("/sessions", summary="获取所有会话列表", response_model=Dict[str, Any])

@@ -82,8 +82,15 @@ const ModelListPanel = () => {
   const handleToggleProvider = async () => {
     if (!selectedProviderId) return;
 
+    const newEnableState = !isProviderEnabled;
+    
+    // 如果要开启提供商，必须先填写 api-key
+    if (newEnableState && !apiKey) {
+      setModelError('请先填写 API Key 才能启用提供商');
+      return;
+    }
+
     try {
-      const newEnableState = !isProviderEnabled;
       await httpClient.put(`/api/provider/custom-providers/${selectedProviderId}`, {
         enable: newEnableState
       });

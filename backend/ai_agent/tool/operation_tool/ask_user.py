@@ -14,7 +14,8 @@ class AskUserQuestionInput(BaseModel):
 @tool(args_schema=AskUserQuestionInput)
 async def ask_user_question(question: str) -> str:
     """向用户提问
-    
+    当不确定用户意图时使用，建议适当多用
+
     Args:
         question: 问题内容
     """

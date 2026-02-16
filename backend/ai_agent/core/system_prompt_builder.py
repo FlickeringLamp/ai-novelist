@@ -4,13 +4,12 @@
 """
 
 import os
-import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Optional
 import logging
 
 from backend.config.config import settings
-from backend.file.file_service import get_file_tree
+from backend.file.file_service import get_file_tree, read_file
 from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb, get_two_step_rag_config
 
 logger = logging.getLogger(__name__)
@@ -33,61 +32,47 @@ class SystemPromptBuilder:
         """
         return self.novel_dir
     
-    def _load_store_config(self) -> Dict[str, Any]:
-        """加载存储配置"""
-        try:
-            config_path = Path(__file__).parent.parent.parent / "data" / "config" / "store.json"
-            if not config_path.exists():
-                logger.warning("配置文件不存在，返回空配置")
-                return {}
-            
-            with open(config_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            logger.error(f"加载存储配置失败: {e}")
-            return {}
-    
-    def _get_persistent_memory_for_mode(self, mode: str) -> str:
-        """获取指定模式的持久记忆信息
+    async def _get_additional_files_content(self, mode: str) -> str:
+        """获取指定模式的 additionalInfo 文件列表内容
         
         Args:
             mode: 模式名称
             
         Returns:
-            格式化的持久记忆信息字符串
+            格式化的文件内容字符串
         """
         try:
-            config = self._load_store_config()
-            additional_info = config.get("additionalInfo", {})
+            # 从配置中获取当前模式的 additionalInfo 文件列表
+            additional_files = settings.get_config("mode", mode, "additionalInfo", default=[])
             
-            # 获取当前模式的持久记忆信息
-            mode_info = additional_info.get(mode, {})
-            if not mode_info:
+            if not additional_files or not isinstance(additional_files, list):
                 return ""
             
-            # 构建格式化的持久记忆信息
-            memory_parts = []
+            # 构建格式化的文件内容
+            file_contents = []
             
-            # 新格式：content 对象包含 path 和 content
-            content_info = mode_info.get("content", {})
-            if content_info:
-                content = content_info.get("content", "").strip()
-                path = content_info.get("path", "").strip()
+            for file_path in additional_files:
+                if not isinstance(file_path, str):
+                    continue
                 
-                if content:
-                    # 如果有路径信息，添加路径标识
-                    if path:
-                        memory_parts.append(f"[额外信息 - 来源: {path}]:\n{content}")
+                try:
+                    # 使用 file_service 的 read_file 读取文件内容
+                    content = await read_file(file_path)
+                    
+                    if content:
+                        file_contents.append(f"[额外文件 - {file_path}]:\n{content}")
                     else:
-                        memory_parts.append(f"[额外信息]:\n{content}")
+                        logger.warning(f"文件内容为空或文件不存在: {file_path}")
+                except Exception as e:
+                    logger.error(f"读取文件失败 {file_path}: {e}")
             
-            if memory_parts:
-                return "\n\n".join(memory_parts)
+            if file_contents:
+                return "\n\n".join(file_contents)
             else:
                 return ""
                 
         except Exception as e:
-            logger.error(f"获取持久记忆信息失败: {e}")
+            logger.error(f"获取 additionalInfo 文件内容失败: {e}")
             return ""
     
     def _get_knowledge_bases_info(self) -> str:
@@ -176,7 +161,7 @@ class SystemPromptBuilder:
         Returns:
             格式化的文件树文本，如：
             ```
-            [当前工作区文件结构 (novel 目录)]:
+            [当前工作区文件结构]:
             - 文件夹1/
               - 文件1.txt
               - 文件2.txt
@@ -195,16 +180,20 @@ class SystemPromptBuilder:
             
             if not file_tree_result.get("success", False):
                 logger.error(f"获取文件树失败: {file_tree_result.get('error', '未知错误')}")
-                return "[当前工作区文件结构 (novel 目录)]:\n(获取文件树失败)"
+                return "[当前工作区文件结构]:\n(获取文件树失败)"
             
             # 格式化文件树为文本
             tree_text = self._format_tree_to_text(file_tree_result.get("tree", []))
             
-            return f"[当前工作区文件结构 (novel 目录)]:\n{tree_text}"
+            # 如果文件树为空，显示"暂无文件"
+            if not tree_text:
+                tree_text = "暂无文件"
+            
+            return f"[当前工作区文件结构]:\n{tree_text}"
             
         except Exception as e:
             logger.error(f"获取文件树内容时出错: {e}")
-            return "[当前工作区文件结构 (novel 目录)]:\n(获取文件树出错)"
+            return "[当前工作区文件结构]:\n(获取文件树出错)"
     
     def _format_tree_to_text(self, nodes: list, indent: int = 0) -> str:
         """将文件树节点格式化为文本
@@ -241,17 +230,19 @@ class SystemPromptBuilder:
         include_persistent_memory: bool = True,
         include_knowledge_bases: bool = True,
         user_input: Optional[str] = None,
-        enable_rag: bool = True
+        enable_rag: bool = True,
+        summary: Optional[str] = None
     ) -> str:
         """构建完整的系统提示词
         
         Args:
             mode: 对话模式 (outline/writing/adjustment)
             include_file_tree: 是否包含文件树结构
-            include_persistent_memory: 是否包含持久记忆信息
+            include_persistent_memory: 是否包含额外文件内容
             include_knowledge_bases: 是否包含知识库列表信息
             user_input: 用户输入文本，用于RAG检索
             enable_rag: 是否启用RAG检索
+            summary: 过往消息总结
             
         Returns:
             完整的系统提示词
@@ -260,6 +251,10 @@ class SystemPromptBuilder:
             prompt_configs = settings.get_config("mode", mode, "prompt", default="你是一个AI助手，负责为用户解决各种需求。")
             # 构建完整提示词
             prompt_parts = [prompt_configs]
+
+            # 添加过往消息总结
+            if summary:
+                prompt_parts.append(f"[过往消息总结]:\n{summary}")
 
             # 添加知识库列表信息
             if include_knowledge_bases:
@@ -272,11 +267,11 @@ class SystemPromptBuilder:
                 file_tree_content = await self.get_file_tree_content()
                 prompt_parts.append(file_tree_content)
             
-            # 添加持久记忆信息
+            # 添加额外文件内容
             if include_persistent_memory:
-                persistent_memory = self._get_persistent_memory_for_mode(mode or "")
-                if persistent_memory:
-                    prompt_parts.append(f"[持久记忆信息]:\n{persistent_memory}")
+                additional_files_content = await self._get_additional_files_content(mode or "")
+                if additional_files_content:
+                    prompt_parts.append(f"[额外文件内容]:\n{additional_files_content}")
             
             # 执行RAG检索并添加结果
             if enable_rag and user_input:
@@ -287,7 +282,7 @@ class SystemPromptBuilder:
             # 合并所有部分
             full_prompt = "\n\n".join(prompt_parts)
             
-            logger.info(f"系统提示词构建完成，模式: {mode}，包含文件树: {include_file_tree}，包含持久记忆: {include_persistent_memory}，包含知识库: {include_knowledge_bases}，启用RAG: {enable_rag}")
+            logger.info(f"系统提示词构建完成，模式: {mode}，包含文件树: {include_file_tree}，包含额外文件: {include_persistent_memory}，包含知识库: {include_knowledge_bases}，启用RAG: {enable_rag}，包含总结: {summary is not None}")
             logger.info(f"构建的完整系统提示词:\n{full_prompt}")
             return full_prompt
             

@@ -11,10 +11,11 @@ import {
   setMessage,
   setSelectedThreadId,
 } from '../../store/chat';
-import type { ToolCall,  StreamChunk } from '../../types/langchain';
+import type { ToolCall,  StreamChunk } from '../../types/langgraph';
 import httpClient from '../../utils/httpClient';
 import { tryCompleteJSON } from '../../utils/jsonUtils';
 import { useFileToolHandler } from '../../utils/fileToolHandler';
+import { handleInterruptResponse } from '../../utils/interruptHandler';
 
 const MessageInputPanel = () => {
   const dispatch = useDispatch();
@@ -23,6 +24,9 @@ const MessageInputPanel = () => {
   // 从Redux获取状态
   const message = useSelector((state: RootState) => state.chatSlice.message);
   const selectedThreadId = useSelector((state: RootState) => state.chatSlice.selectedThreadId);
+  const emptyInterrupts: any[] = [];
+  const interrupts = useSelector((state: RootState) => state.chatSlice.state?.interrupts || emptyInterrupts);
+  const interrupt = interrupts.length > 0 ? (interrupts[0] ?? null) : null;
   
   // 本地错误状态
   const [error, setError] = useState('');
@@ -71,9 +75,17 @@ const MessageInputPanel = () => {
     if (!message.trim()) return;
 
     const inputMessage = message.trim();
-    const userMessageId = generateMessageId();
     
     setError('');
+
+    // 如果存在中断，执行取消操作，将输入框内的消息作为附加信息发送给后端，然后返回
+    if (interrupt) {
+      await handleInterruptResponse(dispatch, interrupt, { action: 'reject', choice: '2', additionalData: inputMessage }, processFileToolCalls);
+      return;
+    }
+
+    // 如果不存在中断，执行正常的发送消息逻辑
+    const userMessageId = generateMessageId();
     dispatch(setMessage(''));
 
     // 如果没有选中thread_id，则创建新的
@@ -223,7 +235,7 @@ const MessageInputPanel = () => {
         <div className="flex w-full flex-1 relative overflow-visible">
           <textarea
             className="bg-theme-black text-theme-white border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 focus:outline-none"
-            placeholder="输入@+空格可选择文件，同时按下shift+回车可换行"
+            placeholder="同时按下shift+回车可换行"
             rows={3}
             value={message}
             onChange={(e) => dispatch(setMessage(e.target.value))}

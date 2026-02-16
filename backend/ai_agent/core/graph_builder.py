@@ -3,7 +3,7 @@ from langgraph.prebuilt import tools_condition
 from langgraph.store.base import BaseStore
 from langgraph.store.sqlite.aio import AsyncSqliteStore
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langchain_core.messages import AnyMessage, ToolMessage, AIMessage, SystemMessage, HumanMessage
+from langchain_core.messages import AnyMessage, ToolMessage, AIMessage, SystemMessage, HumanMessage, RemoveMessage
 from langchain_core.messages.utils import (
     trim_messages,
     count_tokens_approximately
@@ -20,7 +20,7 @@ import asyncio
 
 class State(MessagesState):
     """包含消息的状态,不包括系统提示词"""
-    documents: list[str]
+    summary: str
 
 
 def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
@@ -54,13 +54,6 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         selected_provider = settings.get_config("selectedProvider")
         temperature = settings.get_config("mode", mode, "temperature")
         max_tokens = settings.get_config("mode", mode, "max_tokens")
-
-        # 如果模型ID包含提供商信息（如 "zhipuai/glm-4-plus"），则解析提供商和模型名称
-        if "/" in selected_model:
-            # 从模型ID中解析提供商和模型名称
-            provider_from_model, model_name = selected_model.split("/", 1)
-            selected_provider = provider_from_model
-            selected_model = model_name
 
         print(f"构建图实例 - 模型: {selected_model}, 提供商: {selected_provider}, 模式: {mode}")
 
@@ -96,9 +89,11 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         # 创建模型节点
         async def call_llm(state: State, config):
             """调用LLM生成响应"""
+            # 打印完整state，包括summary字段
+            print(f"[STATE] 完整state: {state}")
+            
             # 获取当前消息列表
             current_messages = state["messages"]
-            print(f"当前消息列表{current_messages}")
             
             # 获取用户输入（最后一条消息）
             user_input = None
@@ -107,8 +102,11 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                 if hasattr(last_message, 'content'):
                     user_input = str(last_message.content)
             
-            # 异步获取系统提示词，传入用户输入用于RAG检索
-            system_prompt = await prompt_builder.build_system_prompt(mode=mode, user_input=user_input)
+            # 获取过往消息总结
+            summary = state.get("summary", "")
+            
+            # 异步获取系统提示词，传入用户输入用于RAG检索和过往消息总结
+            system_prompt = await prompt_builder.build_system_prompt(mode=mode, user_input=user_input, summary=summary)
             
             # 如果有store可用，检索长期记忆
             memory_context = ""
@@ -144,6 +142,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                 start_on="human",  # 从human消息开始保留
                 end_on=("human", "tool"),  # 在human或tool消息结束
             )
+            print("max_tokens:",max_tokens)
             
             # 调用模型生成响应
             print("发送给ai的信息：",[SystemMessage(content=enhanced_system_prompt)] + current_messages)
@@ -186,35 +185,37 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             # 直接返回result，使用operator.add自动追加到状态中
             return {"messages": result}
 
-        # 创建总结节点，准备换用官方1.0推荐的总结机制，同时应该取消手动添加消息状态的机制
-        def summarize_conversation(state: State):
-            """总结对话历史"""
-            # 设置总结节点的系统提示词
-            summary_system_prompt = "你是一个对话总结助手，请阅读上述对话，总结重点信息"
-            
-            # 创建消息列表，包含系统提示词
-            messages = [SystemMessage(content=summary_system_prompt)]
+        # 创建总结节点，使用官方1.0推荐的总结机制
+        async def summarize_conversation(state: State):
+            """总结对话历史，使用LangGraph 1.0官方推荐的方式"""
+            # 首先，我们获取任何现有摘要
+            summary = state.get("summary", "")
 
-            # 添加原始消息
-            messages.extend(state["messages"])
-            
-            # 添加总结提示
-            messages.append(HumanMessage(content="请为上面的对话创建一个总结:"))
+            # 创建我们的摘要提示
+            if summary:
+                # 已经存在摘要，扩展摘要
+                summary_message = (
+                    f"This is a summary of the conversation to date: {summary}\n\n"
+                    "Extend the summary by taking into account the new messages above:"
+                )
+            else:
+                # 创建新的摘要
+                summary_message = "Create a summary of the conversation above:"
+
+            # 将提示添加到我们的历史记录中
+            messages = state["messages"] + [HumanMessage(content=summary_message)]
             
             print(f"[DEBUG] summarize节点 - 准备调用总结模型，消息数量: {len(messages)}")
             # 调用总结模型
-            response = summarization_model.invoke(messages)
+            response = await summarization_model.ainvoke(messages)
             
             print(f"[DEBUG] summarize节点 - 总结模型返回: '{response.content}'")
-            # 创建包含总结内容的AI消息
-            summary_ai_message = AIMessage(content=response.content)
             
-            # 创建用户消息，用于触发总结
-            summary_user_message = HumanMessage(content="请总结上述对话，保留重点信息")
+            # 只保留倒数第2条消息，删除其他所有消息
+            delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:-2]] + [RemoveMessage(id=state["messages"][-1].id)]
             
-            # 直接返回消息列表，使用operator.add自动追加到状态中
-            print(f"[DEBUG] summarize节点 - 返回结果")
-            return {"messages": [summary_user_message, summary_ai_message]}
+            # 返回新的摘要和要删除的消息
+            return {"summary": response.content, "messages": delete_messages}
 
         # 构建图
         builder = StateGraph(State)
@@ -224,8 +225,32 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         builder.add_node("tools", tool_node)  # 使用自定义工具节点函数
         builder.add_node("summarize", summarize_conversation)  # 添加总结节点
 
+        # 定义路由函数：根据用户输入决定进入哪个节点
+        def route_based_on_input(state: State):
+            """根据用户输入决定路由"""
+            # 获取最后一条消息
+            messages = state["messages"]
+            if not messages:
+                return "call_llm"
+            
+            last_message = messages[-1]
+            if hasattr(last_message, 'content'):
+                content = str(last_message.content).strip()
+                # 检查是否是总结指令
+                if content == "@summarize":
+                    return "summarize"
+            
+            return "call_llm"
+
         # 添加边
-        builder.add_edge(START, "call_llm")
+        builder.add_conditional_edges(
+            START,
+            route_based_on_input,
+            {
+                "call_llm": "call_llm",
+                "summarize": "summarize"
+            }
+        )
         builder.add_edge("tools", "call_llm")
         builder.add_conditional_edges(
             "call_llm",
