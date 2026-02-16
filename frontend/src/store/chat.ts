@@ -218,14 +218,3 @@ export const {
 
 export default chatSlice.reducer;
 
-// Selector: 获取消息列表
-export const selectMessages = (state: RootState): Message[] => {
-  return state.chatSlice.state?.values?.messages || [];
-};
-
-// Selector: 获取中断信息
-export const selectInterrupt = (state: RootState): Interrupt | null => {
-  const interrupts = state.chatSlice.state?.interrupts || [];
-  return interrupts.length > 0 ? (interrupts[0] ?? null) : null;
-};
-

@@ -1,7 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../store/store';
 import {
-  selectInterrupt,
   createAiMessage,
   updateAiMessage,
   setState,
@@ -17,7 +16,9 @@ import { useFileToolHandler, FILE_TOOLS } from '../../utils/fileToolHandler';
 const ToolRequestPanel = () => {
   const dispatch = useDispatch();
   const { processFileToolCalls } = useFileToolHandler();
-  const interrupt = useSelector((state: RootState) => selectInterrupt(state));
+  const emptyInterrupts: any[] = [];
+  const interrupts = useSelector((state: RootState) => state.chatSlice.state?.interrupts || emptyInterrupts);
+  const interrupt = interrupts.length > 0 ? (interrupts[0] ?? null) : null;
   const message = useSelector((state: RootState) => state.chatSlice.message);
 
   // 判断是否是简单中断（ask_user工具）

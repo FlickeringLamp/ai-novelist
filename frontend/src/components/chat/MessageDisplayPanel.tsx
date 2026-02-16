@@ -5,7 +5,7 @@ import { faAngleRight, faAngleUp, faTrash } from '@fortawesome/free-solid-svg-ic
 import type { RootState } from '../../store/store';
 import type { Message, AIMessage } from '../../types/langchain';
 import { setAvailableTools } from '../../store/mode';
-import { selectMessages, setState } from '../../store/chat';
+import { setState } from '../../store/chat';
 import httpClient from '../../utils/httpClient';
 import UnifiedModal from '../others/UnifiedModal';
 
@@ -14,6 +14,8 @@ const MessageDisplayPanel = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const [expandedToolResults, setExpandedToolResults] = useState<Set<string>>(new Set());
+  const emptyMessages: Message[] = [];
+  const emptyInterrupts: any[] = [];
   // 消息模态框状态
   const [modal, setModal] = useState<{ show: boolean; message: string; onConfirm: (() => void) | null; onCancel: (() => void) | null }>({
     show: false,
@@ -26,11 +28,15 @@ const MessageDisplayPanel = () => {
   const availableTools = useSelector((state: RootState) => state.modeSlice.availableTools);
   
   // 从Redux获取消息列表
-  const messages = useSelector((state: RootState) => selectMessages(state));
+  const messages = useSelector((state: RootState) => state.chatSlice.state?.values?.messages || emptyMessages);
   
   // 从Redux获取thread_id和mode
   const threadId = useSelector((state: RootState) => state.chatSlice.selectedThreadId) || 'default';
   const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId) || 'outline';
+  
+  // 从Redux获取中断状态
+  const interrupts = useSelector((state: RootState) => state.chatSlice.state?.interrupts || emptyInterrupts);
+  const isInterrupted = interrupts.length > 0;
 
   // 加载可用工具数据
   useEffect(() => {
@@ -105,11 +111,6 @@ const MessageDisplayPanel = () => {
               idsToDelete.push(toolMessage.id);
             }
           });
-
-          // 检查是否所有 tool_calls 都找到了对应的 ToolMessage
-          if (idsToDelete.length < toolCallIds.length + 1) {
-            throw new Error('不可以删除正在调用工具的ai消息');
-          }
         }
       }
       console.log("idsToDelete:",idsToDelete)
@@ -192,11 +193,13 @@ const MessageDisplayPanel = () => {
           <div className="font-bold text-[0.9em]">
             {isUser ? '用户' : 'AI'}
           </div>
-          <FontAwesomeIcon
-            icon={faTrash}
-            className="text-xs cursor-pointer hover:text-theme-red transition-colors"
-            onClick={() => deleteMessage(msg.id)}
-          />
+          {!isInterrupted && (
+            <FontAwesomeIcon
+              icon={faTrash}
+              className="text-xs cursor-pointer hover:text-theme-red transition-colors"
+              onClick={() => deleteMessage(msg.id)}
+            />
+          )}
         </div>
         <div className="leading-[1.4] overflow-wrap break-word break-words">
           {isUser ? (
