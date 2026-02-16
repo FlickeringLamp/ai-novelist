@@ -144,6 +144,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                 start_on="human",  # 从human消息开始保留
                 end_on=("human", "tool"),  # 在human或tool消息结束
             )
+            print("max_tokens:",max_tokens)
             
             # 调用模型生成响应
             print("发送给ai的信息：",[SystemMessage(content=enhanced_system_prompt)] + current_messages)
