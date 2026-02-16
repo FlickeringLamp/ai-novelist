@@ -2,7 +2,7 @@ import { useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileLines, faPlus } from '@fortawesome/free-solid-svg-icons';
 import ModeSelectorPanel from './ModeSelectorPanel';
-import AutoApprovePanel from './AutoApprovePanel';
+import AutoApprovePanel from './auto-approve/AutoApproveButton';
 import ModelSelectorPanel from './ModelSelectorPanel';
 import TwoStepRagSelector from './two-step-rag/TwoStepRagSelector';
 import TwoStepRagPanel from './two-step-rag/TwoStepRagPanel';

@@ -3,11 +3,8 @@ import {
   type PayloadAction,
   type Draft,
 } from "@reduxjs/toolkit";
-import type { RootState } from './store';
 import type {
   LangChainState,
-  Message,
-  Interrupt,
   ToolCall,
   UsageMetadata
 } from '../types/langchain';
@@ -22,6 +19,8 @@ export interface ChatState {
   modeExpanded: boolean;
   // 自动批准展开状态
   autoApproveExpanded: boolean;
+  // 自动批准启用状态
+  autoApproveEnabled: boolean;
   // 工具请求栏显示状态
   toolRequestVisible: boolean;
   // 两步RAG配置
@@ -40,6 +39,7 @@ const initialState: ChatState = {
   message: '',
   modeExpanded: false,
   autoApproveExpanded: false,
+  autoApproveEnabled: false,
   toolRequestVisible: false,
   twoStepRagConfig: { id: null, name: null },
   twoStepRagExpanded: false,
@@ -155,6 +155,11 @@ export const chatSlice = createSlice({
     toggleAutoApproveExpanded: (state: Draft<ChatState>) => {
       state.autoApproveExpanded = !state.autoApproveExpanded;
     },
+
+    // 设置自动批准启用状态
+    setAutoApproveEnabled: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
+      state.autoApproveEnabled = action.payload;
+    },
     
     // 清除所有聊天数据
     clearChat: (state: Draft<ChatState>) => {
@@ -207,6 +212,7 @@ export const {
   setMessage,
   toggleModeExpanded,
   toggleAutoApproveExpanded,
+  setAutoApproveEnabled,
   clearChat,
   setToolRequestVisible,
   clearInterrupt,

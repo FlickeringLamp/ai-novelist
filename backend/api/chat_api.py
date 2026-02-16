@@ -51,6 +51,10 @@ class SelectedModelRequest(BaseModel):
     selectedModel: str = Field(..., description="选中的模型ID")
     selectedProvider: str = Field(..., description="选中的提供商ID")
 
+class AutoApproveSettingsRequest(BaseModel):
+    """设置自动批准配置请求"""
+    enabled: bool = Field(..., description="是否启用自动批准")
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
@@ -309,4 +313,42 @@ async def set_selected_model(request: SelectedModelRequest):
         "success": True,
         "selectedModel": request.selectedModel,
         "selectedProvider": request.selectedProvider
+    }
+
+
+@router.get("/auto-approve", summary="获取自动批准配置")
+async def get_auto_approve():
+    """
+    获取自动批准配置
+    
+    返回:
+    - enabled: 是否启用自动批准
+    """
+    enabled = settings.get_config("autoApproveSettings", default=False)
+    
+    logger.info(f"获取自动批准配置: enabled={enabled}")
+    
+    return {
+        "enabled": enabled
+    }
+
+
+@router.post("/auto-approve", summary="设置自动批准配置")
+async def set_auto_approve(request: AutoApproveSettingsRequest):
+    """
+    设置自动批准配置
+    
+    - **enabled**: 是否启用自动批准
+    
+    返回:
+    - success: 是否成功
+    - enabled: 设置后的启用状态
+    """
+    settings.update_config(request.enabled, "autoApproveSettings")
+    
+    logger.info(f"设置自动批准配置: enabled={request.enabled}")
+    
+    return {
+        "success": True,
+        "enabled": request.enabled
     }

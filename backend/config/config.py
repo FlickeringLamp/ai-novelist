@@ -39,10 +39,7 @@ def initialize_directories_and_files():
             "port": 8000,
             "currentMode": "outline",
             "mode": DEFAULT_MODES,
-            "autoApproveSettings": {
-                "enabled": False,
-                "delay": 1000
-            },
+            "autoApproveSettings": False,
             "selectedProvider": "",
             "selectedModel": "",
             "provider": PROVIDERS,

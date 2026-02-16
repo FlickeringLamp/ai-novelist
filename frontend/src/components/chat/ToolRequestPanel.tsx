@@ -1,4 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
+import { useEffect, useRef } from 'react';
 import type { RootState } from '../../store/store';
 import {
   createAiMessage,
@@ -20,14 +21,11 @@ const ToolRequestPanel = () => {
   const interrupts = useSelector((state: RootState) => state.chatSlice.state?.interrupts || emptyInterrupts);
   const interrupt = interrupts.length > 0 ? (interrupts[0] ?? null) : null;
   const message = useSelector((state: RootState) => state.chatSlice.message);
+  const autoApproveEnabled = useSelector((state: RootState) => state.chatSlice.autoApproveEnabled);
+  const autoApproveRef = useRef(false);
 
   // 判断是否是简单中断（ask_user工具）
   const isSimpleInterrupt = interrupt?.value?.tool_name === 'ask_user';
-
-  // 没有中断时不显示
-  if (!interrupt) {
-    return null;
-  }
 
   // 处理中断响应
   const handleInterruptResponse = async (response: InterruptResponse) => {
@@ -190,6 +188,25 @@ const ToolRequestPanel = () => {
       console.error('处理中断响应失败:', error);
     }
   };
+
+  // 自动批准逻辑
+  useEffect(() => {
+    if (autoApproveEnabled && interrupt && !autoApproveRef.current && !isSimpleInterrupt) {
+      autoApproveRef.current = true;
+      const timer = setTimeout(() => {
+        handleInterruptResponse({ action: 'approve', choice: '1', additionalData: message || '' });
+        autoApproveRef.current = false;
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (!interrupt) {
+      autoApproveRef.current = false;
+    }
+  }, [interrupt, autoApproveEnabled, message]);
+
+  // 没有中断时不显示（必须在所有 hooks 之后）
+  if (!interrupt) {
+    return null;
+  }
 
   return (
     <div className="w-full bg-theme-gray1">
