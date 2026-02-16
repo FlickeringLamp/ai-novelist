@@ -55,13 +55,6 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         temperature = settings.get_config("mode", mode, "temperature")
         max_tokens = settings.get_config("mode", mode, "max_tokens")
 
-        # 如果模型ID包含提供商信息（如 "zhipuai/glm-4-plus"），则解析提供商和模型名称
-        if "/" in selected_model:
-            # 从模型ID中解析提供商和模型名称
-            provider_from_model, model_name = selected_model.split("/", 1)
-            selected_provider = provider_from_model
-            selected_model = model_name
-
         print(f"构建图实例 - 模型: {selected_model}, 提供商: {selected_provider}, 模式: {mode}")
 
         # 使用多模型适配器创建模型实例,max_tokens不传，让提供商使用默认的**单轮回复**最大输出长度
@@ -98,11 +91,9 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             """调用LLM生成响应"""
             # 打印完整state，包括summary字段
             print(f"[STATE] 完整state: {state}")
-            print(f"[STATE] summary字段值: '{state.get('summary', '')}'")
             
             # 获取当前消息列表
             current_messages = state["messages"]
-            print(f"当前消息列表{current_messages}")
             
             # 获取用户输入（最后一条消息）
             user_input = None

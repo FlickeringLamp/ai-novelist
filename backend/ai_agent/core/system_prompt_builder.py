@@ -185,6 +185,10 @@ class SystemPromptBuilder:
             # 格式化文件树为文本
             tree_text = self._format_tree_to_text(file_tree_result.get("tree", []))
             
+            # 如果文件树为空，显示"暂无文件"
+            if not tree_text:
+                tree_text = "暂无文件"
+            
             return f"[当前工作区文件结构]:\n{tree_text}"
             
         except Exception as e:
