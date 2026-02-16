@@ -31,6 +31,8 @@ export interface ChatState {
   historyExpanded: boolean;
   // 选中的thread_id
   selectedThreadId: string | null;
+  // 选中的模式ID
+  selectedModeId: string | null;
 }
 
 // 初始状态
@@ -45,6 +47,7 @@ const initialState: ChatState = {
   twoStepRagExpanded: false,
   historyExpanded: false,
   selectedThreadId: null,
+  selectedModeId: null,
 };
 
 export const chatSlice = createSlice({
@@ -192,6 +195,11 @@ export const chatSlice = createSlice({
       state.twoStepRagExpanded = action.payload;
     },
 
+    // 设置模式展开状态
+    setModeExpanded: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
+      state.modeExpanded = action.payload;
+    },
+
     // 切换历史面板展开状态
     setHistoryExpanded: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
       state.historyExpanded = action.payload;
@@ -200,6 +208,11 @@ export const chatSlice = createSlice({
     // 设置选中的thread_id
     setSelectedThreadId: (state: Draft<ChatState>, action: PayloadAction<string | null>) => {
       state.selectedThreadId = action.payload;
+    },
+
+    // 设置选中的模式ID
+    setSelectedModeId: (state: Draft<ChatState>, action: PayloadAction<string | null>) => {
+      state.selectedModeId = action.payload;
     },
   },
 });
@@ -218,8 +231,10 @@ export const {
   clearInterrupt,
   setTwoStepRagConfig,
   setTwoStepRagExpanded,
+  setModeExpanded,
   setHistoryExpanded,
   setSelectedThreadId,
+  setSelectedModeId,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

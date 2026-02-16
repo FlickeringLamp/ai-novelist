@@ -1,7 +1,8 @@
 import { useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileLines, faPlus } from '@fortawesome/free-solid-svg-icons';
-import ModeSelectorPanel from './ModeSelectorPanel';
+import ModeSelectorPanel from './mode-selector/ModeSelector';
+import ModePanel from './mode-selector/ModePanel';
 import AutoApprovePanel from './auto-approve/AutoApproveButton';
 import ModelSelectorPanel from './ModelSelectorPanel';
 import TwoStepRagSelector from './two-step-rag/TwoStepRagSelector';
@@ -63,6 +64,8 @@ const ChatPanel = () => {
       {/* 两步RAG面板 */}
       <TwoStepRagPanel />
 
+      {/* 模式面板 */}
+      <ModePanel />
 
     </div>
   );

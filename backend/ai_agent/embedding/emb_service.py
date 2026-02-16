@@ -88,7 +88,8 @@ def load(embeddings, collection_name):
     vector_store = Chroma(
         collection_name=collection_name,
         embedding_function=embeddings,
-        persist_directory=DB_PATH
+        persist_directory=DB_PATH,
+        collection_metadata={"hnsw:space": "cosine"} # 指定使用余弦空间，避免负数结果
     )
     
     print(f"成功加载数据库: {DB_PATH}, 集合: {collection_name}")
@@ -140,7 +141,8 @@ def create_collection(collection_name):
     vector_store = Chroma(
         collection_name=collection_name,
         embedding_function=embeddings,
-        persist_directory=DB_PATH
+        persist_directory=DB_PATH,
+        collection_metadata={"hnsw:space": "cosine"} # 指定使用余弦空间，避免负数结果
     )
     
     print(f"成功创建数据库集合: {collection_name}")
