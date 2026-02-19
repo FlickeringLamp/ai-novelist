@@ -5,6 +5,8 @@ import requests
 import logging
 from backend.config.config import settings
 from langchain_community.chat_models import ChatZhipuAI
+from openai import AsyncOpenAI as AsyncOpenAIClient
+from backend.ai_agent.models.siliconflow_adapter2 import SiliconFlowChatModel2
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +54,22 @@ class MultiModelAdapter:
         
         print(f"初始化模型: {model}, 提供商: {provider}, base_url: {base_url}")
         # 根据提供商类型选择初始化方式
-        if provider in ["deepseek", "ollama"]:
+        if provider == "siliconflow":
+            # 使用自定义的SiliconFlowChatModel2
+            # 使用 model_construct 绕过 Pydantic 验证
+            client = AsyncOpenAIClient(
+                base_url=base_url,
+                api_key=api_key,
+                timeout=timeout
+            )
+            return SiliconFlowChatModel2.model_construct(
+                client=client,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                **kwargs
+            )
+        elif provider in ["deepseek", "ollama"]:
             # 使用init_chat_model初始化原生支持的提供商
             # 构建模型标识符：provider:model
             model_identifier = f"{provider}:{model}"

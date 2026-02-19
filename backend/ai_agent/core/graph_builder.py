@@ -1,21 +1,18 @@
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.prebuilt import tools_condition
-from langgraph.store.base import BaseStore
 from langgraph.store.sqlite.aio import AsyncSqliteStore
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langchain_core.messages import AnyMessage, ToolMessage, AIMessage, SystemMessage, HumanMessage, RemoveMessage
+from langchain_core.messages import ToolMessage, SystemMessage, HumanMessage, RemoveMessage
 from langchain_core.messages.utils import (
     trim_messages,
     count_tokens_approximately
 )
-from typing_extensions import TypedDict, Annotated
-from typing import Callable, Any, List
+from typing import Callable, Any
 from backend.config.config import settings
 from backend.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.ai_agent.core.tool_load import import_tools_from_directory
 from backend.ai_agent.core.system_prompt_builder import SystemPromptBuilder
 import uuid
-import asyncio
 
 
 class State(MessagesState):
@@ -65,7 +62,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             timeout = 300,
         )
 
-        # 绑定工具到模型
+        # 统一使用bind_tools绑定工具
         if tool_dict:
             llm_with_tools = llm.bind_tools(list(tool_dict.values()))
             print(f"[INFO] 已绑定 {len(tool_dict)} 个工具到模型")
@@ -146,7 +143,10 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             
             # 调用模型生成响应
             print("发送给ai的信息：",[SystemMessage(content=enhanced_system_prompt)] + current_messages)
+            
+            # 统一调用方式
             response = await llm_with_tools.ainvoke([SystemMessage(content=enhanced_system_prompt)] + current_messages)
+            
             print(f"response长什么样{response}")
             
             # 检测用户是否要求记住某些信息，并存储到长期记忆
