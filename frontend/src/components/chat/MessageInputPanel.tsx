@@ -154,7 +154,8 @@ const MessageInputPanel = () => {
                     toolCallChunksMap.set(index, { args: '' });
                   }
                   const existing = toolCallChunksMap.get(index)!;
-                  if (chunk.name !== null && chunk.name !== undefined) {
+                  // 当null/undefined/""时，避免覆盖
+                  if (chunk.name) {
                     (existing as any).name = chunk.name;
                   }
                   if (chunk.args) {
@@ -187,6 +188,7 @@ const MessageInputPanel = () => {
                     });
                   }
                 }
+                console.log("ToolCalls:",toolCalls)
 
                 dispatch(updateAiMessage({
                   id: currentAiMessageId!,

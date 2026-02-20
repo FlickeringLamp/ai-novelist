@@ -12,11 +12,10 @@ class SiliconFlowChatModel2(BaseChatModel):
     """
     硅基流动自定义模型类 - 支持工具调用
     """
-    
     client: Optional[AsyncOpenAIClient] = Field(default=None)
     model: Optional[str] = Field(default=None)
-    temperature: float = 0.7
-    max_tokens: int = 4096
+    temperature: float = Field(default=0.7)
+    max_tokens: int = Field(default=4096)
     tools: Optional[List[BaseTool]] = Field(default=None)
     
     
