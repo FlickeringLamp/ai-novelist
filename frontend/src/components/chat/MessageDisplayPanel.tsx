@@ -261,9 +261,31 @@ const MessageDisplayPanel = () => {
                   })}
                 </div>
               )}
-              {msg.type === 'ai' && (msg as AIMessage).usage_metadata && (
+              {msg.type === 'ai' && ((msg as AIMessage).usage_metadata || (msg as AIMessage).response_metadata?.token_usage) && (
                 <div className="mt-2 text-[0.75em] text-theme-gray3">
-                  输入: {(msg as AIMessage).usage_metadata?.input_tokens || 0} / 输出: {(msg as AIMessage).usage_metadata?.output_tokens || 0}
+                  输入: {(() => {
+                    const aiMsg = msg as AIMessage;
+                    // 优先从usage_metadata获取（ChatOpenAI格式）
+                    if (aiMsg.usage_metadata?.input_tokens !== undefined) {
+                      return aiMsg.usage_metadata.input_tokens;
+                    }
+                    // 其次从response_metadata.token_usage获取（阿里云格式）
+                    if (aiMsg.response_metadata?.token_usage?.input_tokens !== undefined) {
+                      return aiMsg.response_metadata.token_usage.input_tokens;
+                    }
+                    return 0;
+                  })()} / 输出: {(() => {
+                    const aiMsg = msg as AIMessage;
+                    // 优先从usage_metadata获取（ChatOpenAI格式）
+                    if (aiMsg.usage_metadata?.output_tokens !== undefined) {
+                      return aiMsg.usage_metadata.output_tokens;
+                    }
+                    // 其次从response_metadata.token_usage获取（阿里云格式）
+                    if (aiMsg.response_metadata?.token_usage?.output_tokens !== undefined) {
+                      return aiMsg.response_metadata.token_usage.output_tokens;
+                    }
+                    return 0;
+                  })()}
                 </div>
               )}
             </div>

@@ -9,11 +9,23 @@ const ContextProgressBar = () => {
   const allModesData = useSelector((state: RootState) => state.modeSlice.allModesData);
   const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId);
   
-  // 从state获取最新AI消息的tokens
+  // 从state获取最新AI消息的tokens（兼容阿里云和ChatOpenAI格式）
   const currentTokens = useSelector((state: RootState) => {
     const messages = state.chatSlice.state?.values?.messages || [];
     const lastAiMessage = messages.filter(msg => msg.type === 'ai').pop();
-    return lastAiMessage?.usage_metadata?.total_tokens || 0;
+    if (!lastAiMessage) return 0;
+    
+    // 优先从usage_metadata获取（ChatOpenAI格式）
+    if (lastAiMessage.usage_metadata?.total_tokens) {
+      return lastAiMessage.usage_metadata.total_tokens;
+    }
+    
+    // 其次从response_metadata.token_usage获取（阿里云格式）
+    if (lastAiMessage.response_metadata?.token_usage?.total_tokens) {
+      return lastAiMessage.response_metadata.token_usage.total_tokens;
+    }
+    
+    return 0;
   });
 
   // 计算当前模型的最大上下文长度

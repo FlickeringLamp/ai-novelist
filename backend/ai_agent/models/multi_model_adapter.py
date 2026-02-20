@@ -1,6 +1,7 @@
 from typing import Optional, List
 from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI
+from langchain_community.chat_models.tongyi import ChatTongyi
 import requests
 import logging
 from backend.config.config import settings
@@ -56,13 +57,12 @@ class MultiModelAdapter:
         # 根据提供商类型选择初始化方式
         if provider == "siliconflow":
             # 使用自定义的SiliconFlowChatModel2
-            # 使用 model_construct 绕过 Pydantic 验证
             client = AsyncOpenAIClient(
                 base_url=base_url,
                 api_key=api_key,
                 timeout=timeout
             )
-            return SiliconFlowChatModel2.model_construct(
+            return SiliconFlowChatModel2(
                 client=client,
                 model=model,
                 temperature=temperature,
@@ -93,6 +93,17 @@ class MultiModelAdapter:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 timeout=timeout, # 函数签名/文档里没讲，估计也是秒为单位
+                **kwargs
+            )
+        elif provider == "aliyun":
+            # 使用ChatTongyi初始化通义千问
+            return ChatTongyi(
+                model=model,
+                api_key=api_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                streaming=True,
                 **kwargs
             )
         else :

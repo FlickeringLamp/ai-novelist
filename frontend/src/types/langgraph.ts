@@ -23,16 +23,30 @@ export interface UsageMetadata {
   total_tokens: number;
   input_token_details?: {
     cache_read?: number;
+    cached_tokens?: number;  // 阿里云格式
   };
   output_token_details?: Record<string, unknown>;
 }
 
-// 响应元数据
+// 阿里云Token使用信息（在response_metadata中）
+export interface AliyunTokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  prompt_tokens_details?: {
+    cached_tokens?: number;
+  };
+}
+
+// 响应元数据（兼容阿里云和ChatOpenAI格式）
 export interface ResponseMetadata {
   finish_reason?: string;
   model_name?: string;
   system_fingerprint?: string;
   model_provider?: string;
+  // 阿里云特有字段
+  request_id?: string;
+  token_usage?: AliyunTokenUsage;
 }
 
 // 基础消息接口
