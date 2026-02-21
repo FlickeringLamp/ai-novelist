@@ -118,6 +118,7 @@ const MessageInputPanel = () => {
       const result = sendMessage(inputMessage, userMessageId);
       let currentAiMessageId: string | null = null;
       let newAiResponse = "";
+      let newReasoningContent = "";
       const toolCallChunksMap = new Map<number, { name?: string; args: string; id?: string }>();
 
       for await (const chunk of result) {
@@ -138,13 +139,23 @@ const MessageInputPanel = () => {
 
               if (parsedChunk.content) {
                 newAiResponse += parsedChunk.content;
-                // 有content时立即更新，实现流式渲染
-                if (currentAiMessageId) {
-                  dispatch(updateAiMessage({
-                    id: currentAiMessageId,
-                    content: newAiResponse
-                  }));
+              }
+
+              // 处理 reasoning_content
+              if (parsedChunk.additional_kwargs?.reasoning_content) {
+                newReasoningContent += parsedChunk.additional_kwargs.reasoning_content as string;
+              }
+
+              // 有content或reasoning_content时立即更新，实现流式渲染
+              if (currentAiMessageId) {
+                const updateData: any = {
+                  id: currentAiMessageId,
+                  content: newAiResponse
+                };
+                if (newReasoningContent) {
+                  updateData.reasoning_content = newReasoningContent;
                 }
+                dispatch(updateAiMessage(updateData));
               }
 
               if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {

@@ -108,8 +108,8 @@ export const chatSlice = createSlice({
     },
     
     // 更新AI消息内容（流式传输）
-    updateAiMessage: (state: Draft<ChatState>, action: PayloadAction<{ id: string; content: string; tool_calls?: ToolCall[]; usage_metadata?: UsageMetadata }>) => {
-      const { id, content, tool_calls, usage_metadata } = action.payload;
+    updateAiMessage: (state: Draft<ChatState>, action: PayloadAction<{ id: string; content: string; tool_calls?: ToolCall[]; usage_metadata?: UsageMetadata; reasoning_content?: string }>) => {
+      const { id, content, tool_calls, usage_metadata, reasoning_content } = action.payload;
       if (!state.state) return;
       
       const messageIndex = state.state.values.messages.findIndex(msg => msg.id === id);
@@ -126,6 +126,12 @@ export const chatSlice = createSlice({
         };
         if (usage_metadata !== undefined) {
           updatedMessage.usage_metadata = usage_metadata;
+        }
+        if (reasoning_content !== undefined) {
+          updatedMessage.additional_kwargs = {
+            ...currentMessage.additional_kwargs,
+            reasoning_content
+          };
         }
         newMessages[messageIndex] = updatedMessage;
       } else {

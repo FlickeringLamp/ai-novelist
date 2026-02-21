@@ -120,9 +120,7 @@ Total : 134 files,  11085 codes, 1762 comments, 1932 blanks, all 14779 lines
     - 其他文件操作工具（）
     - 四个文件操作工具，需要支持用户介入（）
     - 回档对话（）
-    - deepseek-reasoner的思维链问题（）
-    - langchain-openrouter()
-    - 其他模型提供商的适配问题（）
+    - deepseek-reasoner的思维链， openrouter的langchain集成，所有提供商适配
     - 中断ai的流式消息（）
 
 

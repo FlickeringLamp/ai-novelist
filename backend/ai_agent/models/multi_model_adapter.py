@@ -1,13 +1,12 @@
 from typing import Optional, List
-from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_models.tongyi import ChatTongyi
+from langchain_openrouter import ChatOpenRouter
+from langchain_ollama import ChatOllama
 import requests
 import logging
 from backend.config.config import settings
-from langchain_community.chat_models import ChatZhipuAI
-from openai import AsyncOpenAI as AsyncOpenAIClient
-from backend.ai_agent.models.siliconflow_adapter2 import SiliconFlowChatModel2
+from backend.ai_agent.models.openai_compatible_adapter import OpenAICompatibleChatModel
 
 logger = logging.getLogger(__name__)
 
@@ -55,44 +54,20 @@ class MultiModelAdapter:
         
         print(f"初始化模型: {model}, 提供商: {provider}, base_url: {base_url}")
         # 根据提供商类型选择初始化方式
-        if provider == "siliconflow":
-            # 使用自定义的SiliconFlowChatModel2
-            client = AsyncOpenAIClient(
-                base_url=base_url,
-                api_key=api_key,
-                timeout=timeout
-            )
-            return SiliconFlowChatModel2(
-                client=client,
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                **kwargs
-            )
-        elif provider in ["deepseek", "ollama"]:
-            # 使用init_chat_model初始化原生支持的提供商
-            # 构建模型标识符：provider:model
-            model_identifier = f"{provider}:{model}"
-            
-            # 创建可配置模型
-            configurable_model = init_chat_model(
-                model_identifier,
-                api_key=api_key,
-                base_url=base_url,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                timeout=timeout,
-                **kwargs
-            )
-            return configurable_model
-        elif provider == "zhipuai":
-            # 使用ChatZhipuAI初始化智谱AI
-            return ChatZhipuAI(
+        if provider == "openrouter":
+            # 使用ChatOpenRouter初始化
+            return ChatOpenRouter(
                 model=model,
                 api_key=api_key,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                timeout=timeout, # 函数签名/文档里没讲，估计也是秒为单位
+                **kwargs
+            )
+        elif provider == "ollama":
+            # 使用ChatOllama初始化
+            return ChatOllama(
+                model=model,
+                temperature=temperature,
                 **kwargs
             )
         elif provider == "aliyun":
@@ -106,15 +81,15 @@ class MultiModelAdapter:
                 streaming=True,
                 **kwargs
             )
-        else :
-            # 使用ChatOpenAI初始化OpenAI兼容的提供商
-            return ChatOpenAI(
-                model=model,
-                api_key=api_key,
+        else:
+            # 使用OpenAICompatibleChatModel初始化OpenAI兼容的提供商（包括deepseek、siliconflow、kimi等，这些要么没有官方集成包，要么过时很久用不了）
+            return OpenAICompatibleChatModel(
                 base_url=base_url,
+                api_key=api_key,
+                timeout=timeout,
+                model=model,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                timeout=timeout,
                 **kwargs
             )
 

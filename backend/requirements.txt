@@ -4,9 +4,10 @@ langchain==1.1.0
 langchain-core==1.2.13
 langchain-community==0.4.1
 langchain-openai==1.1.9
+langchain-openrouter==0.0.2
 langchain-text-splitters==1.0.0
 langchain-deepseek==1.0.1
-langchain-ollama==1.0.0
+langchain-ollama==1.0.1
 langgraph==1.0.8
 langgraph-checkpoint-sqlite==3.0.0
 openai==2.21.0

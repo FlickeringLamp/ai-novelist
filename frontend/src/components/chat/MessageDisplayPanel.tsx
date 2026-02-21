@@ -14,6 +14,7 @@ const MessageDisplayPanel = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const [expandedToolResults, setExpandedToolResults] = useState<Set<string>>(new Set());
+  const [expandedReasonings, setExpandedReasonings] = useState<Set<string>>(new Set());
   const emptyMessages: Message[] = [];
   const emptyInterrupts: any[] = [];
   // 消息模态框状态
@@ -76,6 +77,19 @@ const MessageDisplayPanel = () => {
   // 切换工具结果展开/折叠状态
   const toggleToolResultExpand = (msgId: string) => {
     setExpandedToolResults(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(msgId)) {
+        newSet.delete(msgId);
+      } else {
+        newSet.add(msgId);
+      }
+      return newSet;
+    });
+  };
+
+  // 切换思维链展开/折叠状态
+  const toggleReasoningExpand = (msgId: string) => {
+    setExpandedReasonings(prev => {
       const newSet = new Set(prev);
       if (newSet.has(msgId)) {
         newSet.delete(msgId);
@@ -206,6 +220,23 @@ const MessageDisplayPanel = () => {
             <div className="whitespace-pre-wrap">{msg.content}</div>
           ) : (
             <div>
+              {msg.type === 'ai' && Boolean((msg as AIMessage).additional_kwargs?.reasoning_content) && (
+                <div className="mt-2 p-2 bg-black/20 rounded-small">
+                  <div className="flex items-center gap-2">
+                    <FontAwesomeIcon
+                      icon={expandedReasonings.has(msg.id) ? faAngleUp : faAngleRight}
+                      className="text-xs text-theme-green cursor-pointer hover:text-theme-white"
+                      onClick={() => toggleReasoningExpand(msg.id)}
+                    />
+                    <span className="font-bold text-theme-green">思维链</span>
+                  </div>
+                  {expandedReasonings.has(msg.id) && (
+                    <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words">
+                      {(msg as AIMessage).additional_kwargs.reasoning_content as string}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="whitespace-pre-wrap">{msg.content}</div>
               {msg.type === 'ai' && (msg as AIMessage).tool_calls && (msg as AIMessage).tool_calls.length > 0 && (
                 <div className="mt-2 p-2 bg-black/20 rounded-small">
@@ -273,6 +304,10 @@ const MessageDisplayPanel = () => {
                     if (aiMsg.response_metadata?.token_usage?.input_tokens !== undefined) {
                       return aiMsg.response_metadata.token_usage.input_tokens;
                     }
+                    // 兼容智谱模型格式（prompt_tokens）
+                    if (aiMsg.response_metadata?.token_usage?.prompt_tokens !== undefined) {
+                      return aiMsg.response_metadata.token_usage.prompt_tokens;
+                    }
                     return 0;
                   })()} / 输出: {(() => {
                     const aiMsg = msg as AIMessage;
@@ -283,6 +318,10 @@ const MessageDisplayPanel = () => {
                     // 其次从response_metadata.token_usage获取（阿里云格式）
                     if (aiMsg.response_metadata?.token_usage?.output_tokens !== undefined) {
                       return aiMsg.response_metadata.token_usage.output_tokens;
+                    }
+                    // 兼容智谱模型格式（completion_tokens）
+                    if (aiMsg.response_metadata?.token_usage?.completion_tokens !== undefined) {
+                      return aiMsg.response_metadata.token_usage.completion_tokens;
                     }
                     return 0;
                   })()}

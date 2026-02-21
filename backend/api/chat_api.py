@@ -91,7 +91,6 @@ async def send_chat_message(request: ChatMessageRequest):
             # 使用model_dump方法序列化完整的消息对象
             # 添加分隔符，避免被多个json对象被拼接到一起，进而造成前端消息显示不全，隔三岔五缺几个字符的问题
             serialized_chunk = message_chunk.model_dump()
-            print("流式消息：",serialized_chunk)
             yield json.dumps(serialized_chunk, ensure_ascii=False) + "\n"
             await asyncio.sleep(0)
     
