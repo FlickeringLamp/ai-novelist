@@ -165,6 +165,10 @@ export interface StreamChunk {
   invalid_tool_calls?: InvalidToolCall[];
   tool_call_chunks?: ToolCallChunk[];
   chunk_position?: string | null;
+  // 流式传输ID（用于中断流式传输）
+  stream_id?: string;
+  // 是否被中断
+  interrupted?: boolean;
 }
 
 // 工具调用chunk（用于流式传输）

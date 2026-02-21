@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faStop } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useState } from 'react';
 import type { RootState } from '../../store/store';
@@ -10,6 +10,8 @@ import {
   setState,
   setMessage,
   setSelectedThreadId,
+  setStreamId,
+  setIsStreaming,
 } from '../../store/chat';
 import type { ToolCall,  StreamChunk } from '../../types/langgraph';
 import httpClient from '../../utils/httpClient';
@@ -24,6 +26,8 @@ const MessageInputPanel = () => {
   // 从Redux获取状态
   const message = useSelector((state: RootState) => state.chatSlice.message);
   const selectedThreadId = useSelector((state: RootState) => state.chatSlice.selectedThreadId);
+  const streamId = useSelector((state: RootState) => state.chatSlice.streamId);
+  const isStreaming = useSelector((state: RootState) => state.chatSlice.isStreaming);
   const emptyInterrupts: any[] = [];
   const interrupts = useSelector((state: RootState) => state.chatSlice.state?.interrupts || emptyInterrupts);
   const interrupt = interrupts.length > 0 ? (interrupts[0] ?? null) : null;
@@ -40,6 +44,18 @@ const MessageInputPanel = () => {
   // 生成随机thread_id
   const generateThreadId = () => {
     return `thread_${Date.now()}`;
+  };
+
+  // 停止流式传输
+  const handleStopStreaming = async () => {
+    if (!streamId) return;
+
+    try {
+      await httpClient.post('/api/chat/interrupt-stream', { stream_id: streamId });
+      console.log('流式传输已中断');
+    } catch (error) {
+      console.error('中断流式传输失败:', error);
+    }
   };
 
   // 发送消息到后端
@@ -129,6 +145,22 @@ const MessageInputPanel = () => {
             const parsedChunk = JSON.parse(line) as StreamChunk;
             console.log("解析后的数据：", parsedChunk);
 
+            // 处理stream_id（流式传输ID，用于中断流式传输）
+            if (parsedChunk.stream_id) {
+              dispatch(setStreamId(parsedChunk.stream_id));
+              dispatch(setIsStreaming(true));
+              console.log("收到stream_id:", parsedChunk.stream_id);
+              continue;
+            }
+
+            // 处理流式传输中断信号
+            if (parsedChunk.interrupted) {
+              console.log("流式传输已被中断");
+              dispatch(setIsStreaming(false));
+              dispatch(setStreamId(null));
+              break;
+            }
+
             if (parsedChunk.type === 'AIMessageChunk') {
               if (!currentAiMessageId && parsedChunk.id) {
                 const messageId = parsedChunk.id;
@@ -216,9 +248,17 @@ const MessageInputPanel = () => {
           }
         }
       }
+      
+      // 流式传输结束，清除状态
+      dispatch(setIsStreaming(false));
+      dispatch(setStreamId(null));
     } catch (err) {
       setError(err instanceof Error ? err.message : '发送消息失败');
       dispatch(setMessage(inputMessage));
+      
+      // 流式传输出错，清除状态
+      dispatch(setIsStreaming(false));
+      dispatch(setStreamId(null));
     }
     
     // 获取最终状态
@@ -254,13 +294,22 @@ const MessageInputPanel = () => {
             onChange={(e) => dispatch(setMessage(e.target.value))}
             onKeyDown={handleKeyDown}
           />
-          <button
-            className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-white disabled:text-theme-white disabled:cursor-not-allowed"
-            onClick={handleSendMessage}
-            disabled={!message.trim()}
-          >
-            <FontAwesomeIcon icon={faPaperPlane} />
-          </button>
+          {isStreaming ? (
+            <button
+              className="bg-transparent text-theme-red border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-white"
+              onClick={handleStopStreaming}
+            >
+              <FontAwesomeIcon icon={faStop} />
+            </button>
+          ) : (
+            <button
+              className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-white disabled:text-theme-white disabled:cursor-not-allowed"
+              onClick={handleSendMessage}
+              disabled={!message.trim()}
+            >
+              <FontAwesomeIcon icon={faPaperPlane} />
+            </button>
+          )}
         </div>
       </div>
 

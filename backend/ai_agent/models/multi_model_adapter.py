@@ -1,5 +1,4 @@
 from typing import Optional, List
-from langchain_openai import ChatOpenAI
 from langchain_community.chat_models.tongyi import ChatTongyi
 from langchain_openrouter import ChatOpenRouter
 from langchain_ollama import ChatOllama

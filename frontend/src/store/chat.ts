@@ -33,6 +33,10 @@ export interface ChatState {
   selectedThreadId: string | null;
   // 选中的模式ID
   selectedModeId: string | null;
+  // 流式传输ID（用于中断流式传输）
+  streamId: string | null;
+  // 是否正在流式传输
+  isStreaming: boolean;
 }
 
 // 初始状态
@@ -48,6 +52,8 @@ const initialState: ChatState = {
   historyExpanded: false,
   selectedThreadId: null,
   selectedModeId: null,
+  streamId: null,
+  isStreaming: false,
 };
 
 export const chatSlice = createSlice({
@@ -220,6 +226,16 @@ export const chatSlice = createSlice({
     setSelectedModeId: (state: Draft<ChatState>, action: PayloadAction<string | null>) => {
       state.selectedModeId = action.payload;
     },
+
+    // 设置流式传输ID
+    setStreamId: (state: Draft<ChatState>, action: PayloadAction<string | null>) => {
+      state.streamId = action.payload;
+    },
+
+    // 设置是否正在流式传输
+    setIsStreaming: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
+      state.isStreaming = action.payload;
+    },
   },
 });
 
@@ -241,6 +257,8 @@ export const {
   setHistoryExpanded,
   setSelectedThreadId,
   setSelectedModeId,
+  setStreamId,
+  setIsStreaming,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

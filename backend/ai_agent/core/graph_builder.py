@@ -12,7 +12,10 @@ from backend.config.config import settings
 from backend.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.ai_agent.core.tool_load import import_tools_from_directory
 from backend.ai_agent.core.system_prompt_builder import SystemPromptBuilder
+from backend.api.stream_interrupt_manager import stream_interrupt_manager
 import uuid
+import re
+import asyncio
 
 
 class State(MessagesState):
@@ -89,6 +92,9 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             # 打印完整state，包括summary字段
             print(f"[STATE] 完整state: {state}")
             
+            # 获取stream_id用于中断控制
+            stream_id = config.get("configurable", {}).get("stream_id")
+            
             # 获取当前消息列表
             current_messages = state["messages"]
             
@@ -144,8 +150,11 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             # 调用模型生成响应
             print("发送给ai的信息：",[SystemMessage(content=enhanced_system_prompt)] + current_messages)
             
-            # 统一调用方式
-            response = await llm_with_tools.ainvoke([SystemMessage(content=enhanced_system_prompt)] + current_messages)
+            # 统一调用方式，传入stream_id用于中断控制
+            response = await llm_with_tools.ainvoke(
+                [SystemMessage(content=enhanced_system_prompt)] + current_messages,
+                config={"configurable": {"stream_id": stream_id}} if stream_id else {}
+            )
             
             print(f"response长什么样{response}")
             
@@ -179,7 +188,24 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             for tool_call in state["messages"][-1].tool_calls:
                 tool = tools_by_name[tool_call["name"]]
                 observation = await tool.ainvoke(tool_call["args"])
-                result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
+                
+                # 解析observation，分离工具结果和用户信息
+                # 匹配格式：【工具结果】：... ;**【用户信息】：...**
+                match = re.search(r'【工具结果】：(.*?)\s*;\*\*【用户信息】：(.*?)\*\*', observation, re.DOTALL)
+                
+                if match:
+                    tool_result = match.group(1).strip()
+                    user_info = match.group(2).strip()
+                    
+                    # 将工具结果放入ToolMessage
+                    result.append(ToolMessage(content=tool_result, tool_call_id=tool_call["id"]))
+                    
+                    # 将用户信息放入HumanMessage（如果有内容且不是"无附加信息"）
+                    if user_info and user_info != "无附加信息":
+                        result.append(HumanMessage(content=user_info))
+                else:
+                    # 如果无法解析，保持原有行为
+                    result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
             
             print(f"看看长什么样，是否有自动生成ToolMessage: {result}")
             # 直接返回result，使用operator.add自动追加到状态中
