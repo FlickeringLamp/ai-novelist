@@ -33,6 +33,8 @@ export interface ChatState {
   selectedThreadId: string | null;
   // 选中的模式ID
   selectedModeId: string | null;
+  // 是否正在流式传输
+  isStreaming: boolean;
 }
 
 // 初始状态
@@ -48,6 +50,7 @@ const initialState: ChatState = {
   historyExpanded: false,
   selectedThreadId: null,
   selectedModeId: null,
+  isStreaming: false,
 };
 
 export const chatSlice = createSlice({
@@ -108,8 +111,8 @@ export const chatSlice = createSlice({
     },
     
     // 更新AI消息内容（流式传输）
-    updateAiMessage: (state: Draft<ChatState>, action: PayloadAction<{ id: string; content: string; tool_calls?: ToolCall[]; usage_metadata?: UsageMetadata }>) => {
-      const { id, content, tool_calls, usage_metadata } = action.payload;
+    updateAiMessage: (state: Draft<ChatState>, action: PayloadAction<{ id: string; content: string; tool_calls?: ToolCall[]; usage_metadata?: UsageMetadata; reasoning_content?: string }>) => {
+      const { id, content, tool_calls, usage_metadata, reasoning_content } = action.payload;
       if (!state.state) return;
       
       const messageIndex = state.state.values.messages.findIndex(msg => msg.id === id);
@@ -126,6 +129,12 @@ export const chatSlice = createSlice({
         };
         if (usage_metadata !== undefined) {
           updatedMessage.usage_metadata = usage_metadata;
+        }
+        if (reasoning_content !== undefined) {
+          updatedMessage.additional_kwargs = {
+            ...currentMessage.additional_kwargs,
+            reasoning_content
+          };
         }
         newMessages[messageIndex] = updatedMessage;
       } else {
@@ -214,6 +223,11 @@ export const chatSlice = createSlice({
     setSelectedModeId: (state: Draft<ChatState>, action: PayloadAction<string | null>) => {
       state.selectedModeId = action.payload;
     },
+
+    // 设置是否正在流式传输
+    setIsStreaming: (state: Draft<ChatState>, action: PayloadAction<boolean>) => {
+      state.isStreaming = action.payload;
+    },
   },
 });
 
@@ -235,6 +249,7 @@ export const {
   setHistoryExpanded,
   setSelectedThreadId,
   setSelectedModeId,
+  setIsStreaming,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

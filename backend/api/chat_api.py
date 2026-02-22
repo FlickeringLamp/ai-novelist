@@ -1,12 +1,13 @@
 import json
 import logging
-import time
 import asyncio
 from pydantic import BaseModel, Field
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from backend.config.config import settings
 from backend.ai_agent.core.graph_builder import with_graph_builder
+# 小写的时全局实例，导入实例能确保唯一，导入类名则每个文件都不同
+from backend.ai_agent.models.stream_interrupt_manager import stream_interrupt_manager
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 # 导入LangChain相关类型用于类型检查
 from langgraph.types import Command
@@ -35,6 +36,10 @@ class ChatMessageRequest(BaseModel):
     """发送聊天消息请求"""
     message: str = Field(..., description="用户消息内容")
     id: str = Field(default="", description="消息ID")
+
+class InterruptStreamRequest(BaseModel):
+    """中断流式传输请求"""
+    thread_id: str = Field(..., description="线程ID")
 
 class InterruptResponseRequest(BaseModel):
     """中断响应请求"""
@@ -74,31 +79,69 @@ async def send_chat_message(request: ChatMessageRequest):
     user_id = settings.get_config("user_id", default="default_user")
     logger.info(f"使用的thread_id: {thread_id}, user_id: {user_id}, message_id: {message_id}")
     
+    # 为thread_id创建流式传输任务
+    stream_interrupt_manager.create_task(thread_id)
+    logger.info(f"为thread_id创建流式传输任务: {thread_id}")
+    
     @with_graph_builder
     async def generate_response(graph):
         """处理消息并返回生成器"""
-        config = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
-        
-        # 构造HumanMessage，包含id
-        human_message = HumanMessage(content=message, id=message_id)
-        
-        # 流式处理
-        async for message_chunk, metadata in graph.astream({"messages": [human_message]}, config, stream_mode="messages"):
-            # 在控制台打印流式传输信息
-            if message_chunk.content:
-                print(message_chunk.content, end="|", flush=True)
+        try:
+            config = {
+                "configurable": {
+                    "thread_id": thread_id,
+                    "user_id": user_id
+                }
+            }
             
-            # 使用model_dump方法序列化完整的消息对象
-            # 添加分隔符，避免被多个json对象被拼接到一起，进而造成前端消息显示不全，隔三岔五缺几个字符的问题
-            serialized_chunk = message_chunk.model_dump()
-            print("流式消息：",serialized_chunk)
-            yield json.dumps(serialized_chunk, ensure_ascii=False) + "\n"
-            await asyncio.sleep(0)
+            # 构造HumanMessage，包含id
+            human_message = HumanMessage(content=message, id=message_id)
+            
+            # 流式处理
+            async for message_chunk, metadata in graph.astream({"messages": [human_message]}, config, stream_mode="messages"):
+                # 检查是否被中断
+                if stream_interrupt_manager.is_interrupted(thread_id):
+                    logger.info(f"流式传输被中断: {thread_id}")
+                    # 发送中断通知
+                    yield json.dumps({"interrupted": True}, ensure_ascii=False) + "\n"
+                    break
+                
+                # 在控制台打印流式传输信息
+                if message_chunk.content:
+                    print(message_chunk.content, end="|", flush=True)
+                
+                # 使用model_dump方法序列化完整的消息对象
+                # 添加分隔符，避免被多个json对象被拼接到一起，进而造成前端消息显示不全，隔三岔五缺几个字符的问题
+                serialized_chunk = message_chunk.model_dump()
+                yield json.dumps(serialized_chunk, ensure_ascii=False) + "\n"
+                await asyncio.sleep(0)
+        finally:
+            # 清理任务
+            stream_interrupt_manager.remove_task(thread_id)
+            logger.info(f"清理流式传输任务: {thread_id}")
     
     return StreamingResponse(generate_response(), media_type="text/event-stream")
 
 
-@router.post("/interrupt-response", summary="解除中断")
+@router.post("/interrupt-stream", summary="中断流式传输")
+async def interrupt_stream(request: InterruptStreamRequest):
+    """
+    中断正在进行的流式传输
+    
+    - **thread_id**: 线程ID
+    """
+    thread_id = request.thread_id
+    success = stream_interrupt_manager.interrupt_task(thread_id)
+    
+    if success:
+        logger.info(f"成功中断流式传输: {thread_id}")
+        return {"success": True, "message": "流式传输已中断"}
+    else:
+        logger.warning(f"中断流式传输失败，任务不存在: {thread_id}")
+        return {"success": False, "message": "任务不存在或已结束"}
+
+
+@router.post("/interrupt-response", summary="解除graph中断")
 async def send_interrupt_response(request: InterruptResponseRequest):
     """
     发送中断响应给AI Agent继续处理
@@ -113,28 +156,44 @@ async def send_interrupt_response(request: InterruptResponseRequest):
     thread_id = settings.get_config("thread_id")
     logger.info(f"收到中断响应: interrupt_id={interrupt_id}, choice={choice}, thread_id: {thread_id}")
     
+    # 为thread_id创建流式传输任务
+    stream_interrupt_manager.create_task(thread_id)
+    logger.info(f"为thread_id创建流式传输任务: {thread_id}")
+    
     @with_graph_builder
     async def remove_interrupt_response(graph):
         """处理中断响应并返回生成器"""
-        config = {"configurable": {"thread_id": thread_id}}
-        
-        # 构建中断响应
-        human_response = Command(
-            resume= {
-                "choice_action": choice,
-                "choice_data": additional_data
-            }
-        )
-        
-        # 流式处理中断响应
-        async for message_chunk, metadata in graph.astream(human_response, config, stream_mode="messages"):
-            if message_chunk.content:
-                print(message_chunk.content, end="/", flush=True)
+        try:
+            config = {"configurable": {"thread_id": thread_id}}
             
-            # 使用model_dump方法序列化完整的消息对象
-            serialized_chunk = message_chunk.model_dump()
-            yield json.dumps(serialized_chunk, ensure_ascii=False) + "\n"
-            await asyncio.sleep(0)
+            # 构建中断响应
+            human_response = Command(
+                resume= {
+                    "choice_action": choice,
+                    "choice_data": additional_data
+                }
+            )
+            
+            # 流式处理中断响应
+            async for message_chunk, metadata in graph.astream(human_response, config, stream_mode="messages"):
+                # 检查是否被中断
+                if stream_interrupt_manager.is_interrupted(thread_id):
+                    logger.info(f"流式传输被中断: {thread_id}")
+                    # 发送中断通知
+                    yield json.dumps({"interrupted": True}, ensure_ascii=False) + "\n"
+                    break
+                
+                if message_chunk.content:
+                    print(message_chunk.content, end="/", flush=True)
+                
+                # 使用model_dump方法序列化完整的消息对象
+                serialized_chunk = message_chunk.model_dump()
+                yield json.dumps(serialized_chunk, ensure_ascii=False) + "\n"
+                await asyncio.sleep(0)
+        finally:
+            # 清理任务
+            stream_interrupt_manager.remove_task(thread_id)
+            logger.info(f"清理流式传输任务: {thread_id}")
     
     return StreamingResponse(remove_interrupt_response(), media_type="text/event-stream")
 

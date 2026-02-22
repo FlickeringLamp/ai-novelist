@@ -3,20 +3,34 @@ from langchain_core.messages import BaseMessage, AIMessage, AIMessageChunk, Huma
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.outputs import ChatResult, ChatGeneration, ChatGenerationChunk
 from langchain_core.tools import BaseTool
-from pydantic import Field
+from pydantic import Field, model_validator
 from openai import AsyncOpenAI as AsyncOpenAIClient
 import json
 import asyncio
+import sys
 
-class SiliconFlowChatModel2(BaseChatModel):
+class OpenAICompatibleChatModel(BaseChatModel):
     """
-    硅基流动自定义模型类 - 支持工具调用
+    OpenAI兼容自定义模型类 - 支持工具调用
     """
-    client: Optional[AsyncOpenAIClient] = Field(default=None)
+    base_url: Optional[str] = Field(default=None)
+    api_key: Optional[str] = Field(default=None)
+    timeout: int = Field(default=30)
     model: Optional[str] = Field(default=None)
     temperature: float = Field(default=0.7)
     max_tokens: int = Field(default=4096)
     tools: Optional[List[BaseTool]] = Field(default=None)
+    
+    @model_validator(mode='after')
+    def initialize_client(self):
+        """使用base_url、api_key、timeout创建client"""
+        if self.base_url and self.api_key:
+            self._client = AsyncOpenAIClient(
+                base_url=self.base_url,
+                api_key=self.api_key,
+                timeout=self.timeout
+            )
+        return self
     
     
     def _format_messages(self, messages: List[BaseMessage]) -> List[Dict[str, Any]]:
@@ -32,6 +46,11 @@ class SiliconFlowChatModel2(BaseChatModel):
             elif isinstance(msg, AIMessage):
                 assistant_msg = {"role": "assistant", "content": msg.content or ""}
                 
+                # 处理reasoning_content（思维链内容）
+                reasoning_content = None
+                if hasattr(msg, 'additional_kwargs') and isinstance(msg.additional_kwargs, dict):
+                    reasoning_content = msg.additional_kwargs.get('reasoning_content')
+                
                 # 如果有tool_calls，添加到消息中
                 # 检查 msg 对象是否有名为 'tool_calls' 的属性
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
@@ -46,6 +65,13 @@ class SiliconFlowChatModel2(BaseChatModel):
                             }
                         })
                     assistant_msg["tool_calls"] = tool_calls
+                    
+                    # Kimi API要求：当thinking启用且有tool_calls时，必须提供reasoning_content
+                    # 优先使用收集到的reasoning_content，如果没有则使用空字符串
+                    if reasoning_content is not None:
+                        assistant_msg["reasoning_content"] = reasoning_content
+                    elif not assistant_msg.get("content"):
+                        assistant_msg["reasoning_content"] = ""
                 
                 formatted.append(assistant_msg)
             elif isinstance(msg, ToolMessage):
@@ -98,6 +124,7 @@ class SiliconFlowChatModel2(BaseChatModel):
         chunks = []
         response_metadata = {}
         usage_metadata = {}
+        reasoning_content_parts = []
         async def collect_chunks():
             async for chunk in self._astream(messages, stop, run_manager, **kwargs):
                 chunks.append(chunk)
@@ -113,12 +140,16 @@ class SiliconFlowChatModel2(BaseChatModel):
         
         # 合并所有chunk为一个完整的消息
         content_parts = []
+        reasoning_content_parts = []
         tool_calls_buffer = {}
         
         for chunk in chunks:
             message = chunk.message
             if message.content:
                 content_parts.append(message.content)
+            # 收集reasoning_content（思维链内容）
+            if hasattr(message, 'additional_kwargs') and 'reasoning_content' in message.additional_kwargs:
+                reasoning_content_parts.append(message.additional_kwargs['reasoning_content'])
             if hasattr(message, 'tool_calls') and message.tool_calls:
                 for tool_call in message.tool_calls:
                     call_id = tool_call["id"]
@@ -131,14 +162,16 @@ class SiliconFlowChatModel2(BaseChatModel):
                 usage_metadata.update(message.usage_metadata)
         
         full_content = "".join(content_parts)
+        full_reasoning_content = "".join(reasoning_content_parts) if reasoning_content_parts else None
         tool_calls = list(tool_calls_buffer.values()) if tool_calls_buffer else None
         
-        # 构造最终消息，包含完整元数据
+        # 构造最终消息，包含完整元数据和reasoning_content
         final_message = AIMessage(
             content=full_content,
             tool_calls=tool_calls,
             response_metadata=response_metadata if response_metadata else {},
-            usage_metadata=usage_metadata if usage_metadata else None
+            usage_metadata=usage_metadata if usage_metadata else None,
+            additional_kwargs={"reasoning_content": full_reasoning_content} if full_reasoning_content else {}
         )
         
         generation = ChatGeneration(message=final_message)
@@ -181,8 +214,8 @@ class SiliconFlowChatModel2(BaseChatModel):
         # 转换工具为OpenAI格式
         tools = self._convert_tools_to_openai_format(tools)
         
-        # 调用硅基流动API（异步流式）
-        response = await self.client.chat.completions.create(
+        # 调用OpenAI兼容API（异步流式）
+        response = await self._client.chat.completions.create(
             model=self.model,
             messages=formatted_messages,
             temperature=self.temperature,
@@ -204,7 +237,10 @@ class SiliconFlowChatModel2(BaseChatModel):
                 response_id = chunk.id
             
             # 收集usage信息（通常在最后一个chunk中）
-            if hasattr(chunk, 'usage') and chunk.usage:
+            # 优先从choices中获取usage（kimi等API将usage放在choices[0].usage）
+            if chunk.choices and hasattr(chunk.choices[0], 'usage') and chunk.choices[0].usage:
+                usage_info = chunk.choices[0].usage
+            elif hasattr(chunk, 'usage') and chunk.usage:
                 usage_info = chunk.usage
             
             # 处理流式响应
@@ -225,6 +261,14 @@ class SiliconFlowChatModel2(BaseChatModel):
             # 处理内容
             if delta.content:
                 message = AIMessageChunk(content=delta.content)
+                yield ChatGenerationChunk(message=message)
+            
+            # 处理reasoning_content（思维链内容）
+            if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+                message = AIMessageChunk(
+                    content="",
+                    additional_kwargs={"reasoning_content": delta.reasoning_content}
+                )
                 yield ChatGenerationChunk(message=message)
             
             # 处理工具调用 - 使用tool_call_chunks传递不完整的调用信息
@@ -254,21 +298,31 @@ class SiliconFlowChatModel2(BaseChatModel):
         # 构造usage_metadata
         usage_metadata = None
         if usage_info:
+            # 兼容字典和对象两种访问方式
+            def get_attr(obj, key, default=None):
+                if isinstance(obj, dict):
+                    return obj.get(key, default)
+                return getattr(obj, key, default)
+            
             usage_metadata = {
-                "input_tokens": usage_info.prompt_tokens,
-                "output_tokens": usage_info.completion_tokens,
-                "total_tokens": usage_info.total_tokens
+                "input_tokens": get_attr(usage_info, 'prompt_tokens'),
+                "output_tokens": get_attr(usage_info, 'completion_tokens'),
+                "total_tokens": get_attr(usage_info, 'total_tokens')
             }
             # 添加详细的token信息
             input_details = {}
             output_details = {}
             
-            if hasattr(usage_info, 'prompt_cache_hit_tokens') and usage_info.prompt_cache_hit_tokens:
-                input_details["cache_read"] = usage_info.prompt_cache_hit_tokens
-            if hasattr(usage_info, 'completion_tokens_details') and usage_info.completion_tokens_details:
-                details = usage_info.completion_tokens_details
-                if hasattr(details, 'reasoning_tokens') and details.reasoning_tokens:
-                    output_details["reasoning_tokens"] = details.reasoning_tokens
+            # kimi使用cached_tokens，其他API可能使用prompt_cache_hit_tokens
+            cached_tokens = get_attr(usage_info, 'cached_tokens') or get_attr(usage_info, 'prompt_cache_hit_tokens')
+            if cached_tokens:
+                input_details["cache_read"] = cached_tokens
+            
+            completion_details = get_attr(usage_info, 'completion_tokens_details')
+            if completion_details:
+                reasoning_tokens = get_attr(completion_details, 'reasoning_tokens')
+                if reasoning_tokens:
+                    output_details["reasoning_tokens"] = reasoning_tokens
             
             if input_details:
                 usage_metadata["input_token_details"] = input_details
@@ -285,7 +339,7 @@ class SiliconFlowChatModel2(BaseChatModel):
     
     @property
     def _llm_type(self) -> str:
-        return "siliconflow"
+        return "openai_compatible"
     
     def bind_tools(self, tools, **kwargs):
         """

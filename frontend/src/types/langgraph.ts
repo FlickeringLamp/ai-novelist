@@ -30,11 +30,17 @@ export interface UsageMetadata {
 
 // 阿里云Token使用信息（在response_metadata中）
 export interface AliyunTokenUsage {
-  input_tokens: number;
-  output_tokens: number;
-  total_tokens: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  // 兼容智谱模型格式
+  prompt_tokens?: number;
+  completion_tokens?: number;
   prompt_tokens_details?: {
     cached_tokens?: number;
+  };
+  completion_tokens_details?: {
+    reasoning_tokens?: number;
   };
 }
 
@@ -159,6 +165,10 @@ export interface StreamChunk {
   invalid_tool_calls?: InvalidToolCall[];
   tool_call_chunks?: ToolCallChunk[];
   chunk_position?: string | null;
+  // 流式传输ID（用于中断流式传输）
+  stream_id?: string;
+  // 是否被中断
+  interrupted?: boolean;
 }
 
 // 工具调用chunk（用于流式传输）

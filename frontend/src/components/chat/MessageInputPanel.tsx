@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faStop } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useState } from 'react';
 import type { RootState } from '../../store/store';
@@ -10,6 +10,7 @@ import {
   setState,
   setMessage,
   setSelectedThreadId,
+  setIsStreaming,
 } from '../../store/chat';
 import type { ToolCall,  StreamChunk } from '../../types/langgraph';
 import httpClient from '../../utils/httpClient';
@@ -24,6 +25,7 @@ const MessageInputPanel = () => {
   // 从Redux获取状态
   const message = useSelector((state: RootState) => state.chatSlice.message);
   const selectedThreadId = useSelector((state: RootState) => state.chatSlice.selectedThreadId);
+  const isStreaming = useSelector((state: RootState) => state.chatSlice.isStreaming);
   const emptyInterrupts: any[] = [];
   const interrupts = useSelector((state: RootState) => state.chatSlice.state?.interrupts || emptyInterrupts);
   const interrupt = interrupts.length > 0 ? (interrupts[0] ?? null) : null;
@@ -40,6 +42,21 @@ const MessageInputPanel = () => {
   // 生成随机thread_id
   const generateThreadId = () => {
     return `thread_${Date.now()}`;
+  };
+
+  // 停止流式传输
+  const handleStopStreaming = async () => {
+    if (!selectedThreadId) return;
+
+    try {
+      await httpClient.post('/api/chat/interrupt-stream', { thread_id: selectedThreadId });
+      console.log('流式传输已中断');
+    } catch (error) {
+      console.error('中断流式传输失败:', error);
+    }
+    
+    // 立即更新状态，关闭中断按钮，恢复发送按钮
+    dispatch(setIsStreaming(false));
   };
 
   // 发送消息到后端
@@ -115,9 +132,12 @@ const MessageInputPanel = () => {
     dispatch(addUserMessage({ id: userMessageId, content: inputMessage }));
 
     try {
+      // 开始流式传输
+      dispatch(setIsStreaming(true));
       const result = sendMessage(inputMessage, userMessageId);
       let currentAiMessageId: string | null = null;
       let newAiResponse = "";
+      let newReasoningContent = "";
       const toolCallChunksMap = new Map<number, { name?: string; args: string; id?: string }>();
 
       for await (const chunk of result) {
@@ -127,6 +147,13 @@ const MessageInputPanel = () => {
           try {
             const parsedChunk = JSON.parse(line) as StreamChunk;
             console.log("解析后的数据：", parsedChunk);
+
+            // 处理流式传输中断信号
+            if (parsedChunk.interrupted) {
+              console.log("流式传输已被中断");
+              dispatch(setIsStreaming(false));
+              break;
+            }
 
             if (parsedChunk.type === 'AIMessageChunk') {
               if (!currentAiMessageId && parsedChunk.id) {
@@ -138,13 +165,23 @@ const MessageInputPanel = () => {
 
               if (parsedChunk.content) {
                 newAiResponse += parsedChunk.content;
-                // 有content时立即更新，实现流式渲染
-                if (currentAiMessageId) {
-                  dispatch(updateAiMessage({
-                    id: currentAiMessageId,
-                    content: newAiResponse
-                  }));
+              }
+
+              // 处理 reasoning_content
+              if (parsedChunk.additional_kwargs?.reasoning_content) {
+                newReasoningContent += parsedChunk.additional_kwargs.reasoning_content as string;
+              }
+
+              // 有content或reasoning_content时立即更新，实现流式渲染
+              if (currentAiMessageId) {
+                const updateData: any = {
+                  id: currentAiMessageId,
+                  content: newAiResponse
+                };
+                if (newReasoningContent) {
+                  updateData.reasoning_content = newReasoningContent;
                 }
+                dispatch(updateAiMessage(updateData));
               }
 
               if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {
@@ -205,9 +242,15 @@ const MessageInputPanel = () => {
           }
         }
       }
+      
+      // 流式传输结束，清除状态
+      dispatch(setIsStreaming(false));
     } catch (err) {
       setError(err instanceof Error ? err.message : '发送消息失败');
       dispatch(setMessage(inputMessage));
+      
+      // 流式传输出错，清除状态
+      dispatch(setIsStreaming(false));
     }
     
     // 获取最终状态
@@ -243,13 +286,22 @@ const MessageInputPanel = () => {
             onChange={(e) => dispatch(setMessage(e.target.value))}
             onKeyDown={handleKeyDown}
           />
-          <button
-            className="bg-transparent text-theme-green border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-white disabled:text-theme-white disabled:cursor-not-allowed"
-            onClick={handleSendMessage}
-            disabled={!message.trim()}
-          >
-            <FontAwesomeIcon icon={faPaperPlane} />
-          </button>
+          {isStreaming ? (
+            <button
+              className="bg-transparent border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-red"
+              onClick={handleStopStreaming}
+            >
+              <FontAwesomeIcon icon={faStop} />
+            </button>
+          ) : (
+            <button
+              className="bg-transparent border-none cursor-pointer text-[16px] p-0 self-end flex items-center justify-center hover:text-theme-green disabled:text-theme-white disabled:cursor-not-allowed"
+              onClick={handleSendMessage}
+              disabled={!message.trim()}
+            >
+              <FontAwesomeIcon icon={faPaperPlane} />
+            </button>
+          )}
         </div>
       </div>
 
