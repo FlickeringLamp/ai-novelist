@@ -12,10 +12,8 @@ from backend.config.config import settings
 from backend.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.ai_agent.core.tool_load import import_tools_from_directory
 from backend.ai_agent.core.system_prompt_builder import SystemPromptBuilder
-from backend.api.stream_interrupt_manager import stream_interrupt_manager
 import uuid
 import re
-import asyncio
 
 
 class State(MessagesState):

@@ -1,7 +1,7 @@
 import type { ToolCall, StreamChunk, InterruptResponse } from '../types/langgraph';
 import httpClient from './httpClient';
 import { tryCompleteJSON } from './jsonUtils';
-import { createAiMessage, updateAiMessage, setState, setMessage, clearInterrupt } from '../store/chat';
+import { createAiMessage, updateAiMessage, setState, setMessage, clearInterrupt, setIsStreaming } from '../store/chat';
 import type { Dispatch } from '@reduxjs/toolkit';
 import { exitDiffMode, saveTabContent, decreaseTab } from '../store/editor';
 import { FILE_TOOLS } from './fileToolHandler';
@@ -49,6 +49,9 @@ export const handleInterruptResponse = async (
     // 立即清除中断，关闭操作栏
     dispatch(clearInterrupt());
     
+    // 开始流式传输
+    dispatch(setIsStreaming(true));
+    
     const responseStream = await httpClient.streamRequest('/api/chat/interrupt-response', {
       method: 'POST',
       body: {
@@ -77,6 +80,13 @@ export const handleInterruptResponse = async (
         try {
           const parsedChunk = JSON.parse(line) as StreamChunk;
           console.log("解析后的数据：", parsedChunk);
+
+          // 处理流式传输中断信号
+          if (parsedChunk.interrupted) {
+            console.log("流式传输已被中断");
+            dispatch(setIsStreaming(false));
+            break;
+          }
 
           if (parsedChunk.type === 'AIMessageChunk') {
             if (!currentAiMessageId && parsedChunk.id) {
@@ -160,6 +170,9 @@ export const handleInterruptResponse = async (
         }
       }
     }
+    
+    // 流式传输结束，清除状态
+    dispatch(setIsStreaming(false));
     
     // 获取最终状态
     try {

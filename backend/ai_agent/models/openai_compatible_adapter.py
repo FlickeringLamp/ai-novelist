@@ -205,14 +205,6 @@ class OpenAICompatibleChatModel(BaseChatModel):
         """
         异步流式生成响应
         """
-        # 获取stream_id用于中断控制
-        config = kwargs.get("config", {})
-        configurable = config.get("configurable", {}) if config else {}
-        stream_id = configurable.get("stream_id")
-        
-        # 导入中断管理器（延迟导入避免循环依赖）
-        from backend.api.stream_interrupt_manager import stream_interrupt_manager
-        
         # 转换消息格式
         formatted_messages = self._format_messages(messages)
         
@@ -240,11 +232,6 @@ class OpenAICompatibleChatModel(BaseChatModel):
         
         # 处理流式响应
         async for chunk in response:
-            # 检查是否被中断
-            if stream_id and stream_interrupt_manager.is_interrupted(stream_id):
-                print(f"[INTERRUPT] 流式传输被中断: {stream_id}")
-                break
-            
             # 收集响应元数据
             if not response_id:
                 response_id = chunk.id
