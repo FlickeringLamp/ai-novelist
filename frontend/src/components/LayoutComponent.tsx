@@ -4,6 +4,8 @@ import SidebarComponent from './SidebarComponent';
 import ProviderSettingsPanel from './aiprovider/ProviderSettingsPanel';
 import RagManagementPanel from './rag/KnowledgeBasePanel';
 import AgentPanel from './agent/AgentPanel';
+import WindowControls from './others/WindowControls';
+import SidebarLogoWithStatus from './others/SidebarLogoWithStatus';
 
 interface LayoutComponentProps {
   chapterPanel: React.ReactNode;
@@ -27,7 +29,14 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
   };
 
   return (
-    <div className="flex-grow flex h-full">
+    <div className="flex flex-col h-full">
+      <div className="h-[3%] bg-theme-black flex items-center justify-between px-0 select-none window-drag-region border-b border-theme-gray2">
+        <div className="flex items-center px-2" style={{ WebkitAppRegion: 'no-drag' } as any}>
+          <SidebarLogoWithStatus />
+        </div>
+        <WindowControls />
+      </div>
+      <div className="h-[97%] flex-grow flex">
       <PanelGroup direction="horizontal" className="flex-grow flex h-full overflow-hidden min-h-0">
         {/* 左侧组件栏 - 固定宽度 */}
         <div className="bg-theme-black p-0 w-[50px] flex-shrink-0 overflow-hidden border-r border-theme-gray3">
@@ -86,6 +95,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -13,7 +13,8 @@ python安装包/
 # Build artifacts
 dist/
 frontend/build/
-
+build/
+frontend/electron-dist
 # IDE and Editor files
 .idea/
 .vscode/

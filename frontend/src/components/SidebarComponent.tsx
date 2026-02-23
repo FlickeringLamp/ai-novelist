@@ -5,7 +5,6 @@ import {
   faRobot,
   faPencil
 } from '@fortawesome/free-solid-svg-icons';
-import SidebarLogoWithStatus from './others/SidebarLogoWithStatus';
 
 interface SidebarItem {
   id: string;
@@ -62,8 +61,6 @@ const SidebarComponent = ({ activePanel, setActivePanel }: SidebarComponentProps
     <div className="w-[50px] h-full bg-theme-black flex flex-col">
       {/* 侧边栏项目列表 */}
       <div className="flex-1 py-[10px] flex flex-col gap-2">
-        {/* Logo心跳指示器 - 第一个图标 */}
-        <SidebarLogoWithStatus />
         {sidebarItems.map((item) => (
           <div
             key={item.id}

@@ -1,0 +1,28 @@
+{
+  "appId": "com.ai-novelist.app",
+  "productName": "青烛",
+  "directories": {
+    "output": "../dist/exe"
+  },
+  "files": [
+    "electron.cjs",
+    "preload.cjs",
+    "package.json",
+    {
+      "from": "../dist/frontend",
+      "to": ".",
+      "filter": ["**/*"]
+    }
+  ],
+  "extraResources": [
+    {
+      "from": "../dist/backend",
+      "to": "backend",
+      "filter": ["**/*"]
+    }
+  ],
+  "win": {
+    "target": "nsis",
+    "icon": "assets/icon.png"
+  }
+}

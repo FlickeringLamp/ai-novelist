@@ -1,6 +1,5 @@
 from typing import Optional, List
 from langchain_community.chat_models.tongyi import ChatTongyi
-from langchain_openrouter import ChatOpenRouter
 from langchain_ollama import ChatOllama
 import requests
 import logging
@@ -53,16 +52,7 @@ class MultiModelAdapter:
         
         print(f"初始化模型: {model}, 提供商: {provider}, base_url: {base_url}")
         # 根据提供商类型选择初始化方式
-        if provider == "openrouter":
-            # 使用ChatOpenRouter初始化
-            return ChatOpenRouter(
-                model=model,
-                api_key=api_key,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                **kwargs
-            )
-        elif provider == "ollama":
+        if provider == "ollama":
             # 使用ChatOllama初始化
             return ChatOllama(
                 model=model,

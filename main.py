@@ -1,6 +1,18 @@
 import sys
 import logging
+from pathlib import Path
 from backend import settings, initialize_directories_and_files
+
+# 获取静态文件目录路径（支持开发环境和PyInstaller打包环境）
+def get_static_dir():
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后的环境
+        return Path(sys._MEIPASS) / 'static'
+    else:
+        # 开发环境
+        return Path('static')
+
+static_dir = get_static_dir()
 
 # 初始化数据目录和文件
 initialize_directories_and_files()
@@ -65,7 +77,7 @@ data_dir = settings.DATA_DIR
 app.mount("/data", StaticFiles(directory=data_dir), name="data")
 
 # 挂载静态文件目录（用于离线 Swagger UI）
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # 自定义 Swagger UI 路由
 @app.get("/docs", include_in_schema=False)
@@ -126,7 +138,7 @@ if __name__ == "__main__":
         # 启动服务器
         logger.info("后端运行中......")
         uvicorn.run(
-            "main:app",
+            app,
             host=settings.HOST,
             port=settings.PORT,
             reload=False,  # 禁用重载机制，避免双重启动

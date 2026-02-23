@@ -16,4 +16,9 @@
   ::-webkit-scrollbar-thumb:hover {
     background: var(--color-green);
   }
+
+  /* 窗口拖动区域 */
+  .window-drag-region {
+    -webkit-app-region: drag;
+  }
 }
