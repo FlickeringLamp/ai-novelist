@@ -29,7 +29,7 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
     embeddingModel: '',
     chunkSize: '150',
     overlapSize: '20',
-    similarity: '0',
+    similarity: '3',
     returnDocs: '10',
   });
 
@@ -141,7 +141,7 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
               embeddingModel: '',
               chunkSize: '150',
               overlapSize: '20',
-              similarity: '0',
+              similarity: '3',
               returnDocs: '10',
             });
             onClose();
@@ -188,7 +188,7 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
                   embeddingModel: '',
                   chunkSize: '150',
                   overlapSize: '20',
-                  similarity: '0',
+                  similarity: '3',
                   returnDocs: '10',
                 });
                 onClose();

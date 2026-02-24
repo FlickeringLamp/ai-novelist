@@ -115,6 +115,8 @@ async def update_file(file_path: str, content: str):
     full_path = Path(settings.NOVEL_DIR) / file_path
     # 自动创建父文件夹（如果不存在）
     full_path.parent.mkdir(parents=True, exist_ok=True)
+    # 将 \r\n 转换为 \n，避免Windows换行符问题
+    content = content.replace('\r\n', '\n')
     async with aiofiles.open(full_path, 'w', encoding='utf-8') as f:
         await f.write(content)
 

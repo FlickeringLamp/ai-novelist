@@ -1,61 +1,47 @@
-import os
-import importlib.util
 from backend.config.config import settings
+from backend.ai_agent.tool.embedding_tool.emb_search import search_embedding, list_base_files
+from backend.ai_agent.tool.file_tool.read_file import read_file
+from backend.ai_agent.tool.file_tool.write_file import write_file
+from backend.ai_agent.tool.file_tool.apply_diff import apply_diff
+from backend.ai_agent.tool.file_tool.insert_content import insert_content
+from backend.ai_agent.tool.file_tool.search_file import search_file
+from backend.ai_agent.tool.file_tool.search_and_replace import search_and_replace
+from backend.ai_agent.tool.operation_tool.ask_user import ask_user_question
 
 
-# 动态导入工具文件夹下的所有工具
 def import_tools_from_directory(tool_dir: str, mode: str = None):
-    """从指定目录导入所有工具，支持按模式过滤
+    """直接导入所有工具，支持按模式过滤
     
     Args:
-        tool_dir: 工具目录
+        tool_dir: 工具目录（未使用，保留参数兼容性）
         mode: 模式名称，如果提供则只导入该模式启用的工具
     """
-    tools = {}
-    tool_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), tool_dir)
+    # 所有可用工具的字典
+    all_tools = {
+        "search_embedding": search_embedding,
+        "list_base_files": list_base_files,
+        "read_file": read_file,
+        "write_file": write_file,
+        "apply_diff": apply_diff,
+        "insert_content": insert_content,
+        "search_file": search_file,
+        "search_and_replace": search_and_replace,
+        "ask_user_question": ask_user_question
+    }
     
-    if not os.path.exists(tool_path):
-        print(f"警告: 工具目录不存在: {tool_path}")
-        return tools
-    
-    # 获取模式启用的工具列表
-    enabled_tools = []
+    # 根据模式过滤工具
     if mode:
+        # 获取模式启用的工具列表
         enabled_tools = settings.get_config("mode", mode, "tools", default=[])
         print(f"[INFO] 模式 '{mode}' 启用的工具: {enabled_tools}")
+        # 只返回该模式启用的工具
+        tools = {tool_name: all_tools[tool_name] for tool_name in enabled_tools if tool_name in all_tools}
+    else:
+        # 如果没有指定模式，返回所有工具
+        tools = all_tools
     
-    # 递归搜索所有子目录中的Python文件
-    for root, dirs, files in os.walk(tool_path):
-        for filename in files:
-            if filename.endswith('.py') and filename != '__init__.py':
-                module_path = os.path.join(root, filename)
-                # 计算相对于工具目录的模块名
-                relative_path = os.path.relpath(module_path, tool_path)
-                module_name = relative_path.replace(os.path.sep, '.').replace('.py', '')
-                
-                try:
-                    # 动态导入模块
-                    spec = importlib.util.spec_from_file_location(module_name, module_path)
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    
-                    # 查找模块中的工具函数
-                    for attr_name in dir(module):
-                        attr = getattr(module, attr_name)
-                        if hasattr(attr, 'name') and hasattr(attr, 'invoke'):
-                            # 这是一个 LangChain 工具
-                            tool_name = attr.name
-                            
-                            # 如果指定了模式，检查工具是否在该模式中启用
-                            if mode and tool_name not in enabled_tools:
-                                print(f"[SKIP] 工具 '{tool_name}' 在模式 '{mode}' 中未启用")
-                                continue
-                            
-                            tools[tool_name] = attr
-                            print(f"[OK] 已导入工具: {tool_name}")
-                            
-                except Exception as e:
-                    print(f"[ERROR] 导入工具 {module_name} 失败: {e}")
+    for tool_name in tools:
+        print(f"[OK] 已导入工具: {tool_name}")
     
     print(f"[INFO] 总共导入 {len(tools)} 个工具")
     return tools

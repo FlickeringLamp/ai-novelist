@@ -52,19 +52,33 @@ const ContextMenu = ({
 
   // 键盘导航
   useEffect(() => {
-    if (!visible || !enableKeyboard) return;
+    if (!visible || !enableKeyboard || items.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIndex((prevIndex) =>
-          prevIndex > 0 ? prevIndex - 1 : items.length - 1
-        );
+        setSelectedIndex((prevIndex) => {
+          let newIndex = prevIndex > 0 ? prevIndex - 1 : items.length - 1;
+          // 跳过分隔线
+          let loopCount = 0;
+          while (items[newIndex]?.divider && loopCount < items.length) {
+            newIndex = newIndex > 0 ? newIndex - 1 : items.length - 1;
+            loopCount++;
+          }
+          return newIndex;
+        });
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex((prevIndex) =>
-          prevIndex < items.length - 1 ? prevIndex + 1 : 0
-        );
+        setSelectedIndex((prevIndex) => {
+          let newIndex = prevIndex < items.length - 1 ? prevIndex + 1 : 0;
+          // 跳过分隔线
+          let loopCount = 0;
+          while (items[newIndex]?.divider && loopCount < items.length) {
+            newIndex = newIndex < items.length - 1 ? newIndex + 1 : 0;
+            loopCount++;
+          }
+          return newIndex;
+        });
       } else if (e.key === 'Enter') {
         e.preventDefault();
         const enabledItems = items.filter(item => !item.disabled);

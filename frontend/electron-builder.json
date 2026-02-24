@@ -22,7 +22,26 @@
     }
   ],
   "win": {
-    "target": "nsis",
-    "icon": "assets/icon.png"
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "assets/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": true,
+    "installerIcon": "assets/icon.ico",
+    "uninstallerIcon": "assets/icon.ico",
+    "installerHeader": "assets/icon.ico",
+    "installerSidebar": "assets/icon.ico",
+    "deleteAppDataOnUninstall": true,
+    "runAfterFinish": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "青烛"
   }
 }
