@@ -23,10 +23,15 @@ interface MonacoEditorProps {
 }
 
 
-// 配置 Monaco Editor 使用本地资源
+// 配置 Monaco Editor 使用本地资源并汉化
 loader.config({
   paths: {
-    vs: 'http://127.0.0.1:8000/static/monaco/vs'
+    vs: 'http://localhost:8000/static/monaco'
+  },
+  'vs/nls': {
+    availableLanguages: {
+      '*': 'zh-cn'
+    }
   }
 });
 // 定义自定义主题
@@ -221,6 +226,11 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
             readOnly: true, // 差异模式下只读
             enableSplitViewResizing: true,
             renderSideBySide: true,
+            unicodeHighlight: {
+              ambiguousCharacters: false,
+              invisibleCharacters: false,
+              nonBasicASCII: false,
+            },
           }}
         />
       ) : (
@@ -249,6 +259,11 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
             tabSize: 2,
             renderWhitespace:"all",
             renderControlCharacters: true,
+            unicodeHighlight: {
+              ambiguousCharacters: false,
+              invisibleCharacters: false,
+              nonBasicASCII: false,
+            },
           }}
         />
       )}

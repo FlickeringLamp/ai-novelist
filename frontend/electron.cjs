@@ -87,18 +87,58 @@ function startBackend() {
 }
 
 // 停止后端服务
-function stopBackend() {
+function stopBackend(callback) {
+  const { exec, execSync } = require('child_process');
+  
+  const checkAndKill = () => {
+    try {
+      const output = execSync('netstat -ano | findstr :8000').toString();
+      if (output.trim().length > 0) {
+        // 解析PID并关闭
+        const lines = output.trim().split('\n');
+        for (const line of lines) {
+          const parts = line.trim().split(/\s+/);
+          if (parts.length >= 5) {
+            const pid = parts[parts.length - 1];
+            exec(`taskkill /F /PID ${pid}`, (error) => {
+              if (error) {
+                console.error('关闭进程失败:', error);
+              } else {
+                console.log(`已关闭进程 PID: ${pid}`);
+              }
+            });
+          }
+        }
+        // 继续检查
+        setTimeout(checkAndKill, 500);
+      } else {
+        // 没有进程了，执行回调
+        console.log('8000端口已释放');
+        if (callback) callback();
+      }
+    } catch (e) {
+      // netstat命令失败说明没有占用
+      console.log('8000端口已释放');
+      if (callback) callback();
+    }
+  };
+  
+  // 先关闭已知的backendPid
   if (backendPid) {
-    const { exec } = require('child_process');
     exec(`taskkill /F /PID ${backendPid}`, (error) => {
       if (error) {
         console.error('停止后端服务失败:', error);
       } else {
         console.log('后端服务已停止');
       }
+      backendPid = null;
+      backendProcess = null;
+      // 检查端口是否还有进程
+      checkAndKill();
     });
-    backendPid = null;
-    backendProcess = null;
+  } else {
+    // 直接检查端口
+    checkAndKill();
   }
 }
 
@@ -143,11 +183,34 @@ app.whenReady().then(() => {
   // 先启动后端
   startBackend();
   
-  // 等待一下让后端启动完成
-  setTimeout(() => {
-    createWindow();
-  }, 2000);
-
+  // 用递归来轮询健康检查，直到后端启动成功
+  const checkBackendReady = () => {
+    const http = require('http');
+    const options = {
+      hostname: 'localhost',
+      port: 8000,
+      path: '/api/config/health',
+      method: 'GET',
+      timeout: 1000
+    };
+    
+    const req = http.request(options, (res) => {
+      if (res.statusCode === 200) {
+        createWindow();
+      } else {
+        setTimeout(checkBackendReady, 500);
+      }
+    });
+    
+    req.on('error', () => {
+      setTimeout(checkBackendReady, 500);
+    });
+    
+    req.end();
+  };
+  
+  // 延迟1秒后开始检查
+  setTimeout(checkBackendReady, 1000);
 });
 
 // 应用退出时清理.冗余一次空检查，确保各种退出路径都能清理后端。
