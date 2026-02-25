@@ -14,7 +14,7 @@ PROVIDERS = {
             "other": {}
         }
     },
-    "aliyun": {
+    "dashscope": {
         "name": "阿里云",
         "builtin": True,
         "enable": False,
@@ -165,6 +165,21 @@ PROVIDERS = {
         "key": "",
         "favoriteModels": {
             "chat": {},
+            "embedding": {},
+            "other": {}
+        }
+    },
+    "gemini": {
+        "name": "Gemini",
+        "builtin": True,
+        "enable": False,
+        "url": "https://generativelanguage.googleapis.com",
+        "key": "",
+        "favoriteModels": {
+            "chat": {
+                "gemini-2.5-flash": 1048576,
+                "gemini-2.5-flash-lite": 1048576
+            },
             "embedding": {},
             "other": {}
         }

@@ -1,10 +1,8 @@
 from typing import Optional, List
-from langchain_community.chat_models.tongyi import ChatTongyi
-from langchain_ollama import ChatOllama
 import requests
 import logging
 from backend.config.config import settings
-from backend.ai_agent.models.openai_compatible_adapter import OpenAICompatibleChatModel
+from backend.ai_agent.models.litellm_adapter import LiteLLMAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +11,26 @@ class MultiModelAdapter:
     多模型适配器
     根据模型提供商类型选择合适的初始化方式
     """
+    
+    @staticmethod
+    def _get_model_prefix(provider: str) -> str:
+        """
+        获取模型名称的前缀
+        
+        规则:
+        - zhipuai: 使用 "zai/" 前缀
+        - deepseek, dashscope, openrouter, gemini: 使用 provider 名作为前缀
+        - ollama: 使用 "ollama_chat/" 前缀,听说效果更好(尤其是ollama调用不了工具,ollama_chat反而可以)
+        - 其他: 统一使用 "openai/" 前缀
+        """
+        if provider == "zhipuai":
+            return "zai"
+        elif provider == "ollama":
+            return "ollama_chat"
+        elif provider in ["deepseek", "dashscope", "openrouter", "gemini"]:
+            return provider
+        else:
+            return "openai"
     
     @classmethod
     def create_model(
@@ -51,36 +69,21 @@ class MultiModelAdapter:
             base_url = settings.get_config("provider", provider, "url", default="")
         
         print(f"初始化模型: {model}, 提供商: {provider}, base_url: {base_url}")
-        # 根据提供商类型选择初始化方式
-        if provider == "ollama":
-            # 使用ChatOllama初始化
-            return ChatOllama(
-                model=model,
-                temperature=temperature,
-                **kwargs
-            )
-        elif provider == "aliyun":
-            # 使用ChatTongyi初始化通义千问
-            return ChatTongyi(
-                model=model,
-                api_key=api_key,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                timeout=timeout,
-                streaming=True,
-                **kwargs
-            )
-        else:
-            # 使用OpenAICompatibleChatModel初始化OpenAI兼容的提供商（包括deepseek、siliconflow、kimi等，这些要么没有官方集成包，要么过时很久用不了）
-            return OpenAICompatibleChatModel(
-                base_url=base_url,
-                api_key=api_key,
-                timeout=timeout,
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                **kwargs
-            )
+        
+        # 使用LiteLLMAdapter作为统一适配器，支持100+ LLM提供商
+        # 根据提供商类型使用不同的前缀
+        model_prefix = cls._get_model_prefix(provider)
+        litellm_model = f"{model_prefix}/{model}"
+        
+        return LiteLLMAdapter(
+            model=litellm_model,
+            api_key=api_key,
+            base_url=base_url,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            **kwargs
+        )
 
     @classmethod
     def get_available_models(cls, provider: str, api_key: str = None, base_url: str = None) -> List[str]:
@@ -143,7 +146,7 @@ class MultiModelAdapter:
                     print(f"获得的id是{model_id}")
                 
                 # 添加嵌入模型列表
-                if provider == "aliyun":
+                if provider == "dashscope":
                     embedding_models = [
                         "text-embedding-v4",
                         "text-embedding-v3",

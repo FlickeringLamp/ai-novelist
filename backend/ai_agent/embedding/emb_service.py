@@ -44,12 +44,12 @@ def prepare_doc(orgfile_path, chunk_size, chunk_overlap):
     return documents
 
 def prepare_emb(provider, model_id,embedding_url,embedding_api_key=None):
-    if provider == "aliyun":
+    if provider == "dashscope":
         embeddings = DashScopeEmbeddings(
             model=model_id,
             dashscope_api_key=embedding_api_key
         )
-        print(f"aliyun嵌入模型准备就绪")
+        print(f"dashscope嵌入模型准备就绪")
         return embeddings
 
     elif provider == "ollama":
