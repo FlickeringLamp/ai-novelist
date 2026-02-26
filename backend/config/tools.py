@@ -34,17 +34,5 @@ ALL_AVAILABLE_TOOLS = {
     "list_base_files": {
         "name": "列出知识库文件",
         "description": "列出指定知识库中的所有文件信息"
-    },
-    "filesystem_read_file": {
-        "name": "MCP-读取文件",
-        "description": "通过MCP文件系统服务器读取文件内容"
-    },
-    "filesystem_write_file": {
-        "name": "MCP-写入文件",
-        "description": "通过MCP文件系统服务器写入文件内容"
-    },
-    "filesystem_list_directory": {
-        "name": "MCP-列出目录",
-        "description": "通过MCP文件系统服务器列出目录内容"
     }
 }
