@@ -44,7 +44,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 
-from backend import chat_router, history_router, file_router, config_router, knowledge_router, model_router, mode_router
+from backend import chat_router, history_router, file_router, config_router, knowledge_router, model_router, mode_router, mcp_router
 
 # 创建FastAPI应用，禁用默认文档，使用自定义离线文档
 app = FastAPI(
@@ -102,6 +102,7 @@ app.include_router(config_router)
 app.include_router(knowledge_router)
 app.include_router(model_router)
 app.include_router(mode_router)
+app.include_router(mcp_router)
 
 # 健康检查端点
 

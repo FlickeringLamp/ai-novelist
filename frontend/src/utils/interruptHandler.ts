@@ -79,7 +79,7 @@ export const handleInterruptResponse = async (
       for (const line of lines) {
         try {
           const parsedChunk = JSON.parse(line) as StreamChunk;
-          console.log("解析后的数据：", parsedChunk);
+          // console.log("解析后的数据：", parsedChunk);
 
           // 处理流式传输中断信号
           if (parsedChunk.interrupted) {

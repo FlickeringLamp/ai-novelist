@@ -121,8 +121,8 @@ PROVIDERS = {
             "other": {}
         }
     },
-    "kimi": {
-        "name": "Kimi",
+    "moonshot": {
+        "name": "月之暗面",
         "builtin": True,
         "enable": False,
         "url": "https://api.moonshot.cn/v1",
@@ -179,6 +179,33 @@ PROVIDERS = {
             "chat": {
                 "gemini-2.5-flash": 1048576,
                 "gemini-2.5-flash-lite": 1048576
+            },
+            "embedding": {},
+            "other": {}
+        }
+    },
+    "lm_studio": {
+        "name": "LM Studio",
+        "builtin": True,
+        "enable": False,
+        "url": "http://127.0.0.1:1234/v1",
+        "key": "",
+        "favoriteModels": {
+            "chat": {},
+            "embedding": {},
+            "other": {}
+        }
+    },
+    "openai": {
+        "name": "OpenAI",
+        "builtin": True,
+        "enable": False,
+        "url": "https://api.openai.com/v1",
+        "key": "",
+        "favoriteModels": {
+            "chat": {
+                "gpt-5.2-pro": 400000,
+                "gpt-5-mini": 400000
             },
             "embedding": {},
             "other": {}
