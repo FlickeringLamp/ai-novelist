@@ -88,13 +88,25 @@ class LiteLLMAdapter(BaseChatModel):
             # name: 自动从函数名获取
             # description: 自动从函数的 docstring 获取
             # parameters: 通过 args_schema 参数传入的 Pydantic BaseModel，调用其 model_json_schema() 方法生成 JSON Schema
+            # 或者直接使用字典（如 MCP 工具）
             if isinstance(tool, BaseTool):
+                # 处理 args_schema 可能是 Pydantic BaseModel 或 dict 的情况
+                if tool.args_schema:
+                    if isinstance(tool.args_schema, dict):
+                        # MCP 工具的 args_schema 已经是 JSON Schema 格式的字典
+                        parameters = tool.args_schema
+                    else:
+                        # Pydantic BaseModel，调用 model_json_schema() 生成 JSON Schema
+                        parameters = tool.args_schema.model_json_schema()
+                else:
+                    parameters = {"type": "object", "properties": {}}
+                
                 tool_schema = {
                     "type": "function",
                     "function": {
                         "name": tool.name,
                         "description": tool.description,
-                        "parameters": tool.args_schema.model_json_schema() if tool.args_schema else {"type": "object", "properties": {}}
+                        "parameters": parameters
                     }
                 }
                 openai_tools.append(tool_schema)

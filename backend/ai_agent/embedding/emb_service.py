@@ -5,6 +5,7 @@ import os
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_ollama import OllamaEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from backend.config.config import settings
 from typing import Callable, Optional
 import chromadb
@@ -14,6 +15,10 @@ from functools import partial
 
 DB_PATH = settings.CHROMADB_PERSIST_DIR
 
+"""
+由于litellm的嵌入板块,文档不详尽,只有少量提供商提及embedding模型
+故大部分嵌入使用langchain集成包
+"""
 
 def prepare_doc(orgfile_path, chunk_size, chunk_overlap):
     # 初始化documents列表
@@ -59,6 +64,16 @@ def prepare_emb(provider, model_id,embedding_url,embedding_api_key=None):
         print("ollama嵌入模型准备就绪")
         return embeddings
 
+    elif provider == "gemini":
+        # LangChain的GoogleGenerativeAIEmbeddings需要"models/"前缀
+        gemini_model_id = f"models/{model_id}" if not model_id.startswith("models/") else model_id
+        embeddings = GoogleGenerativeAIEmbeddings(
+            model=gemini_model_id,
+            google_api_key=embedding_api_key
+        )
+        print("gemini嵌入模型准备就绪")
+        return embeddings
+
     else:
         print(f"塞给openaiembeddings的模型名{model_id}")
         embeddings = OpenAIEmbeddings(
@@ -67,7 +82,7 @@ def prepare_emb(provider, model_id,embedding_url,embedding_api_key=None):
             openai_api_key=embedding_api_key,
             openai_api_base=embedding_url,
             timeout=600,
-            check_embedding_ctx_length=False,  # 禁用上下文长度检查，避免token化问题————不禁用，则阿里云无法使用，openrouter无法使用。某些中转需要不禁用
+            check_embedding_ctx_length=False,  # 禁用上下文长度检查，避免token化问题————不禁用，则阿里云无法使用，openrouter无法使用。但某些中转不能禁用
         )
         print("openai兼容嵌入模型准备就绪")
         return embeddings

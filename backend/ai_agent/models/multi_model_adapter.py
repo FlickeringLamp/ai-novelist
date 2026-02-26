@@ -19,7 +19,7 @@ class MultiModelAdapter:
         
         规则:
         - zhipuai: 使用 "zai/" 前缀
-        - deepseek, dashscope, openrouter, gemini: 使用 provider 名作为前缀
+        - deepseek, dashscope, openrouter, gemini, lm_studio, moonshot: 使用 provider 名作为前缀
         - ollama: 使用 "ollama_chat/" 前缀,听说效果更好(尤其是ollama调用不了工具,ollama_chat反而可以)
         - 其他: 统一使用 "openai/" 前缀
         """
@@ -27,7 +27,7 @@ class MultiModelAdapter:
             return "zai"
         elif provider == "ollama":
             return "ollama_chat"
-        elif provider in ["deepseek", "dashscope", "openrouter", "gemini"]:
+        elif provider in ["deepseek", "dashscope", "openrouter", "gemini", "lm_studio", "moonshot"]:
             return provider
         else:
             return "openai"
@@ -101,6 +101,9 @@ class MultiModelAdapter:
         try:
             if provider == "ollama":
                 return cls._get_ollama_models(base_url)
+            elif provider == "gemini":
+                return cls._get_gemini_models(api_key)
+            # lm studio虽然格式不完全一致，但是也能用_get_openai_compatible_models
             else:
                 return cls._get_openai_compatible_models(provider, api_key, base_url)
         except Exception as e:
@@ -111,7 +114,7 @@ class MultiModelAdapter:
     @classmethod
     def _get_ollama_models(cls, base_url: str = None):
         """获取Ollama可用模型列表"""
-        try:            
+        try:
             response = requests.get(f"{base_url}/api/tags", timeout=10)
             if response.status_code == 200:
                 data = response.json()
@@ -129,6 +132,40 @@ class MultiModelAdapter:
         except requests.exceptions.RequestException as e:
             logger.warning(f"无法连接到Ollama服务: {e}")
             return []
+
+    @classmethod
+    def _get_gemini_models(cls, api_key: str = None) -> List[str]:
+        """获取Gemini可用模型列表"""
+        try:
+            if not api_key:
+                raise Exception("API密钥不能为空")
+            
+            # 使用Gemini原生API端点
+            url = f"https://generativelanguage.googleapis.com/v1/models?key={api_key}"
+            response = requests.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                models = []
+                for model_data in data.get("models", []):
+                    model_name = model_data.get("name", "")
+                    # 去掉"models/"前缀
+                    if model_name.startswith("models/"):
+                        model_name = model_name[7:]  # 去掉"models/"（7个字符）
+                    models.append(model_name)
+                    print(f"获得的Gemini模型: {model_name}")
+                return models
+            else:
+                error_detail = f"api key连接失败，请确定apikey可用 (HTTP {response.status_code})"
+                try:
+                    error_data = response.json()
+                    if 'error' in error_data:
+                        error_detail = f"{error_data['error'].get('message', error_data['error'])} (HTTP {response.status_code})"
+                except:
+                    pass
+                raise Exception(error_detail)
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"api key连接失败，请确定apikey可用 ({str(e)})")
 
     @classmethod
     def _get_openai_compatible_models(cls, provider: str, api_key: str = None, base_url: str = None) -> List[str]:

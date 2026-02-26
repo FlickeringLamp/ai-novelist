@@ -14,7 +14,7 @@ from backend.ai_agent.core.tool_load import import_tools_from_directory
 from backend.ai_agent.core.system_prompt_builder import SystemPromptBuilder
 import uuid
 import re
-
+from backend.config.config import settings
 
 class State(MessagesState):
     """包含消息的状态,不包括系统提示词"""
@@ -37,8 +37,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         mode = settings.get_config("currentMode", default="outline")
 
         # 根据模式加载工具
-        tool_dict = import_tools_from_directory('tool', mode)
-
+        tool_dict = await import_tools_from_directory(mode)
         # 每次都创建新的store实例，避免线程冲突
         store_db_path = str(settings.DB_DIR) + "/store.db"
         store = AsyncSqliteStore.from_conn_string(store_db_path)
@@ -70,7 +69,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         else:
             llm_with_tools = llm
             print(f"[WARNING] 没有可用的工具绑定到模型")
-
+        
         # 创建独立的总结模型实例（不绑定工具）
         llm_summarization = MultiModelAdapter.create_model(
             model = selected_model,

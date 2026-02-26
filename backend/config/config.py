@@ -45,7 +45,8 @@ def initialize_directories_and_files():
             "provider": PROVIDERS,
             "thread_id": thread_id,
             "knowledgeBase":{},
-            "two-step-rag": None
+            "two-step-rag": None,
+            "mcp_servers": {}  # MCP服务器配置
         }
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, ensure_ascii=False, indent=2)
