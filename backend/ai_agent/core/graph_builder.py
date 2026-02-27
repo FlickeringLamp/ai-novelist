@@ -186,6 +186,10 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                 tool = tools_by_name[tool_call["name"]]
                 observation = await tool.ainvoke(tool_call["args"])
                 
+                # 确保observation是字符串类型
+                if isinstance(observation, list):
+                    observation = str(observation)
+                
                 # 解析observation，分离工具结果和用户信息
                 # 匹配格式：【工具结果】：... ;**【用户信息】：...**
                 match = re.search(r'【工具结果】：(.*?)\s*;\*\*【用户信息】：(.*?)\*\*', observation, re.DOTALL)

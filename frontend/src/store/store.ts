@@ -5,6 +5,7 @@ import providerReducer from './provider'
 import knowledgeReducer from './knowledge'
 import modeReducer from './mode'
 import chatReducer from './chat'
+import mcpReducer from './mcp'
 
 export const store = configureStore({
   reducer: {
@@ -13,7 +14,8 @@ export const store = configureStore({
     providerSlice: providerReducer,
     knowledgeSlice: knowledgeReducer,
     modeSlice: modeReducer,
-    chatSlice: chatReducer
+    chatSlice: chatReducer,
+    mcpSlice: mcpReducer
   },
 })
 

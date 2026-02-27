@@ -3,7 +3,8 @@ import {
   faBrain,
   faDatabase,
   faRobot,
-  faPencil
+  faPencil,
+  faServer
 } from '@fortawesome/free-solid-svg-icons';
 
 interface SidebarItem {
@@ -44,6 +45,12 @@ const SidebarComponent = ({ activePanel, setActivePanel }: SidebarComponentProps
       icon: faRobot,
       label: 'Agent设置',
       panelId: 'agent'
+    },
+    {
+      id: 'mcp',
+      icon: faServer,
+      label: 'MCP配置',
+      panelId: 'mcp'
     }
   ];
 

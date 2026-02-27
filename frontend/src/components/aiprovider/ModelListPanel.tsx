@@ -104,7 +104,7 @@ const ModelListPanel = () => {
   };
 
   return (
-    <Panel className='border border-theme-gray1 flex flex-col h-full'>
+    <Panel defaultSize={85} minSize={0} maxSize={100} className='border border-theme-gray1 flex flex-col h-full'>
       {selectedProviderId && (
         <>
           {/* 启用/禁用提供商开关 */}

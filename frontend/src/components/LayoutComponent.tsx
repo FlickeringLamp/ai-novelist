@@ -4,6 +4,7 @@ import SidebarComponent from './SidebarComponent';
 import ProviderSettingsPanel from './aiprovider/ProviderSettingsPanel';
 import RagManagementPanel from './rag/KnowledgeBasePanel';
 import AgentPanel from './agent/AgentPanel';
+import MCPSettingsPanel from './mcp/MCPSettingsPanel';
 import WindowControls from './others/WindowControls';
 import SidebarLogoWithStatus from './others/SidebarLogoWithStatus';
 
@@ -14,7 +15,7 @@ interface LayoutComponentProps {
 }
 
 function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutComponentProps) {
-  const [activePanel, setActivePanel] = useState<string | null>(null); // 'api' | 'rag' | 'agent' | null
+  const [activePanel, setActivePanel] = useState<string | null>(null); // 'api' | 'rag' | 'agent' | 'mcp' | null
   const [leftPanelSize, setLeftPanelSize] = useState(15);
   const [rightPanelSize, setRightPanelSize] = useState(25);
 
@@ -92,6 +93,9 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
           {activePanel === 'agent' && (
             <AgentPanel
             />
+          )}
+          {activePanel === 'mcp' && (
+            <MCPSettingsPanel />
           )}
         </div>
       )}

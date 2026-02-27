@@ -139,31 +139,16 @@ async def update_knowledge_base(kb_id: str, request: UpdateKnowledgeBaseRequest)
     """
     knowledge_base = settings.get_config("knowledgeBase", default={})
     
-    # 获取当前知识库配置
-    current_config = knowledge_base[kb_id]
+    if kb_id not in knowledge_base:
+        raise ValueError(f"知识库 {kb_id} 不存在")
     
-    # 更新配置（只更新提供的字段）
+    current_config = knowledge_base[kb_id]
     updated_config = current_config.copy()
     
-    if request.name is not None:
-        updated_config["name"] = request.name
-    if request.provider is not None:
-        updated_config["provider"] = request.provider
-    if request.model is not None:
-        updated_config["model"] = request.model
-    if request.chunkSize is not None:
-        updated_config["chunkSize"] = request.chunkSize
-    if request.overlapSize is not None:
-        updated_config["overlapSize"] = request.overlapSize
-    if request.similarity is not None:
-        updated_config["similarity"] = request.similarity
-    if request.returnDocs is not None:
-        updated_config["returnDocs"] = request.returnDocs
+    for key, value in request.model_dump(exclude_none=True).items():
+        updated_config[key] = value
     
-    # 更新知识库配置
     knowledge_base[kb_id] = updated_config
-    
-    # 保存配置
     settings.update_config(knowledge_base, "knowledgeBase")
     
     logger.info(f"更新知识库: {kb_id}")

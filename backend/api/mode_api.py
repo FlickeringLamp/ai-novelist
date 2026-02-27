@@ -104,58 +104,16 @@ async def update_custom_mode(mode_id: str, request: UpdateModeRequest):
     - **tools**: 工具列表（可选）
     """
     mode_config = settings.get_config("mode", default={})
-    # 获取当前模式的配置
+    
+    if mode_id not in mode_config:
+        raise ValueError(f"模式 {mode_id} 不存在")
+    
     current_config = mode_config[mode_id]
+    updated_config = current_config.copy()
     
-    updated_config = {}
+    for key, value in request.model_dump(exclude_none=True).items():
+        updated_config[key] = value
     
-    # 更新name
-    if request.name is not None:
-        updated_config["name"] = request.name
-    elif "name" in current_config:
-        updated_config["name"] = current_config["name"]
-    
-    # 更新prompt
-    if request.prompt is not None:
-        updated_config["prompt"] = request.prompt
-    elif "prompt" in current_config:
-        updated_config["prompt"] = current_config["prompt"]
-    
-    # 更新temperature
-    if request.temperature is not None:
-        updated_config["temperature"] = request.temperature
-    elif "temperature" in current_config:
-        updated_config["temperature"] = current_config["temperature"]
-    
-    # 更新top_p
-    if request.top_p is not None:
-        updated_config["top_p"] = request.top_p
-    elif "top_p" in current_config:
-        updated_config["top_p"] = current_config["top_p"]
-    
-    # 更新max_tokens
-    if request.max_tokens is not None:
-        updated_config["max_tokens"] = request.max_tokens
-    elif "max_tokens" in current_config:
-        updated_config["max_tokens"] = current_config["max_tokens"]
-    
-    # 更新additionalInfo
-    if request.additionalInfo is not None:
-        updated_config["additionalInfo"] = request.additionalInfo
-    elif "additionalInfo" in current_config:
-        updated_config["additionalInfo"] = current_config["additionalInfo"]
-    
-    # 更新tools
-    if request.tools is not None:
-        updated_config["tools"] = request.tools
-    elif "tools" in current_config:
-        updated_config["tools"] = current_config["tools"]
-    
-    # 保留builtin字段
-    if "builtin" in current_config:
-        updated_config["builtin"] = current_config["builtin"]
-    
-    # 更新模式配置
     settings.update_config(updated_config, "mode", mode_id)
     
     return settings.get_config("mode", default={})
