@@ -45,65 +45,6 @@ Total : 134 files,  11085 codes, 1762 comments, 1932 blanks, all 14779 lines
 | HTML | 1 | 14 | 0 | 1 | 15 |
 
 
-## 项目结构(2026.1.26)
-
-前端：
-📦src
- ┣ 📂components                           # 组件文件夹
- ┃ ┣ 📂agent                              ## agent面板
- ┃ ┃ ┣ 📜AgentPanel.tsx                   ### 1. agent主面板文件
- ┃ ┃ ┣ 📂common
- ┃ ┃ ┣ 📂parameterTab                     ### 2. 参数管理面板
- ┃ ┃ ┣ 📂toolTab                          ### 3. 工具管理面板
- ┃ ┃ ┣ 📜FileSelector.tsx
- ┃ ┃ ┗ 📜ModeManager.ts
- ┃ ┣ 📂aiprovider                         ## api提供商面板
- ┃ ┃ ┗ 📜ProviderSettingsPanel.tsx
- ┃ ┣ 📂chapter                            ## 章节栏
- ┃ ┃ ┣ 📜ChapterTreePanel.tsx             ### 1. 文件主面板
- ┃ ┃ ┣ 📜ChapterContextMenu.tsx           ### 1.1 文件右键菜单
- ┃ ┃ ┗ 📜TreeRender.tsx                   ### 1.2 文件树渲染
- ┃ ┣ 📂chat                               ## 聊天栏
- ┃ ┃ ┣ 📂header                           ### 1. 顶部框
- ┃ ┃ ┣ 📂messagedisplay                   ### 2. 消息框
- ┃ ┃ ┣ 📂input                            ### 3. 输入框
- ┃ ┃ ┗ 📜ChatPanel.tsx                    ### 4. 主聊天面板
- ┃ ┣ 📂editor
- ┃ ┃ ┣ 📂editor
- ┃ ┃ ┃ ┣ 📜CoreEditor.tsx
- ┃ ┃ ┃ ┣ 📜EditorArea.tsx
- ┃ ┃ ┃ ┗ 📜StatusBar.tsx
- ┃ ┃ ┣ 📂tab
- ┃ ┃ ┃ ┗ 📜CloseTabConfirmModal.tsx
- ┃ ┃ ┣ 📜EditorContextMenu.tsx
- ┃ ┃ ┗ 📜EditorPanel.tsx
- ┃ ┣ 📂others
- ┃ ┃ ┣ 📜ContextMenu.tsx
- ┃ ┃ ┣ 📜ErrorModal.tsx
- ┃ ┃ ┣ 📜Logo.css
- ┃ ┃ ┣ 📜Logo.tsx
- ┃ ┃ ┗ 📜UnifiedModal.tsx
- ┃ ┣ 📂rag
- ┃ ┃ ┗ 📜RagManagementPanel.tsx
- ┃ ┣ 📜LayoutComponent.tsx
- ┃ ┗ 📜SidebarComponent.tsx
- ┣ 📂context // 主题上下文
- ┃ ┗ 📜ThemeContext.tsx
- ┣ 📂store // redux状态管理
- ┃ ┣ 📜editor.ts
- ┃ ┣ 📜file.ts
- ┃ ┗ 📜store.ts
- ┣ 📂utils // 工具函数
- ┃ ┣ 📜DisplayNameHelper.ts
- ┃ ┣ 📜embeddingModelUtils.ts
- ┃ ┗ 📜httpClient.ts
- ┣ 📜App.css
- ┣ 📜App.tsx
- ┣ 📜css.d.ts
- ┣ 📜index.css
- ┗ 📜index.tsx
-
-
 ## 已知问题
 
 以下是目前已知但暂未修复的问题：
@@ -114,8 +55,12 @@ Total : 134 files,  11085 codes, 1762 comments, 1932 blanks, all 14779 lines
 ## 后续发展规划
 
 ### 短期目标（v0.2.0）
-- 完善工具调用功能（2026/2/27）
+- 完善工具调用功能（2026/3/2）
     - mcp客户端
+        - 添加mcp服务器并且确认，这一步，应该优化前端，至少不要等待。
+        - 从uvx全部改uv
+        - 前端调用mcp时的消息渲染，需要与内置工具一致。
+        - npx？http/sse？的适配？
     - write_file工具
         - 标签栏多了怎么处理，先看看两个栏的情况会创到哪里吧（）
     - 其他文件操作工具（）

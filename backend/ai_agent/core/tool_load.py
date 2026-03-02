@@ -7,12 +7,12 @@ from backend.ai_agent.tool.file_tool.insert_content import insert_content
 from backend.ai_agent.tool.file_tool.search_file import search_file
 from backend.ai_agent.tool.file_tool.search_and_replace import search_and_replace
 from backend.ai_agent.tool.operation_tool.ask_user import ask_user_question
+from backend.ai_agent.mcp.mcp_manager import get_mcp_tools_as_objects
 
-async def import_tools_from_directory(McpTools:dict = None, mode: str = None):
+async def import_tools(mode: str = None):
     """导入所有工具，包括内置工具和MCP工具
     
     Args:
-        McpTools: MCP工具字典，如果提供则直接附加内置工具
         mode: 模式名称，如果提供则只导入该模式启用的工具
     """
     # 内置工具字典
@@ -28,6 +28,9 @@ async def import_tools_from_directory(McpTools:dict = None, mode: str = None):
         "ask_user_question": ask_user_question
     }
     
+    # 获取MCP工具对象
+    mcp_tools = await get_mcp_tools_as_objects()
+    
     # 根据模式过滤工具
     if mode:
         # 获取模式启用的工具列表
@@ -36,12 +39,9 @@ async def import_tools_from_directory(McpTools:dict = None, mode: str = None):
         # 只返回该模式启用的工具
         builtin_tools = {tool_name: builtin_tools[tool_name] for tool_name in enabled_tools if tool_name in builtin_tools}
     
-    # 如果提供了MCP工具字典，直接附加内置工具
-    if McpTools is not None:
-        tools = McpTools.copy()
-        tools.update(builtin_tools)
-    else:
-        tools = builtin_tools
+    # 合并MCP工具和内置工具
+    tools = mcp_tools.copy()
+    tools.update(builtin_tools)
     
     for tool_name in tools:
         print(f"[OK] 已导入工具: {tool_name}")

@@ -3,7 +3,7 @@ export interface MCPServerConfig {
   description: string;
   baseUrl: string;
   isActive: boolean;
-  transport: 'stdio' | 'http';
+  transport: 'stdio' | 'sse' | 'http';
   command?: string;
   args?: string[];
   env?: Record<string, string>;

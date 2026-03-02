@@ -22,10 +22,11 @@ def initialize_directories_and_files():
     db_dir = base_dir / "db"
     uploads_dir = base_dir / "uploads"
     temp_dir = base_dir / "temp"
+    mcp_servers_dir = base_dir / "mcp_servers"
     config_file = config_dir / "store.json"
     
     # 确保所有目录存在
-    directories = [base_dir, config_dir, novel_dir, chromadb_dir, db_dir, uploads_dir, temp_dir]
+    directories = [base_dir, config_dir, novel_dir, chromadb_dir, db_dir, uploads_dir, temp_dir, mcp_servers_dir]
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
     
@@ -45,7 +46,7 @@ def initialize_directories_and_files():
             "thread_id": thread_id,
             "knowledgeBase":{},
             "two-step-rag": None,
-            "mcp_servers": {}  # MCP服务器配置
+            "mcpServers": {}  # MCP服务器配置
         }
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, ensure_ascii=False, indent=2)
@@ -82,6 +83,23 @@ class Settings:
         self.UPLOADS_DIR: str = str(base_dir / "uploads")
         # 临时文件目录
         self.TEMP_DIR: str = str(base_dir / "temp")
+        # MCP服务器目录
+        self.MCP_SERVERS_DIR: str = str(base_dir / "mcp_servers")
+        
+        # UV 可执行文件路径
+        self.UV_EXECUTABLE: str = self._get_uv_executable()
+    
+    def _get_uv_executable(self) -> str:
+        """获取项目自带的 uv.exe 路径，如果不存在则使用系统 uv"""
+        # 获取项目根目录（从 backend/config 向上两级）
+        project_root = Path(__file__).parent.parent.parent
+        uv_path = project_root / "bin" / "uv.exe"
+        if uv_path.exists():
+            logger.info(f"使用项目自带的 uv: {uv_path}")
+            return str(uv_path)
+        # 如果项目自带的不存在，回退到系统 uv
+        logger.info("使用系统 uv")
+        return "uv"
         
     def _load_config(self) -> Dict[str, Any]:
         """从 store.json 加载配置，每次都会创建全新的字典对象"""

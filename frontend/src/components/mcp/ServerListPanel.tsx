@@ -5,6 +5,7 @@ import type { RootState } from '../../store/store';
 import {
   setAllServersData,
   setSelectedServerId,
+  setTools,
 } from '../../store/mcp';
 import ServerContextMenu from './modals/ServerContextMenu';
 import DeleteConfirmModal from './modals/DeleteConfirmModal';
@@ -120,7 +121,10 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
               className={`p-2 m-1 cursor-pointer border border-theme-gray3 hover:bg-theme-gray2 hover:text-theme-green ${
                 selectedServerId === serverId ? 'bg-theme-gray2 text-theme-green' : ''
               }`}
-              onClick={() => dispatch(setSelectedServerId(serverId))}
+              onClick={() => {
+                dispatch(setSelectedServerId(serverId));
+                dispatch(setTools({}));
+              }}
               onContextMenu={(e) => handleContextMenu(e, serverId)}
             >
               <div className="flex justify-between items-center">

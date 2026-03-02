@@ -10,7 +10,7 @@ from langchain_core.messages.utils import (
 from typing import Callable, Any
 from backend.config.config import settings
 from backend.ai_agent.models.multi_model_adapter import MultiModelAdapter
-from backend.ai_agent.core.tool_load import import_tools_from_directory
+from backend.ai_agent.core.tool_load import import_tools
 from backend.ai_agent.core.system_prompt_builder import SystemPromptBuilder
 import uuid
 import re
@@ -36,8 +36,8 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         # 从配置文件获取当前模式
         mode = settings.get_config("currentMode", default="outline")
 
-        # 根据模式加载工具
-        tool_dict = await import_tools_from_directory(mode)
+        # 导入所有工具（包括MCP工具和内置工具）
+        tool_dict = await import_tools(mode=mode)
         # 每次都创建新的store实例，避免线程冲突
         store_db_path = str(settings.DB_DIR) + "/store.db"
         store = AsyncSqliteStore.from_conn_string(store_db_path)

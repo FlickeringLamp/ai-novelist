@@ -8,7 +8,7 @@ from backend.ai_agent.mcp.mcp_manager import (
     add_mcp_server,
     update_mcp_server,
     delete_mcp_server,
-    get_mcp_tools
+    get_mcp_tools,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ async def add_server(request: AddMCPServerRequest):
     """
     try:
         config_dict = request.config.model_dump()
-        return add_mcp_server(request.server_id, config_dict)
+        return await add_mcp_server(request.server_id, config_dict)
     except Exception as e:
         logger.error(f"添加MCP服务器失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -100,7 +100,7 @@ async def delete_server(server_id: str):
         Dict[str, Dict]: 更新后的所有MCP服务器配置
     """
     try:
-        return delete_mcp_server(server_id)
+        return await delete_mcp_server(server_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -108,17 +108,18 @@ async def delete_server(server_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/tools", summary="获取MCP工具列表", response_model=Dict[str, Any])
-async def get_mcp_tools_list():
+@router.get("/tools", summary="获取MCP工具字典", response_model=Dict[str, Dict])
+async def get_tools(server_id: Optional[str] = None):
     """
-    获取MCP工具列表
+    获取MCP工具字典
+    
+    - **server_id**: 可选的服务器ID，如果提供则只返回该服务器的工具
     
     Returns:
-        Dict[str, Any]: MCP工具字典
+        Dict[str, Dict]: MCP工具字典
     """
     try:
-        tools = await get_mcp_tools()
-        return tools
+        return await get_mcp_tools(server_id)
     except Exception as e:
         logger.error(f"获取MCP工具失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
