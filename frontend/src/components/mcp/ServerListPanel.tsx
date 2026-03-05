@@ -9,9 +9,7 @@ import {
 } from '../../store/mcp';
 import ServerContextMenu from './modals/ServerContextMenu';
 import DeleteConfirmModal from './modals/DeleteConfirmModal';
-import AddServerModal from './modals/AddServerModal';
 import httpClient from '../../utils/httpClient';
-import type { MCPServerConfig } from '../../types/mcp';
 
 interface ServerListPanelProps {}
 
@@ -21,9 +19,6 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
   // 从 Redux 获取数据
   const serversData = useSelector((state: RootState) => state.mcpSlice.allServersData);
   const selectedServerId = useSelector((state: RootState) => state.mcpSlice.selectedServerId);
-
-  // 添加服务器模态框状态
-  const [showAddServerModal, setShowAddServerModal] = useState(false);
 
   // 删除确认模态框相关状态
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -85,16 +80,33 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
   };
 
   // 处理添加服务器
-  const handleAddServerSubmit = async (serverId: string, config: MCPServerConfig) => {
+  const handleAddServer = async () => {
     try {
-      await httpClient.post('/api/mcp/servers', { server_id: serverId, config });
+      // 使用时间戳作为服务器ID
+      const serverId = Date.now().toString();
       
+      // 创建默认配置
+      const defaultConfig = {
+        name: "添加mcp服务器",
+        description: "",
+        baseUrl: "",
+        isActive: false,
+        transport: "stdio",
+        command: "uvx",
+        args: [],
+        env: {}
+      };
+      
+      // 调用后端API添加配置
+      await httpClient.post('/api/mcp/servers', { server_id: serverId, config: defaultConfig });
+
       // 刷新服务器列表
       const result = await httpClient.get('/api/mcp/servers');
       dispatch(setAllServersData(result));
       
-      // 关闭模态框
-      setShowAddServerModal(false);
+      // 选中新添加的服务器
+      dispatch(setSelectedServerId(serverId));
+      dispatch(setTools({}));
     } catch (error) {
       alert(`添加失败: ${(error as Error).message}`);
     }
@@ -106,7 +118,7 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
         {/* 添加服务器按钮 */}
         <div className="p-1 border-b border-theme-gray3">
           <button
-            onClick={() => setShowAddServerModal(true)}
+            onClick={handleAddServer}
             className="w-full px-4 py-2 rounded hover:bg-theme-gray2 hover:text-theme-green"
           >
             添加服务器
@@ -137,13 +149,6 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
           ))}
         </div>
       </Panel>
-
-      {/* 添加服务器模态框 */}
-      <AddServerModal
-        isOpen={showAddServerModal}
-        onClose={() => setShowAddServerModal(false)}
-        onSubmit={handleAddServerSubmit}
-      />
 
       {/* 删除确认模态框 */}
       <DeleteConfirmModal

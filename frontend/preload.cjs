@@ -8,4 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),
   windowMaximize: () => ipcRenderer.invoke('window-maximize'),
   windowClose: () => ipcRenderer.invoke('window-close'),
+  // MCP服务器管理
+  mcpInstall: (serverId, packageName) => ipcRenderer.invoke('mcp-install', serverId, packageName),
 });

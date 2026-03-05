@@ -1,6 +1,7 @@
 import logging
+from pathlib import Path
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from backend.config.config import settings
+from backend.config.config import settings, get_bin_dir
 from backend.ai_agent.mcp.mcp_installer import mcp_installer
 
 logger = logging.getLogger(__name__)
@@ -28,27 +29,57 @@ def convert_to_langchain_config(mcp_servers: dict) -> dict:
         
         # 根据transport类型添加不同的配置
         if config["transport"] == "stdio":
-            command = server_config.get("command")
-            args = server_config.get("args", [])
-            
-            if command:
+            if server_config.get("command"):
+                command = server_config.get("command")
+                args = server_config.get("args", [])
+                  
+                # 处理 uvx 命令
+                if command == "uvx":
+                    command = settings.UV_EXECUTABLE
+                    logger.info(f"使用项目自带的 uv: {command}")
+                    # 对于 uvx 命令，需要转换为 "uv tool run" 格式
+                    args = ["tool", "run"] + args
+                    logger.info(f"转换 uvx 命令为: {command} {' '.join(args)}")
+                elif command == "npx":
+                    # 使用项目自带的 node.exe 和 npx
+                    bin_dir = Path(get_bin_dir())
+                    node_exe = bin_dir / "node.exe"
+                    npx_cmd = bin_dir / "npx.cmd"
+                    
+                    # 如果项目自带的可执行文件不存在，回退到系统命令
+                    if not node_exe.exists():
+                        node_exe = "node"
+                        logger.info(f"使用系统 node 命令")
+                    else:
+                        logger.info(f"使用项目自带的 node: {node_exe}")
+                    
+                    if not npx_cmd.exists():
+                        npx_cmd = "npx"
+                        logger.info(f"使用系统 npx 命令")
+                    else:
+                        logger.info(f"使用项目自带的 npx: {npx_cmd}")
+                    
+                    # npx 命令格式: node.exe npx.cmd [args]
+                    command = str(node_exe)
+                    args = [str(npx_cmd)] + args
+                    logger.info(f"转换 npx 命令为: {command} {' '.join(args)}")
+                  
                 config["command"] = command
-            
-            if command == "uvx":
-                config["command"] = settings.UV_EXECUTABLE
-                config["args"] = ["tool", "run"] + args
-            
-            if args and not config.get("args"):
                 config["args"] = args
-                
-            if server_config.get("env"):
-                # 合并环境变量
-                if "env" not in config:
-                    config["env"] = {}
-                config["env"].update(server_config.get("env"))
+            
+            # 处理环境变量
+            env = server_config.get("env", {}).copy() if server_config.get("env") else {}
+            
+            # 对于 uv 命令，添加 UV_TOOL_DIR 环境变量
+            if server_config.get("command") == "uv":
+                server_dir = Path(settings.MCP_SERVERS_DIR) / server_id
+                env["UV_TOOL_DIR"] = str(server_dir)
+                logger.info(f"设置 UV_TOOL_DIR: {server_dir}")
+            
+            config["env"] = env
         elif config["transport"] == "http":
             if server_config.get("baseUrl"):
-                config["url"] = server_config["baseUrl"]
+                config["url"] = server_config.get("baseUrl")
         
         langchain_config[server_id] = config
 
@@ -67,7 +98,7 @@ def get_all_mcp_servers():
 
 async def add_mcp_server(server_id: str, server_config: dict):
     """
-    添加新的MCP服务器配置，并自动安装MCP服务器
+    添加新的MCP服务器配置（不自动安装）
     
     Args:
         server_id: MCP服务器ID
@@ -79,28 +110,63 @@ async def add_mcp_server(server_id: str, server_config: dict):
     mcp_servers = settings.get_config("mcpServers", default={})
     mcp_servers[server_id] = server_config
     settings.update_config(mcp_servers, "mcpServers")
-    
-    # 自动安装MCP服务器
-    transport = server_config.get("transport", "stdio")
-    if transport == "stdio":
-        command = server_config.get("command", "")
-        args = server_config.get("args", [])
-        env = server_config.get("env", {})
-        
-        if command:
-            logger.info(f"开始自动安装MCP服务器: {server_id}")
-            install_result = await mcp_installer.install_mcp_server(
-                server_id, command, args, env
-            )
-            
-            if install_result["status"] == "success":
-                logger.info(f"成功安装MCP服务器 {server_id}: {install_result['message']}")
-            elif install_result["status"] == "error":
-                logger.error(f"安装MCP服务器 {server_id} 失败: {install_result['message']}")
-            else:
-                logger.info(f"跳过安装MCP服务器 {server_id}: {install_result['message']}")
-    
     return mcp_servers
+
+
+async def check_mcp_server_installed(server_id: str) -> bool:
+    """
+    检查MCP服务器是否已安装
+    
+    Args:
+        server_id: MCP服务器ID
+        
+    Returns:
+        bool: 是否已安装
+    """
+    return await mcp_installer.is_mcp_server_installed(server_id)
+
+
+async def download_mcp_server(server_id: str) -> dict:
+    """
+    下载/安装MCP服务器
+    
+    Args:
+        server_id: MCP服务器ID
+        
+    Returns:
+        dict: 安装结果
+    """
+    mcp_servers = settings.get_config("mcpServers", default={})
+    
+    if server_id not in mcp_servers:
+        raise ValueError(f"MCP服务器 {server_id} 不存在")
+    
+    server_config = mcp_servers[server_id]
+    transport = server_config.get("transport", "stdio")
+    
+    if transport != "stdio":
+        return {"status": "skipped", "message": f"{transport} 类型不需要安装"}
+    
+    command = server_config.get("command", "")
+    args = server_config.get("args", [])
+    env = server_config.get("env", {})
+    
+    if not command:
+        return {"status": "error", "message": "未提供命令"}
+    
+    logger.info(f"开始安装MCP服务器: {server_id}")
+    install_result = await mcp_installer.install_mcp_server(
+        server_id, command, args, env
+    )
+    
+    if install_result["status"] == "success":
+        logger.info(f"成功安装MCP服务器 {server_id}: {install_result['message']}")
+    elif install_result["status"] == "error":
+        logger.error(f"安装MCP服务器 {server_id} 失败: {install_result['message']}")
+    else:
+        logger.info(f"跳过安装MCP服务器 {server_id}: {install_result['message']}")
+    
+    return install_result
 
 
 def update_mcp_server(server_id: str, server_config: dict):
@@ -145,15 +211,25 @@ async def delete_mcp_server(server_id: str):
     if server_id not in mcp_servers:
         raise ValueError(f"MCP服务器 {server_id} 不存在")
     
-    # 卸载MCP服务器
-    logger.info(f"开始卸载MCP服务器: {server_id}")
-    uninstall_success = await mcp_installer.uninstall_mcp_server(server_id)
+    # 获取服务器配置
+    server_config = mcp_servers[server_id]
+    command = server_config.get("command", "")
+    transport = server_config.get("transport", "stdio")
     
-    if uninstall_success:
-        logger.info(f"成功卸载MCP服务器 {server_id}")
+    # 根据命令类型选择卸载方式
+    if transport == "stdio" and command:
+        logger.info(f"开始卸载MCP服务器: {server_id}, 命令类型: {command}")
+        uninstall_success = await mcp_installer.uninstall_mcp_server(server_id)
+        
+        if uninstall_success:
+            logger.info(f"成功卸载MCP服务器 {server_id}")
+        else:
+            logger.warning(f"卸载MCP服务器 {server_id} 失败或未安装")
     else:
-        logger.warning(f"卸载MCP服务器 {server_id} 失败或未安装")
+        # http类型或其他类型，只删除配置
+        logger.info(f"服务器 {server_id} 为 {transport} 类型，只删除配置")
     
+    # 删除配置
     del mcp_servers[server_id]
     settings.update_config(mcp_servers, "mcpServers")
     return mcp_servers
@@ -252,4 +328,6 @@ async def get_mcp_tools_as_objects(server_id: str | None = None):
     except Exception as e:
         logger.error(f"获取MCP工具对象时发生异常: {type(e).__name__}: {e}", exc_info=True)
         raise
+
+
 

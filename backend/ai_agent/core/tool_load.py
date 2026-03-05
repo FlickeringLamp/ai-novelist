@@ -28,7 +28,7 @@ async def import_tools(mode: str = None):
         "ask_user_question": ask_user_question
     }
     
-    # 获取MCP工具对象
+    # 获取所有MCP工具对象（包括uvx和npx）
     mcp_tools = await get_mcp_tools_as_objects()
     
     # 根据模式过滤工具
@@ -39,12 +39,13 @@ async def import_tools(mode: str = None):
         # 只返回该模式启用的工具
         builtin_tools = {tool_name: builtin_tools[tool_name] for tool_name in enabled_tools if tool_name in builtin_tools}
     
-    # 合并MCP工具和内置工具
-    tools = mcp_tools.copy()
+    # 合并所有工具：MCP工具 + 内置工具
+    tools = {}
+    tools.update(mcp_tools)
     tools.update(builtin_tools)
     
     for tool_name in tools:
         print(f"[OK] 已导入工具: {tool_name}")
     
-    print(f"[INFO] 总共导入 {len(tools)} 个工具")
+    print(f"[INFO] 总共导入 {len(tools)} 个工具 (MCP: {len(mcp_tools)}, 内置: {len(builtin_tools)})")
     return tools

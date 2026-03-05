@@ -13,7 +13,7 @@ interface SelectOption {
 
 interface InputField {
   label: string;
-  type?: 'text' | 'password' | 'select';
+  type?: 'text' | 'password' | 'select' | 'textarea';
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -104,6 +104,16 @@ const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProp
                       );
                     })}
                   </select>
+                ) : input.type === 'textarea' ? (
+                  <textarea
+                    id={`input-${index}`}
+                    className="w-full p-2 bg-theme-gray1 text-theme-white border border-theme-gray1 rounded-small box-border focus:outline-none focus:border-theme-green min-h-[100px] resize-vertical"
+                    value={input.value}
+                    onChange={(e) => input.onChange(e.target.value)}
+                    placeholder={input.placeholder}
+                    required={input.required}
+                    rows={4}
+                  />
                 ) : (
                   <div className="relative">
                     <input

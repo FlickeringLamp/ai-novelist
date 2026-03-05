@@ -64,7 +64,10 @@ const MessageInputPanel = () => {
     try {
       const response = await httpClient.streamRequest('/api/chat/message', {
         method: 'POST',
-        body: { message: message, id: messageId }
+        body: {
+          message: message,
+          id: messageId
+        }
       } as any);
 
       if (!response.ok) {

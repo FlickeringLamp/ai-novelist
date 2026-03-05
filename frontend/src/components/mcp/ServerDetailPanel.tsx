@@ -45,6 +45,7 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
 
   // 编辑状态
   const [showTransportDropdown, setShowTransportDropdown] = useState(false);
+  const [showCommandDropdown, setShowCommandDropdown] = useState(false);
 
   // 当切换服务器时自动加载工具列表
   useEffect(() => {
@@ -58,15 +59,37 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     if (!selectedServerId) {
       return;
     }
+    
+    const server = serversData[selectedServerId];
+    if (!server) {
+      return;
+    }
+
     try {
       dispatch(setLoading(true));
-      const result = await httpClient.get(`/api/mcp/tools?server_id=${selectedServerId}`);
-      dispatch(setTools(result));
+      
+      // 根据命令类型决定调用主进程还是后端子进程
+      if (server.command === 'npx') {
+        // npx 命令：调用 Electron 主进程的 HTTP 接口
+        const result = await fetch(`http://localhost:8001/api/nodejs/npm-mcp-tools?server_id=${selectedServerId}`);
+        const toolsData = await result.json();
+        dispatch(setTools(toolsData));
+      } else {
+        // uvx 命令：调用后端子进程的 API
+        const result = await httpClient.get(`/api/mcp/tools?server_id=${selectedServerId}`);
+        dispatch(setTools(result));
+      }
     } catch (error) {
       console.error('加载MCP工具失败:', error);
     } finally {
       dispatch(setLoading(false));
     }
+  };
+
+  // 处理命令选择
+  const handleCommandSelect = (command: string) => {
+    updateServerConfig({ command });
+    setShowCommandDropdown(false);
   };
 
   // 切换服务器启用/禁用状态
@@ -76,12 +99,60 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     const newActiveState = !selectedServer?.isActive;
 
     try {
-      await httpClient.put(`/api/mcp/servers/${selectedServerId}`, {
-        server_id: selectedServerId,
-        config: {
-          isActive: newActiveState
+      // 如果是启用状态，先检查并下载MCP服务器
+      if (newActiveState) {
+        try {
+          // 根据命令类型决定下载方式
+          if (selectedServer?.command === 'npx') {
+            // npx 命令：调用 Electron 主进程的 HTTP 接口安装 npm 包
+            // 匹配@开头的MCP包名
+            const packageName = selectedServer.args?.find(arg => arg.startsWith('@'));
+            if (!packageName) {
+              alert('npx 命令缺少包名参数（包名应以@开头）');
+              return;
+            }
+            
+            const result = await fetch('http://localhost:8001/api/nodejs/install', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                serverId: selectedServerId,
+                packageName: packageName,
+              }),
+            });
+            
+            const installResult = await result.json();
+            if (!installResult.success) {
+              alert(`安装 npm 包失败: ${installResult.error || installResult.message}`);
+              return;
+            }
+          } else {
+            // uvx 命令：调用后端子进程的 API 下载 MCP 服务器
+            // 检查是否已安装
+            const checkResult = await httpClient.get(`/api/mcp/servers/${selectedServerId}/check`);
+            
+            if (!checkResult.installed) {
+              // 未安装，先下载
+              await httpClient.post(`/api/mcp/servers/${selectedServerId}/download`, {});
+            }
+          }
+             
+          // 更新服务器状态
+          await httpClient.put(`/api/mcp/servers/${selectedServerId}`, {
+            server_id: selectedServerId,
+            config: {
+              isActive: newActiveState
+            }
+          });
+        } catch (error) {
+          console.error('下载MCP服务器失败:', error);
+          alert(`下载MCP服务器失败: ${(error as Error).message}`);
+          // 下载失败，不更新状态
+          return;
         }
-      });
+      }
 
       // 刷新服务器列表
       const serversResult = await httpClient.get('/api/mcp/servers');
@@ -196,20 +267,37 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
                 <>
                   <div>
                     <span className="text-theme-gray4 text-sm">命令:</span>
-                    <input
-                      type="text"
-                      defaultValue={selectedServer.command || ''}
-                      onBlur={(e) => updateServerConfig({ command: e.target.value })}
-                      className="ml-2 bg-theme-gray2 text-white px-2 py-1 rounded border border-theme-gray3 focus:border-theme-green outline-none"
-                    />
+                    <div className="inline-block relative ml-2">
+                      <button
+                        onClick={() => setShowCommandDropdown(!showCommandDropdown)}
+                        className="bg-theme-gray2 text-white px-3 py-1 rounded border border-theme-gray3 focus:border-theme-green outline-none flex items-center"
+                      >
+                        {selectedServer.command || '选择命令'}
+                        <FontAwesomeIcon icon={faChevronDown} className="ml-2 text-xs" />
+                      </button>
+                      {showCommandDropdown && (
+                        <div className="absolute top-full left-0 mt-1 bg-theme-gray1 border border-theme-gray3 rounded shadow-lg z-10">
+                          {['uvx', 'npx'].map((command) => (
+                            <button
+                              key={command}
+                              onClick={() => handleCommandSelect(command)}
+                              className="block w-full text-left px-3 py-1 text-white hover:bg-theme-gray2"
+                            >
+                              {command}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className="text-theme-gray4 text-sm">参数:</span>
-                    <input
-                      type="text"
-                      defaultValue={selectedServer.args?.join(' ') || ''}
-                      onBlur={(e) => updateServerConfig({ args: e.target.value.split(' ').filter(a => a) })}
-                      className="ml-2 bg-theme-gray2 text-white px-2 py-1 rounded border border-theme-gray3 focus:border-theme-green outline-none"
+                    <textarea
+                      defaultValue={selectedServer.args?.join('\n') || ''}
+                      onBlur={(e) => updateServerConfig({ args: e.target.value.split('\n').map(arg => arg.trim()).filter(a => a) })}
+                      className="ml-2 bg-theme-gray2 text-white px-2 py-1 rounded border border-theme-gray3 focus:border-theme-green outline-none min-h-[100px] resize-vertical"
+                      rows={4}
+                      placeholder="每行一个参数"
                     />
                   </div>
                 </>

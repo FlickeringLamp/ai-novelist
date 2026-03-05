@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 import logging
 import sqlite3
@@ -10,12 +11,30 @@ from backend.config.mode import DEFAULT_MODES
 
 logger = logging.getLogger(__name__)
 
+# 获取数据目录路径（支持开发环境和PyInstaller打包环境）
+def get_data_dir():
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后的环境
+        return Path('data')
+    else:
+        # 开发环境
+        return Path('backend/data')
+
+# 获取bin目录路径（支持开发环境和PyInstaller打包环境）
+def get_bin_dir():
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后的环境
+        return Path('bin')
+    else:
+        # 开发环境
+        return Path('bin')
+
 def initialize_directories_and_files():
     """
-    初始化backend/data下的所有目录和文件
+    初始化data目录下的所有目录和文件
     确保必要的目录存在，配置文件存在
     """
-    base_dir = Path("backend/data")
+    base_dir = get_data_dir()
     config_dir = base_dir / "config"
     novel_dir = base_dir / "novel"
     chromadb_dir = base_dir / "chromadb"
@@ -65,11 +84,11 @@ class Settings:
         self.PORT: int = self.get_config("port", default=8000)
         
         # 数据总目录
-        base_dir = Path("backend/data")
+        base_dir = get_data_dir()
         self.DATA_DIR: str = str(base_dir)
         
         # 配置文件目录
-        self.config_file = Path("backend/data/config/store.json")
+        self.config_file = base_dir / "config" / "store.json"
         self.CONFIG_DIR = str(self.config_file.parent)
         
         # 用户文件目录
@@ -87,19 +106,30 @@ class Settings:
         self.MCP_SERVERS_DIR: str = str(base_dir / "mcp_servers")
         
         # UV 可执行文件路径
-        self.UV_EXECUTABLE: str = self._get_uv_executable()
+        self.UV_EXECUTABLE: str = self._get_executable('uv.exe')
+        # Node.js 可执行文件路径
+        self.NODE_EXECUTABLE: str = self._get_executable('node.exe')
+        # NPM 可执行文件路径
+        self.NPM_EXECUTABLE: str = self._get_executable('npm.cmd')
     
-    def _get_uv_executable(self) -> str:
-        """获取项目自带的 uv.exe 路径，如果不存在则使用系统 uv"""
-        # 获取项目根目录（从 backend/config 向上两级）
-        project_root = Path(__file__).parent.parent.parent
-        uv_path = project_root / "bin" / "uv.exe"
-        if uv_path.exists():
-            logger.info(f"使用项目自带的 uv: {uv_path}")
-            return str(uv_path)
-        # 如果项目自带的不存在，回退到系统 uv
-        logger.info("使用系统 uv")
-        return "uv"
+    def _get_executable(self, exe_name: str) -> str:
+        """获取项目自带的可执行文件路径，如果不存在则使用系统命令
+        
+        Args:
+            exe_name: 可执行文件名（如 'uv.exe' 或 'node.exe'）
+        
+        Returns:
+            str: 可执行文件的完整路径或系统命令名
+        """
+        bin_dir = get_bin_dir()
+        exe_path = bin_dir / exe_name
+        if exe_path.exists():
+            logger.info(f"使用项目自带的 {exe_name}: {exe_path}")
+            return str(exe_path)
+        # 如果项目自带的不存在，回退到系统命令
+        cmd_name = exe_name.replace('.exe', '')
+        logger.info(f"使用系统 {cmd_name}")
+        return cmd_name
         
     def _load_config(self) -> Dict[str, Any]:
         """从 store.json 加载配置，每次都会创建全新的字典对象"""
