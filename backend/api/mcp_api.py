@@ -9,8 +9,6 @@ from backend.ai_agent.mcp.mcp_manager import (
     update_mcp_server,
     delete_mcp_server,
     get_mcp_tools,
-    check_mcp_server_installed,
-    download_mcp_server,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,44 +105,6 @@ async def delete_server(server_id: str):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"删除MCP服务器失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/servers/{server_id}/check", summary="检查MCP服务器是否已安装", response_model=Dict[str, bool])
-async def check_server(server_id: str):
-    """
-    检查MCP服务器是否已安装
-    
-    - **server_id**: MCP服务器ID
-    
-    Returns:
-        Dict[str, bool]: {"installed": bool}
-    """
-    try:
-        installed = await check_mcp_server_installed(server_id)
-        return {"installed": installed}
-    except Exception as e:
-        logger.error(f"检查MCP服务器安装状态失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/servers/{server_id}/download", summary="下载/安装MCP服务器")
-async def download_server(server_id: str):
-    """
-    下载/安装MCP服务器
-    
-    - **server_id**: MCP服务器ID
-    
-    Returns:
-        Dict[str, str]: 安装结果
-    """
-    try:
-        result = await download_mcp_server(server_id)
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"下载MCP服务器失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

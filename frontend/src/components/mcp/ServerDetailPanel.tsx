@@ -68,17 +68,9 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     try {
       dispatch(setLoading(true));
       
-      // 根据命令类型决定调用主进程还是后端子进程
-      if (server.command === 'npx') {
-        // npx 命令：调用 Electron 主进程的 HTTP 接口
-        const result = await fetch(`http://localhost:8001/api/nodejs/npm-mcp-tools?server_id=${selectedServerId}`);
-        const toolsData = await result.json();
-        dispatch(setTools(toolsData));
-      } else {
-        // uvx 命令：调用后端子进程的 API
-        const result = await httpClient.get(`/api/mcp/tools?server_id=${selectedServerId}`);
-        dispatch(setTools(result));
-      }
+      // 调用后端子进程的 API 获取 MCP 工具
+      const result = await httpClient.get(`/api/mcp/tools?server_id=${selectedServerId}`);
+      dispatch(setTools(result));
     } catch (error) {
       console.error('加载MCP工具失败:', error);
     } finally {
@@ -99,64 +91,22 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     const newActiveState = !selectedServer?.isActive;
 
     try {
-      // 如果是启用状态，先检查并下载MCP服务器
-      if (newActiveState) {
-        try {
-          // 根据命令类型决定下载方式
-          if (selectedServer?.command === 'npx') {
-            // npx 命令：调用 Electron 主进程的 HTTP 接口安装 npm 包
-            // 匹配@开头的MCP包名
-            const packageName = selectedServer.args?.find(arg => arg.startsWith('@'));
-            if (!packageName) {
-              alert('npx 命令缺少包名参数（包名应以@开头）');
-              return;
-            }
-            
-            const result = await fetch('http://localhost:8001/api/nodejs/install', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                serverId: selectedServerId,
-                packageName: packageName,
-              }),
-            });
-            
-            const installResult = await result.json();
-            if (!installResult.success) {
-              alert(`安装 npm 包失败: ${installResult.error || installResult.message}`);
-              return;
-            }
-          } else {
-            // uvx 命令：调用后端子进程的 API 下载 MCP 服务器
-            // 检查是否已安装
-            const checkResult = await httpClient.get(`/api/mcp/servers/${selectedServerId}/check`);
-            
-            if (!checkResult.installed) {
-              // 未安装，先下载
-              await httpClient.post(`/api/mcp/servers/${selectedServerId}/download`, {});
-            }
-          }
-             
-          // 更新服务器状态
-          await httpClient.put(`/api/mcp/servers/${selectedServerId}`, {
-            server_id: selectedServerId,
-            config: {
-              isActive: newActiveState
-            }
-          });
-        } catch (error) {
-          console.error('下载MCP服务器失败:', error);
-          alert(`下载MCP服务器失败: ${(error as Error).message}`);
-          // 下载失败，不更新状态
-          return;
+      // 更新服务器状态
+      await httpClient.put(`/api/mcp/servers/${selectedServerId}`, {
+        server_id: selectedServerId,
+        config: {
+          isActive: newActiveState
         }
-      }
+      });
 
       // 刷新服务器列表
       const serversResult = await httpClient.get('/api/mcp/servers');
       dispatch(setAllServersData(serversResult));
+
+      // 如果是启用状态，直接获取工具
+      if (newActiveState) {
+        await loadMCPTools();
+      }
     } catch (error) {
       console.error('更新服务器状态失败:', error);
     }

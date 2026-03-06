@@ -105,8 +105,8 @@ class Settings:
         # MCP服务器目录
         self.MCP_SERVERS_DIR: str = str(base_dir / "mcp_servers")
         
-        # UV 可执行文件路径
-        self.UV_EXECUTABLE: str = self._get_executable('uv.exe')
+        # UVX 可执行文件路径
+        self.UVX_EXECUTABLE: str = self._get_executable('uvx.exe')
         # Node.js 可执行文件路径
         self.NODE_EXECUTABLE: str = self._get_executable('node.exe')
         # NPM 可执行文件路径
