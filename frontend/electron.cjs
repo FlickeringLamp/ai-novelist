@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { exec } = require('child_process');
+const http = require('http');
 
 
 let mainWindow;
@@ -9,6 +11,7 @@ let backendPid = null;
 
 // 开发环境配置，app.isPackaged，Electron 提供，判断应用是否打包的 API
 const isDev = !app.isPackaged;
+
 
 // 获取后端可执行文件路径
 function getBackendPath() {
@@ -251,3 +254,4 @@ ipcMain.handle('window-close', () => {
     mainWindow.close();
   }
 });
+

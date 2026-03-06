@@ -45,6 +45,7 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
 
   // 编辑状态
   const [showTransportDropdown, setShowTransportDropdown] = useState(false);
+  const [showCommandDropdown, setShowCommandDropdown] = useState(false);
 
   // 当切换服务器时自动加载工具列表
   useEffect(() => {
@@ -58,8 +59,16 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     if (!selectedServerId) {
       return;
     }
+    
+    const server = serversData[selectedServerId];
+    if (!server) {
+      return;
+    }
+
     try {
       dispatch(setLoading(true));
+      
+      // 调用后端子进程的 API 获取 MCP 工具
       const result = await httpClient.get(`/api/mcp/tools?server_id=${selectedServerId}`);
       dispatch(setTools(result));
     } catch (error) {
@@ -69,6 +78,12 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     }
   };
 
+  // 处理命令选择
+  const handleCommandSelect = (command: string) => {
+    updateServerConfig({ command });
+    setShowCommandDropdown(false);
+  };
+
   // 切换服务器启用/禁用状态
   const handleToggleServer = async () => {
     if (!selectedServerId) return;
@@ -76,6 +91,7 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     const newActiveState = !selectedServer?.isActive;
 
     try {
+      // 更新服务器状态
       await httpClient.put(`/api/mcp/servers/${selectedServerId}`, {
         server_id: selectedServerId,
         config: {
@@ -86,6 +102,11 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
       // 刷新服务器列表
       const serversResult = await httpClient.get('/api/mcp/servers');
       dispatch(setAllServersData(serversResult));
+
+      // 如果是启用状态，直接获取工具
+      if (newActiveState) {
+        await loadMCPTools();
+      }
     } catch (error) {
       console.error('更新服务器状态失败:', error);
     }
@@ -196,20 +217,37 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
                 <>
                   <div>
                     <span className="text-theme-gray4 text-sm">命令:</span>
-                    <input
-                      type="text"
-                      defaultValue={selectedServer.command || ''}
-                      onBlur={(e) => updateServerConfig({ command: e.target.value })}
-                      className="ml-2 bg-theme-gray2 text-white px-2 py-1 rounded border border-theme-gray3 focus:border-theme-green outline-none"
-                    />
+                    <div className="inline-block relative ml-2">
+                      <button
+                        onClick={() => setShowCommandDropdown(!showCommandDropdown)}
+                        className="bg-theme-gray2 text-white px-3 py-1 rounded border border-theme-gray3 focus:border-theme-green outline-none flex items-center"
+                      >
+                        {selectedServer.command || '选择命令'}
+                        <FontAwesomeIcon icon={faChevronDown} className="ml-2 text-xs" />
+                      </button>
+                      {showCommandDropdown && (
+                        <div className="absolute top-full left-0 mt-1 bg-theme-gray1 border border-theme-gray3 rounded shadow-lg z-10">
+                          {['uvx', 'npx'].map((command) => (
+                            <button
+                              key={command}
+                              onClick={() => handleCommandSelect(command)}
+                              className="block w-full text-left px-3 py-1 text-white hover:bg-theme-gray2"
+                            >
+                              {command}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className="text-theme-gray4 text-sm">参数:</span>
-                    <input
-                      type="text"
-                      defaultValue={selectedServer.args?.join(' ') || ''}
-                      onBlur={(e) => updateServerConfig({ args: e.target.value.split(' ').filter(a => a) })}
-                      className="ml-2 bg-theme-gray2 text-white px-2 py-1 rounded border border-theme-gray3 focus:border-theme-green outline-none"
+                    <textarea
+                      defaultValue={selectedServer.args?.join('\n') || ''}
+                      onBlur={(e) => updateServerConfig({ args: e.target.value.split('\n').map(arg => arg.trim()).filter(a => a) })}
+                      className="ml-2 bg-theme-gray2 text-white px-2 py-1 rounded border border-theme-gray3 focus:border-theme-green outline-none min-h-[100px] resize-vertical"
+                      rows={4}
+                      placeholder="每行一个参数"
                     />
                   </div>
                 </>
