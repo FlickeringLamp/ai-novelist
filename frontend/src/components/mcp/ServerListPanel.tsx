@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
 import {
   setAllServersData,
   setSelectedServerId,
-  setTools,
+  setSingleServerTools,
 } from '../../store/mcp';
 import ServerContextMenu from './modals/ServerContextMenu';
 import DeleteConfirmModal from './modals/DeleteConfirmModal';
+import NotificationModal from './modals/NotificationModal';
 import httpClient from '../../utils/httpClient';
 
 interface ServerListPanelProps {}
@@ -19,10 +22,15 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
   // 从 Redux 获取数据
   const serversData = useSelector((state: RootState) => state.mcpSlice.allServersData);
   const selectedServerId = useSelector((state: RootState) => state.mcpSlice.selectedServerId);
+  const loadingServers = useSelector((state: RootState) => state.mcpSlice.loadingServers);
 
   // 删除确认模态框相关状态
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [serverToDelete, setServerToDelete] = useState('');
+
+  // 通知弹窗状态
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
 
   // 右键菜单相关状态
   const [contextMenu, setContextMenu] = useState<{
@@ -73,7 +81,8 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
       setShowDeleteConfirmModal(false);
       setServerToDelete('');
     } catch (error) {
-      alert(`删除失败: ${(error as Error).message}`);
+      setNotificationMessage(`删除失败: ${(error as Error).message}`);
+      setShowNotification(true);
       setShowDeleteConfirmModal(false);
       setServerToDelete('');
     }
@@ -89,7 +98,7 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
       const defaultConfig = {
         name: "添加mcp服务器",
         description: "",
-        baseUrl: "",
+        url: "",
         isActive: false,
         transport: "stdio",
         command: "uvx",
@@ -106,9 +115,10 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
       
       // 选中新添加的服务器
       dispatch(setSelectedServerId(serverId));
-      dispatch(setTools({}));
+      dispatch(setSingleServerTools({ serverId, tools: {} }));
     } catch (error) {
-      alert(`添加失败: ${(error as Error).message}`);
+      setNotificationMessage(`添加失败: ${(error as Error).message}`);
+      setShowNotification(true);
     }
   };
 
@@ -135,14 +145,19 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
               }`}
               onClick={() => {
                 dispatch(setSelectedServerId(serverId));
-                dispatch(setTools({}));
               }}
               onContextMenu={(e) => handleContextMenu(e, serverId)}
             >
               <div className="flex justify-between items-center">
                 <span className="flex-1">{serversData[serverId]?.name || serverId}</span>
                 <span className={`ml-2 ${serversData[serverId]?.isActive ? 'text-theme-green' : 'text-theme-gray4'}`}>
-                  {serversData[serverId]?.isActive ? '✓' : '✗'}
+                  {loadingServers.includes(serverId) ? (
+                    <FontAwesomeIcon icon={faSpinner} spin />
+                  ) : serversData[serverId]?.isActive ? (
+                    '✓'
+                  ) : (
+                    '✗'
+                  )}
                 </span>
               </div>
             </div>
@@ -169,6 +184,14 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
         onDelete={handleDeleteServer}
         onClose={closeContextMenu}
       />
+
+      {/* 通知弹窗 */}
+      {showNotification && (
+        <NotificationModal
+          message={notificationMessage}
+          onClose={() => setShowNotification(false)}
+        />
+      )}
     </>
   );
 };

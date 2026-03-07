@@ -4,15 +4,17 @@ import type { MCPServerConfig, MCPToolsData } from '../types/mcp';
 export interface MCPState {
   allServersData: { [serverId: string]: MCPServerConfig };
   selectedServerId: string | null;
-  tools: MCPToolsData;
+  serverTools: { [serverId: string]: MCPToolsData };
   isLoading: boolean;
+  loadingServers: string[]; // 正在加载工具的服务器ID列表
 }
 
 const initialState: MCPState = {
   allServersData: {},
   selectedServerId: null,
-  tools: {},
+  serverTools: {},
   isLoading: false,
+  loadingServers: [],
 };
 
 export const mcpSlice = createSlice({
@@ -31,11 +33,17 @@ export const mcpSlice = createSlice({
     ) => {
       state.selectedServerId = action.payload;
     },
-    setTools: (
+    setServerTools: (
       state: Draft<MCPState>,
-      action: PayloadAction<MCPToolsData>
+      action: PayloadAction<{ [serverId: string]: MCPToolsData }>
     ) => {
-      state.tools = action.payload;
+      state.serverTools = action.payload;
+    },
+    setSingleServerTools: (
+      state: Draft<MCPState>,
+      action: PayloadAction<{ serverId: string; tools: MCPToolsData }>
+    ) => {
+      state.serverTools[action.payload.serverId] = action.payload.tools;
     },
     setLoading: (
       state: Draft<MCPState>,
@@ -43,14 +51,37 @@ export const mcpSlice = createSlice({
     ) => {
       state.isLoading = action.payload;
     },
+    addLoadingServer: (
+      state: Draft<MCPState>,
+      action: PayloadAction<string>
+    ) => {
+      if (!state.loadingServers.includes(action.payload)) {
+        state.loadingServers.push(action.payload);
+      }
+    },
+    removeLoadingServer: (
+      state: Draft<MCPState>,
+      action: PayloadAction<string>
+    ) => {
+      state.loadingServers = state.loadingServers.filter(id => id !== action.payload);
+    },
+    clearLoadingServers: (
+      state: Draft<MCPState>
+    ) => {
+      state.loadingServers = [];
+    },
   },
 });
 
 export const {
   setAllServersData,
   setSelectedServerId,
-  setTools,
+  setServerTools,
+  setSingleServerTools,
   setLoading,
+  addLoadingServer,
+  removeLoadingServer,
+  clearLoadingServers,
 } = mcpSlice.actions;
 
 export default mcpSlice.reducer;

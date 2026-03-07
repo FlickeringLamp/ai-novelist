@@ -1,7 +1,6 @@
 import re
 from pydantic import BaseModel, Field
 from langchain.tools import tool
-from langgraph.types import interrupt
 from backend.file.file_service import read_file as file_service_read_file
 from backend.file.file_service import update_file as file_service_update_file
 
@@ -39,33 +38,15 @@ async def search_and_replace(path: str, search: str, replace: str) -> str:
         search: 搜索文本
         replace: 替换文本
     """
-    # 构造包含工具具体信息的中断数据
-    interrupt_data = {
-        "tool_name": "search_and_replace",
-        "tool_display_name": "搜索替换",
-        "description": f"搜索替换: {path} (\"{search}\" -> \"{replace}\")",
-        "parameters": {
-            "path": path,
-            "search": search,
-            "replace": replace
-        }
-    }
-    user_choice = interrupt(interrupt_data)
-    choice_action = user_choice.get("choice_action", "2")
-    choice_data = user_choice.get("choice_data", "无附加信息")
-    
-    if choice_action == "1":
-        try:
-            content = await file_service_read_file(path)
-            
-            pattern = re.compile(search)
-            new_content = pattern.sub(replace, content)
-            
-            await file_service_update_file(path, new_content)
-            
-            return f"【工具结果】：在文件 '{path}' 中成功完成搜索替换操作 ;**【用户信息】：{choice_data}**"
+    try:
+        content = await file_service_read_file(path)
         
-        except Exception as e:
-            return f"【工具结果】：搜索替换失败: {str(e)} ;**【用户信息】：{choice_data}**"
-    else:
-        return f"【工具结果】：用户拒绝了工具请求 ;**【用户信息】：{choice_data}**"
+        pattern = re.compile(search)
+        new_content = pattern.sub(replace, content)
+        
+        await file_service_update_file(path, new_content)
+        
+        return f"【工具结果】：在文件 '{path}' 中成功完成搜索替换操作"
+    
+    except Exception as e:
+        return f"【工具结果】：搜索替换失败: {str(e)}"

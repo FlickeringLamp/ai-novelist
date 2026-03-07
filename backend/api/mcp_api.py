@@ -9,6 +9,7 @@ from backend.ai_agent.mcp.mcp_manager import (
     update_mcp_server,
     delete_mcp_server,
     get_mcp_tools,
+    get_all_mcp_tools_by_server,
 )
 
 logger = logging.getLogger(__name__)
@@ -21,12 +22,13 @@ class MCPServerConfig(BaseModel):
     """MCP服务器配置"""
     name: str = Field(..., description="服务器名称")
     description: str = Field(default="", description="服务器描述")
-    baseUrl: str = Field(default="", description="基础URL")
+    url: str = Field(default="", description="服务器URL（用于HTTP/SSE传输）")
     isActive: bool = Field(default=True, description="是否激活")
-    transport: str = Field(default="stdio", description="传输类型 (stdio/http)")
+    transport: str = Field(default="stdio", description="传输类型 (stdio/http/sse)")
     command: Optional[str] = Field(None, description="命令（stdio类型）")
     args: Optional[List[str]] = Field(default_factory=list, description="命令参数（stdio类型）")
     env: Optional[Dict[str, str]] = Field(default_factory=dict, description="环境变量")
+    headers: Optional[Dict[str, str]] = Field(default_factory=dict, description="请求头（用于HTTP/SSE传输）")
 
 class AddMCPServerRequest(BaseModel):
     """添加MCP服务器请求"""
@@ -122,4 +124,19 @@ async def get_tools(server_id: Optional[str] = None):
         return await get_mcp_tools(server_id)
     except Exception as e:
         logger.error(f"获取MCP工具失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/tools/all", summary="获取所有活跃MCP服务器的工具", response_model=Dict[str, Dict])
+async def get_all_tools():
+    """
+    获取所有活跃MCP服务器的工具，按服务器ID组织
+    
+    Returns:
+        Dict[str, Dict]: 按服务器ID组织的工具字典，每个服务器包含tools和error字段
+    """
+    try:
+        return await get_all_mcp_tools_by_server()
+    except Exception as e:
+        logger.error(f"获取所有MCP工具失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from langchain.tools import tool
-from langgraph.types import interrupt
 from backend.file.file_service import read_file as file_service_read_file
 from backend.ai_agent.utils.file_utils import split_paragraphs
 
@@ -49,39 +48,21 @@ async def read_file(file_path: str, start_paragraph: Optional[int] = None,
         start_paragraph: 起始段落
         end_paragraph: 结束段落
     """
-    # 构造包含工具具体信息的中断数据
-    interrupt_data = {
-        "tool_name": "read_file",
-        "tool_display_name": "读取文件",
-        "description": f"读取文件: {file_path}",
-        "parameters": {
-            "file_path": file_path,
-            "start_paragraph": start_paragraph,
-            "end_paragraph": end_paragraph
-        }
-    }
-    user_choice = interrupt(interrupt_data)
-    choice_action = user_choice.get("choice_action", "2")
-    choice_data = user_choice.get("choice_data", "无附加信息")
-    
-    if choice_action == "1":
-        try:
-            content = await file_service_read_file(file_path)
+    try:
+        content = await file_service_read_file(file_path)
 
-            # 使用统一的段落分割函数
-            paragraphs, paragraph_ending = split_paragraphs(content)
-            # 先给所有段落编号
-            numbered_paragraphs = [f"{i+1} | {p}" for i, p in enumerate(paragraphs)]
-            # 再根据段落范围筛选
-            if start_paragraph is not None or end_paragraph is not None:
-                start = start_paragraph or 1
-                end = end_paragraph or len(numbered_paragraphs)
-                numbered_paragraphs = numbered_paragraphs[start-1:end]
-            numbered_content = paragraph_ending.join(numbered_paragraphs)
+        # 使用统一的段落分割函数
+        paragraphs, paragraph_ending = split_paragraphs(content)
+        # 先给所有段落编号
+        numbered_paragraphs = [f"{i+1} | {p}" for i, p in enumerate(paragraphs)]
+        # 再根据段落范围筛选
+        if start_paragraph is not None or end_paragraph is not None:
+            start = start_paragraph or 1
+            end = end_paragraph or len(numbered_paragraphs)
+            numbered_paragraphs = numbered_paragraphs[start-1:end]
+        numbered_content = paragraph_ending.join(numbered_paragraphs)
 
-            return f"【工具结果】：成功读取文件 '{file_path}'，共 {len(paragraphs)} 个段落：\n\n{numbered_content} ;**【用户信息】：{choice_data}**"
-        except Exception as e:
-            return f"【工具结果】：读取文件失败: {str(e)} ;**【用户信息】：{choice_data}**"
-    else:
-        return f"【工具结果】：读取失败，用户取消了工具调用 ;**【用户信息】：{choice_data}**"
+        return f"【工具结果】：成功读取文件 '{file_path}'，共 {len(paragraphs)} 个段落：\n\n{numbered_content}"
+    except Exception as e:
+        return f"【工具结果】：读取文件失败: {str(e)}"
 

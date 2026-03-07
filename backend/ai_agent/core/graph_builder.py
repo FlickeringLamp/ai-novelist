@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.prebuilt import tools_condition
 from langgraph.store.sqlite.aio import AsyncSqliteStore
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.types import interrupt
 from langchain_core.messages import ToolMessage, SystemMessage, HumanMessage, RemoveMessage
 from langchain_core.messages.utils import (
     trim_messages,
@@ -183,32 +184,57 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             result = []
             # 处理最后一条消息中的工具调用
             for tool_call in state["messages"][-1].tool_calls:
-                tool = tools_by_name[tool_call["name"]]
-                observation = await tool.ainvoke(tool_call["args"])
+                tool_name = tool_call["name"]
+                tool = tools_by_name[tool_name]
                 
-                # 确保observation是字符串类型
-                if isinstance(observation, list):
-                    observation = str(observation)
+                # 格式化参数显示
+                args = tool_call["args"]
+                formatted_args = {}
+                for key, value in args.items():
+                    if isinstance(value, str) and len(value) > 100:
+                        formatted_args[key] = value[:100] + "..."
+                    else:
+                        formatted_args[key] = value
                 
-                # 解析observation，分离工具结果和用户信息
-                # 匹配格式：【工具结果】：... ;**【用户信息】：...**
-                match = re.search(r'【工具结果】：(.*?)\s*;\*\*【用户信息】：(.*?)\*\*', observation, re.DOTALL)
+                interrupt_data = {
+                    "tool_name": tool_name,
+                    "parameters": formatted_args
+                }
                 
-                if match:
-                    tool_result = match.group(1).strip()
-                    user_info = match.group(2).strip()
-                    
-                    # 将工具结果放入ToolMessage
-                    result.append(ToolMessage(content=tool_result, tool_call_id=tool_call["id"]))
-                    
-                    # 将用户信息放入HumanMessage（如果有内容且不是"无附加信息"）
-                    if user_info and user_info != "无附加信息":
-                        result.append(HumanMessage(content=user_info))
+                user_choice = interrupt(interrupt_data)
+                choice_action = user_choice.get("choice_action", "2")
+                choice_data = user_choice.get("choice_data", "")
+                
+                if choice_action == "1":
+                    try:
+                        observation = await tool.ainvoke(tool_call["args"])
+                
+                        # 确保observation是字符串类型
+                        if isinstance(observation, list):
+                            observation = str(observation)
+                        
+                        # 将工具结果放入ToolMessage
+                        result.append(ToolMessage(content=str(observation), tool_call_id=tool_call["id"]))
+                        
+                        # 将用户附加信息放入HumanMessage（如果有内容）
+                        if choice_data:
+                            result.append(HumanMessage(content=choice_data))
+                    except Exception as e:
+                        # 构造错误信息字符串
+                        error_message = f"工具执行失败: {str(e)}"
+                        result.append(ToolMessage(content=error_message, tool_call_id=tool_call["id"]))
+                        
+                        # 将用户附加信息放入HumanMessage（如果有内容）
+                        if choice_data:
+                            result.append(HumanMessage(content=choice_data))
                 else:
-                    # 如果无法解析，保持原有行为
-                    result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
-            
-            print(f"看看长什么样，是否有自动生成ToolMessage: {result}")
+                    # 用户拒绝执行工具
+                    cancel_message = "用户取消了工具请求"
+                    result.append(ToolMessage(content=cancel_message, tool_call_id=tool_call["id"]))
+                    
+                    # 将用户附加信息放入HumanMessage（如果有内容）
+                    if choice_data:
+                        result.append(HumanMessage(content=choice_data))
             # 直接返回result，使用operator.add自动追加到状态中
             return {"messages": result}
 

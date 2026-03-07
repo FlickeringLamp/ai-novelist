@@ -1,12 +1,13 @@
 export interface MCPServerConfig {
   name: string;
   description: string;
-  baseUrl: string;
+  url: string;
   isActive: boolean;
   transport: 'stdio' | 'sse' | 'http';
   command?: string;
   args?: string[];
   env?: Record<string, string>;
+  headers?: Record<string, string>;
 }
 
 export interface MCPServerData {

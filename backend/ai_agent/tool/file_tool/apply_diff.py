@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Union
+from typing import List, Optional
 from langchain.tools import tool
-from langgraph.types import interrupt
 from backend.file.file_service import read_file as file_service_read_file
 from backend.file.file_service import update_file as file_service_update_file
 from backend.ai_agent.utils.file_utils import split_paragraphs
@@ -114,89 +113,72 @@ async def apply_diff(path: str, replacements: List[LineReplacement]) -> str:
         path: 文件路径
         replacements: 替换操作列表
     """
-    # 构造包含工具具体信息的中断数据
-    interrupt_data = {
-        "tool_name": "apply_diff",
-        "tool_display_name": "应用差异",
-        "description": f"应用差异: {path}",
-        "parameters": {
-            "path": path,
-            "replacements": [{"paragraph": r.paragraph, "old": r.old[:50] + "..." if len(r.old) > 50 else r.old, "new": r.new[:50] + "..." if r.new is not None and len(r.new) > 50 else r.new} for r in replacements]
-        }
-    }
-    user_choice = interrupt(interrupt_data)
-    print(f"用户选择{user_choice}")
-    choice_action = user_choice.get("choice_action", "2")
-    choice_data = user_choice.get("choice_data", "无附加信息")
-    
-    if choice_action == "1":
-        try:
-            original_content = await file_service_read_file(path)
+    try:
+        original_content = await file_service_read_file(path)
+        
+        # 使用统一的段落分割函数
+        paragraphs, paragraph_ending = split_paragraphs(original_content)
+        
+        # 按段落号排序，删除操作需要从后往前处理以避免段落号偏移
+        sorted_replacements = sorted(replacements, key=lambda x: x.paragraph, reverse=True)
+        
+        applied_count = 0
+        fail_parts = []
+        
+        for replacement in sorted_replacements:
+            paragraph_num = replacement.paragraph
+            old_content = replacement.old
+            new_content = replacement.new
             
-            # 使用统一的段落分割函数
-            paragraphs, paragraph_ending = split_paragraphs(original_content)
+            # 转换为0-based索引
+            index = paragraph_num - 1
             
-            # 按段落号排序，删除操作需要从后往前处理以避免段落号偏移
-            sorted_replacements = sorted(replacements, key=lambda x: x.paragraph, reverse=True)
+            # 检查段落号是否有效
+            if index < 0 or index >= len(paragraphs):
+                fail_parts.append({
+                    "success": False,
+                    "error": f"段落号 {paragraph_num} 超出文件范围（文件共 {len(paragraphs)} 段）"
+                })
+                continue
             
-            applied_count = 0
-            fail_parts = []
+            # 获取文件中的实际内容
+            actual_content = paragraphs[index]
             
-            for replacement in sorted_replacements:
-                paragraph_num = replacement.paragraph
-                old_content = replacement.old
-                new_content = replacement.new
-                
-                # 转换为0-based索引
-                index = paragraph_num - 1
-                
-                # 检查段落号是否有效
-                if index < 0 or index >= len(paragraphs):
-                    fail_parts.append({
-                        "success": False,
-                        "error": f"段落号 {paragraph_num} 超出文件范围（文件共 {len(paragraphs)} 段）"
-                    })
-                    continue
-                
-                # 获取文件中的实际内容
-                actual_content = paragraphs[index]
-                
-                # 使用相似度验证内容是否匹配（默认阈值0.9）
-                similarity = get_similarity(actual_content, old_content)
-                similarity_threshold = 0.9
-                
-                if similarity < similarity_threshold:
-                    fail_parts.append({
-                        "success": False,
-                        "error": f"段 {paragraph_num} 的内容不匹配（相似度: {similarity:.2f}, 阈值: {similarity_threshold}）\n期望: {old_content}\n实际: {actual_content}"
-                    })
-                    continue
-                
-                # 执行替换或删除
-                if new_content is None:
-                    # 删除该段
-                    del paragraphs[index]
-                else:
-                    # 替换该段
-                    paragraphs[index] = new_content
-                applied_count += 1
+            # 使用相似度验证内容是否匹配（默认阈值0.9）
+            similarity = get_similarity(actual_content, old_content)
+            similarity_threshold = 0.9
             
-            # 检查应用结果
-            if applied_count == 0:
-                error_details = "\n".join([part["error"] for part in fail_parts])
-                return f"【工具结果】：应用差异失败: 未应用任何更改。所有替换操作都失败了。\n失败详情:\n{error_details} ;**【用户信息】：{choice_data}**"
+            if similarity < similarity_threshold:
+                fail_parts.append({
+                    "success": False,
+                    "error": f"段 {paragraph_num} 的内容不匹配（相似度: {similarity:.2f}, 阈值: {similarity_threshold}）\n期望: {old_content}\n实际: {actual_content}"
+                })
+                continue
             
-            # 写入修改后的内容
-            new_content = paragraph_ending.join(paragraphs)
-            await file_service_update_file(path, new_content)
-            
-            success_msg = f"【工具结果】：差异已成功应用到文件 '{path}'，应用了 {applied_count} 个更改 ;**【用户信息】：{choice_data}**"
-            if fail_parts:
-                error_details = "\n".join([part["error"] for part in fail_parts])
-                success_msg += f"\n【工具结果】： {len(fail_parts)} 个更改失败:\n{error_details} ;**【用户信息】：{choice_data}**"
-            
-            return success_msg
-        except Exception as e:
-            return f"【工具结果】：应用差异失败: {str(e)} ;**【用户信息】：{choice_data}**"
-    else:
-        return f"【工具结果】：用户取消了工具 ;**【用户信息】：{choice_data}**"
+            # 执行替换或删除
+            if new_content is None:
+                # 删除该段
+                del paragraphs[index]
+            else:
+                # 替换该段
+                paragraphs[index] = new_content
+            applied_count += 1
+        
+        # 检查应用结果
+        if applied_count == 0:
+            error_details = "\n".join([part["error"] for part in fail_parts])
+            return f"【工具结果】：应用差异失败: 未应用任何更改。所有替换操作都失败了。\n失败详情:\n{error_details}"
+        
+        # 写入修改后的内容
+        new_content = paragraph_ending.join(paragraphs)
+        await file_service_update_file(path, new_content)
+        
+        success_msg = f"【工具结果】：差异已成功应用到文件 '{path}'，应用了 {applied_count} 个更改"
+        if fail_parts:
+            error_details = "\n".join([part["error"] for part in fail_parts])
+            success_msg += f"\n【工具结果】： {len(fail_parts)} 个更改失败:\n{error_details}"
+        
+        return success_msg
+    except Exception as e:
+        return f"【工具结果】：应用差异失败: {str(e)}"
+

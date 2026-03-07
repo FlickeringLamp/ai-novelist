@@ -64,9 +64,14 @@ def convert_to_langchain_config(mcp_servers: dict) -> dict:
             # 处理环境变量
             env = server_config.get("env", {}).copy() if server_config.get("env") else {}
             config["env"] = env
-        elif config["transport"] == "http":
-            if server_config.get("baseUrl"):
-                config["url"] = server_config.get("baseUrl")
+        elif config["transport"] in ["http", "sse"]:
+            # 对于HTTP、SSE传输，都需要url参数
+            if server_config.get("url"):
+                config["url"] = server_config.get("url")
+            
+            # 处理请求头
+            headers = server_config.get("headers", {}).copy() if server_config.get("headers") else {}
+            config["headers"] = headers
         
         langchain_config[server_id] = config
 
@@ -242,3 +247,65 @@ async def get_mcp_tools_as_objects(server_id: str | None = None):
     except Exception as e:
         logger.error(f"获取MCP工具对象时发生异常: {type(e).__name__}: {e}", exc_info=True)
         raise
+
+
+async def get_all_mcp_tools_by_server():
+    """
+    获取所有活跃MCP服务器的工具，按服务器ID组织
+    
+    Returns:
+        Dict[str, Dict]: 按服务器ID组织的工具字典
+        {
+            "server_id_1": {
+                "tools": {...},
+                "error": null
+            },
+            "server_id_2": {
+                "tools": {...},
+                "error": "错误信息"
+            }
+        }
+    """
+    mcp_servers_config = settings.get_config("mcpServers", default={})
+    langchain_config = convert_to_langchain_config(mcp_servers_config)
+    
+    # 只处理活跃的服务器
+    active_server_ids = list(langchain_config.keys())
+    if not active_server_ids:
+        return {}
+    
+    result = {}
+    
+    # 逐个获取每个服务器的工具
+    for server_id in active_server_ids:
+        try:
+            logger.info(f"开始获取服务器 {server_id} 的工具")
+            server_config = {server_id: langchain_config[server_id]}
+            client = MultiServerMCPClient(server_config)
+            tools = await client.get_tools()
+            
+            # 将工具转换为可序列化的字典
+            tools_dict = {}
+            for tool in tools:
+                tools_dict[tool.name] = {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "inputSchema": getattr(tool, 'args_schema', None)
+                }
+            
+            result[server_id] = {
+                "tools": tools_dict,
+                "error": None
+            }
+            logger.info(f"成功获取服务器 {server_id} 的 {len(tools_dict)} 个工具")
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {str(e)}"
+            logger.error(f"获取服务器 {server_id} 的工具失败: {error_msg}", exc_info=True)
+            # 继续处理其他服务器，不中断整个流程
+            result[server_id] = {
+                "tools": {},
+                "error": error_msg,
+                "server_name": mcp_servers_config.get(server_id, {}).get("name", server_id)
+            }
+    
+    return result

@@ -15,9 +15,6 @@ const ToolRequestPanel = () => {
   const autoApproveEnabled = useSelector((state: RootState) => state.chatSlice.autoApproveEnabled);
   const autoApproveRef = useRef(false);
 
-  // 判断是否是简单中断（ask_user工具）
-  const isSimpleInterrupt = interrupt?.value?.tool_name === 'ask_user';
-
   // 处理中断响应
   const handleInterrupt = async (response: InterruptResponse) => {
     await handleInterruptResponse(dispatch, interrupt, response, processFileToolCalls);
@@ -25,7 +22,7 @@ const ToolRequestPanel = () => {
 
   // 自动批准逻辑
   useEffect(() => {
-    if (autoApproveEnabled && interrupt && !autoApproveRef.current && !isSimpleInterrupt) {
+    if (autoApproveEnabled && interrupt && !autoApproveRef.current) {
       autoApproveRef.current = true;
       const timer = setTimeout(() => {
         handleInterrupt({ action: 'approve', choice: '1', additionalData: message || '' });
@@ -44,24 +41,6 @@ const ToolRequestPanel = () => {
 
   return (
     <div className="w-full bg-theme-gray1">
-      {/* ask_user 工具：显示问题 */}
-      {isSimpleInterrupt && interrupt.value.question && (
-        <div className="bg-theme-black rounded-small mb-2">
-          <div className="text-theme-green text-[13px] leading-[1.5]">
-            {interrupt.value.question}
-          </div>
-        </div>
-      )}
-
-      {/* 其他工具：显示描述 */}
-      {!isSimpleInterrupt && interrupt.value.description && (
-        <div className="bg-theme-black rounded-small mb-2">
-          <span className="text-theme-green text-[13px] leading-[1.5]">
-            {interrupt.value.description}
-          </span>
-        </div>
-      )}
-
       {/* 操作按钮 */}
       <div className="flex gap-4">
         <button

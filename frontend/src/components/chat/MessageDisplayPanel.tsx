@@ -242,7 +242,7 @@ const MessageDisplayPanel = () => {
                 <div className="mt-2 p-2 bg-black/20 rounded-small">
                   {(msg as AIMessage).tool_calls.map((toolCall, toolIndex) => {
                     const toolKey = `${msg.id}-${toolIndex}`;
-                    const isExpanded = expandedTools.has(toolKey);
+                    const isExpanded = !expandedTools.has(toolKey); // 默认展开（未在集合中即为展开）
                     const args = toolCall.args;
                     const path = args && typeof args === 'object' && 'path' in args ? (args as any).path : null;
                     
