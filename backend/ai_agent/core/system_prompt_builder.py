@@ -11,6 +11,7 @@ import logging
 from backend.config.config import settings
 from backend.file.file_service import get_file_tree, read_file
 from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb, get_two_step_rag_config
+from backend.ai_agent.skill import get_skill_loader
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,36 @@ class SystemPromptBuilder:
                 
         except Exception as e:
             logger.error(f"获取 additionalInfo 文件内容失败: {e}")
+            return ""
+    
+    def _get_skills_info(self, mode: str) -> str:
+        """获取指定模式的 Skills 信息
+        
+        Args:
+            mode: 模式名称
+            
+        Returns:
+            格式化的 Skills 信息字符串
+        """
+        try:
+            # 从配置中获取当前模式的 skills 列表
+            skill_names = settings.get_config("mode", mode, "skills", default=[])
+            
+            if not skill_names or not isinstance(skill_names, list):
+                return ""
+            
+            # 使用 SkillLoader 加载并过滤 Skills
+            skill_loader = get_skill_loader()
+            skills = skill_loader.filter_skills(skill_names)
+            
+            if not skills:
+                return ""
+            
+            # 格式化 Skills 信息
+            return skill_loader.format_skills_for_prompt(skills)
+            
+        except Exception as e:
+            logger.error(f"获取 Skills 信息失败: {e}")
             return ""
     
     def _get_knowledge_bases_info(self) -> str:
@@ -256,6 +287,11 @@ class SystemPromptBuilder:
             if summary:
                 prompt_parts.append(f"[过往消息总结]:\n{summary}")
 
+            # 添加 Skills 信息
+            skills_info = self._get_skills_info(mode or "")
+            if skills_info:
+                prompt_parts.append(skills_info)
+            
             # 添加知识库列表信息
             if include_knowledge_bases:
                 knowledge_bases_info = self._get_knowledge_bases_info()

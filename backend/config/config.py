@@ -42,10 +42,11 @@ def initialize_directories_and_files():
     uploads_dir = base_dir / "uploads"
     temp_dir = base_dir / "temp"
     mcp_servers_dir = base_dir / "mcp_servers"
+    skills_dir = base_dir / "skills"
     config_file = config_dir / "store.json"
     
     # 确保所有目录存在
-    directories = [base_dir, config_dir, novel_dir, chromadb_dir, db_dir, uploads_dir, temp_dir, mcp_servers_dir]
+    directories = [base_dir, config_dir, novel_dir, chromadb_dir, db_dir, uploads_dir, temp_dir, mcp_servers_dir, skills_dir]
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
     
@@ -65,7 +66,10 @@ def initialize_directories_and_files():
             "thread_id": thread_id,
             "knowledgeBase":{},
             "two-step-rag": None,
-            "mcpServers": {}  # MCP服务器配置
+            "mcpServers": {},  # MCP服务器配置
+            "skills": {  # Skills配置
+                "entries": {}
+            }
         }
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, ensure_ascii=False, indent=2)
@@ -104,6 +108,8 @@ class Settings:
         self.TEMP_DIR: str = str(base_dir / "temp")
         # MCP服务器目录
         self.MCP_SERVERS_DIR: str = str(base_dir / "mcp_servers")
+        # Skills目录
+        self.SKILLS_DIR: str = str(base_dir / "skills")
         
         # UVX 可执行文件路径
         self.UVX_EXECUTABLE: str = self._get_executable('uvx.exe')
