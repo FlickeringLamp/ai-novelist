@@ -36,17 +36,15 @@ def initialize_directories_and_files():
     """
     base_dir = get_data_dir()
     config_dir = base_dir / "config"
-    novel_dir = base_dir / "novel"
     chromadb_dir = base_dir / "chromadb"
     db_dir = base_dir / "db"
     uploads_dir = base_dir / "uploads"
     temp_dir = base_dir / "temp"
-    mcp_servers_dir = base_dir / "mcp_servers"
     skills_dir = base_dir / "skills"
     config_file = config_dir / "store.json"
     
     # 确保所有目录存在
-    directories = [base_dir, config_dir, novel_dir, chromadb_dir, db_dir, uploads_dir, temp_dir, mcp_servers_dir, skills_dir]
+    directories = [base_dir, config_dir, chromadb_dir, db_dir, uploads_dir, temp_dir, skills_dir]
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
     
@@ -95,8 +93,6 @@ class Settings:
         self.config_file = base_dir / "config" / "store.json"
         self.CONFIG_DIR = str(self.config_file.parent)
         
-        # 用户文件目录
-        self.NOVEL_DIR: str = str(base_dir / "novel")
         # 向量数据库目录
         self.CHROMADB_PERSIST_DIR: str = str(base_dir / "chromadb")
         # SQLite数据库配置
@@ -106,8 +102,6 @@ class Settings:
         self.UPLOADS_DIR: str = str(base_dir / "uploads")
         # 临时文件目录
         self.TEMP_DIR: str = str(base_dir / "temp")
-        # MCP服务器目录
-        self.MCP_SERVERS_DIR: str = str(base_dir / "mcp_servers")
         # Skills目录
         self.SKILLS_DIR: str = str(base_dir / "skills")
         
@@ -117,6 +111,8 @@ class Settings:
         self.NODE_EXECUTABLE: str = self._get_executable('node.exe')
         # NPM 可执行文件路径
         self.NPM_EXECUTABLE: str = self._get_executable('npm.cmd')
+        # Ripgrep 可执行文件路径
+        self.RG_EXECUTABLE: str = self._get_executable('rg.exe')
     
     def _get_executable(self, exe_name: str) -> str:
         """获取项目自带的可执行文件路径，如果不存在则使用系统命令

@@ -34,5 +34,13 @@ ALL_AVAILABLE_TOOLS = {
     "list_base_files": {
         "name": "列出知识库文件",
         "description": "列出指定知识库中的所有文件信息"
+    },
+    "load_skill": {
+        "name": "加载 Skill",
+        "description": "加载指定 Skill 的详细内容"
+    },
+    "execute_skill": {
+        "name": "执行 Skill",
+        "description": "执行指定 Skill 的脚本"
     }
 }

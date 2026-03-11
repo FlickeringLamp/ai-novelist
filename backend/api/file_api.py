@@ -12,8 +12,9 @@ from backend.file.file_service import (
     rename_file,
     move_file,
     copy_file,
-    get_file_tree,
+    get_file_tree_for_user,
     upload_image,
+    search_files_for_user,
 )
 from backend.config.config import settings
 
@@ -107,7 +108,7 @@ async def api_copy_file(request: CopyItemRequest):
 @router.get("/tree", summary="获取文件树", response_model=List[dict])
 async def api_get_file_tree():
     """获取文件树结构"""
-    tree = await get_file_tree(settings.NOVEL_DIR, settings.NOVEL_DIR)
+    tree = await get_file_tree_for_user(settings.DATA_DIR, settings.DATA_DIR)
     return tree
 
 
@@ -116,3 +117,13 @@ async def api_update_content(file_path: str, request: UpdateContentRequest):
     """更新文件内容（包含写入和更新两种场景）"""
     await update_file(file_path, request.content)
     return Response(status_code=204)
+
+
+@router.get("/search", summary="搜索文件")
+async def api_search_files(query: str):
+    """搜索文件内容"""
+    results = await search_files_for_user(query)
+    logger.info(f"搜索关键词: {query}, 搜索结果数量: {len(results)}")
+    logger.info(f"搜索结果: {results}")
+    return results
+

@@ -93,7 +93,7 @@ function ChapterTreePanel() {
     })
   };
 
-  // 统一的新建函数
+  // 新建
   const handleCreateItem = async (isFolder: boolean, parentPath: string = '') => {
     try {
       const result = await httpClient.post('/api/file/items', {

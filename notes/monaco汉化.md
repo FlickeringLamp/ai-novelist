@@ -43,6 +43,7 @@ function App() {
 
 然后在前端观察网络信息
 得知CDN地址与需要的文件
+BASE_URL = "https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs/"
 
 下载到本地
 

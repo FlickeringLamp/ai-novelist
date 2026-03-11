@@ -24,7 +24,7 @@ interface ChapterTreeItemProps {
     selectedItem: { state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null };
     lastSelectedItem: { id: string | null };
     setSelectedItem: (item: { state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null }) => void;
-    fetchChapters?: () => void;
+    fetchChapters: () => void;
     setModal: (modal: { show: boolean; message: string; onConfirm: (() => void) | null; onCancel: (() => void) | null }) => void;
   };
 }
@@ -47,7 +47,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
   const itemTitle = item.title || '';
   const isFolder = item.isFolder || item.type === 'folder';
   const hasChildren = item.children && item.children.length > 0;
-  const displayName = new DisplayNameHelper(itemTitle, isFolder).removeSuffix().getValue();
+  const displayName = itemTitle;
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [editingValue, setEditingValue] = useState('');
@@ -85,8 +85,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
         return;
       }
 
-      // 只有文件才添加 .md 后缀发送给后端
-      const finalName = isFolder ? editingValue : (editingValue.endsWith('.md') ? editingValue : editingValue + '.md');
+      const finalName = editingValue;
       // 检查名称是否真的改变了
       if (finalName === itemTitle) {
         // 名称未改变，直接取消编辑
@@ -118,7 +117,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
           itemParentPath: null
         });
         // 触发父组件刷新
-        fetchChapters && fetchChapters();
+        fetchChapters();
       } catch (error) {
         console.error('重命名失败:', error);
         setModal({ show: true, message: '重命名失败: ' + (error as Error).toString(), onConfirm: null, onCancel: null });

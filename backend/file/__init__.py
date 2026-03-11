@@ -1,5 +1,7 @@
 from backend.file.file_service import (
     get_file_tree,
+    get_file_tree_for_user,
+    get_file_tree_for_ai,
     create_item,
     read_file,
     update_file,
@@ -7,11 +9,15 @@ from backend.file.file_service import (
     rename_file,
     move_file,
     copy_file,
+    search_files,
+    search_files_for_user,
     upload_image,
 )
 
 __all__ = [
     "get_file_tree",
+    "get_file_tree_for_user",
+    "get_file_tree_for_ai",
     "create_item",
     "read_file",
     "update_file",
@@ -19,5 +25,7 @@ __all__ = [
     "rename_file",
     "move_file",
     "copy_file",
+    "search_files",
+    "search_files_for_user",
     "upload_image",
 ]

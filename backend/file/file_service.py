@@ -2,13 +2,17 @@ import os
 import shutil
 import aiofiles
 import uuid
+import re
+import logging
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Set
 from fastapi import HTTPException, UploadFile
 from natsort import natsorted
 from backend.config.config import settings
+from backend.file.ripgrep_service import ripgrep_service
+from backend.file.ignore_parser import IgnoreParser
 
-
+logger = logging.getLogger(__name__)
 def sort_items(items: List[Dict]) -> List[Dict]:
     """对项目列表进行自动排序"""
     # 按名称自然顺序排序
@@ -21,32 +25,100 @@ def sort_items(items: List[Dict]) -> List[Dict]:
     return folders + files
 
 
-async def get_file_tree(dir_path: str, base_dir_path: str) -> List[Dict]:
-    """递归读取目录结构"""
-    entries = os.listdir(dir_path)
-    result = []
+async def get_file_tree(dir_path: str, base_dir_path: str, ignore_parser=None) -> List[Dict]:
+    """递归读取目录结构（使用集合差集过滤）
+    
+    Args:
+        dir_path: 要读取的目录路径
+        base_dir_path: 基础目录路径，用于计算相对路径
+        ignore_parser: 忽略规则解析器
+    
+    Returns:
+        文件树结构列表
+    """
+    # 使用 os.walk() 获取所有文件和目录路径
+    all_paths = set()
+    for root, dirs, files in os.walk(dir_path):
+        # 添加目录路径
+        for d in dirs:
+            all_paths.add(os.path.normpath(os.path.join(root, d)))
+        # 添加文件路径
+        for f in files:
+            all_paths.add(os.path.normpath(os.path.join(root, f)))
+    
+    # 如果有忽略解析器，过滤掉被忽略的路径
+    if ignore_parser:
+        ignored_paths = ignore_parser.get_ignored_paths()
+        all_paths = all_paths - ignored_paths
+    
+    # 构建路径到条目的映射
+    path_to_entry = {}
+    
+    # 首先创建所有条目
+    for path in all_paths:
+        entry_name = os.path.basename(path)
+        relative_path = os.path.relpath(path, base_dir_path)
+        is_dir = os.path.isdir(path)
+        
+        entry = {
+            "id": relative_path.replace("\\", "/"),
+            "title": entry_name,
+            "isFolder": is_dir
+        }
+        if is_dir:
+            entry["children"] = []
+        
+        path_to_entry[path] = entry
+    
+    # 构建树结构：将子条目添加到父条目的 children 中
+    for path, entry in path_to_entry.items():
+        parent_path = os.path.dirname(path)
+        if parent_path in path_to_entry:
+            path_to_entry[parent_path]["children"].append(entry)
+    
+    # 返回根目录下的直接子项
+    root_entries = []
+    normalized_dir_path = os.path.normpath(dir_path)
+    for path, entry in path_to_entry.items():
+        parent_path = os.path.dirname(path)
+        if parent_path == normalized_dir_path:
+            root_entries.append(entry)
+    
+    return sort_items(root_entries)
 
-    for entry_name in entries:
-        full_path = os.path.join(dir_path, entry_name)
-        relative_path = os.path.relpath(full_path, base_dir_path)
 
-        if os.path.isdir(full_path):
-            children = await get_file_tree(full_path, base_dir_path)
-            result.append({
-                "id": relative_path.replace("\\", "/"),
-                "title": entry_name,
-                "isFolder": True,
-                "children": sort_items(children)
-            })
-        else:
-            result.append({
-                "id": relative_path.replace("\\", "/"),
-                "title": entry_name,
-                "isFolder": False
-            })
+async def get_file_tree_for_user(dir_path: str, base_dir_path: str) -> List[Dict]:
+    """递归读取目录结构（用于前端用户）
+    
+    使用 .userignore 文件过滤文件
+    
+    Args:
+        dir_path: 要读取的目录路径
+        base_dir_path: 基础目录路径，用于计算相对路径
+    
+    Returns:
+        文件树结构列表
+    """
+    ignore_file = os.path.join(settings.DATA_DIR, '.userignore')
+    ignore_parser = IgnoreParser(ignore_file, settings.DATA_DIR)
+    return await get_file_tree(dir_path, base_dir_path, ignore_parser)
 
-    sorted_result = sort_items(result)
-    return sorted_result
+
+async def get_file_tree_for_ai(dir_path: str, base_dir_path: str) -> List[Dict]:
+    """递归读取目录结构（用于AI系统提示词）
+    
+    使用 .aiignore 文件过滤文件
+    
+    Args:
+        dir_path: 要读取的目录路径
+        base_dir_path: 基础目录路径，用于计算相对路径
+    
+    Returns:
+        文件树结构列表
+    """
+    ignore_file = os.path.join(settings.DATA_DIR, '.aiignore')
+    ignore_parser = IgnoreParser(ignore_file, settings.DATA_DIR)
+    return await get_file_tree(dir_path, base_dir_path, ignore_parser)
 
 
 async def generate_unique_name(target_dir: str, is_folder: bool = False) -> str:
@@ -56,7 +128,7 @@ async def generate_unique_name(target_dir: str, is_folder: bool = False) -> str:
         ext_name = ""
     else:
         base_name = "新建文件"
-        ext_name = ".md"
+        ext_name = ""
 
     counter = 0
     unique_name = ""
@@ -74,7 +146,7 @@ async def generate_unique_name(target_dir: str, is_folder: bool = False) -> str:
 
 async def create_item(is_folder: bool = False, parent_path: str = "") -> Dict[str, Any]:
     """创建文件或文件夹"""
-    target_dir = os.path.join(settings.NOVEL_DIR, parent_path)
+    target_dir = os.path.join(settings.DATA_DIR, parent_path)
     unique_name = await generate_unique_name(target_dir, is_folder)
     item_path = os.path.join(target_dir, unique_name)
 
@@ -86,7 +158,7 @@ async def create_item(is_folder: bool = False, parent_path: str = "") -> Dict[st
             await f.write("")
 
     # 获取文件状态信息
-    relative_id = os.path.relpath(item_path, settings.NOVEL_DIR)
+    relative_id = os.path.relpath(item_path, settings.DATA_DIR)
 
     # 构建返回结果
     result = {
@@ -101,7 +173,7 @@ async def create_item(is_folder: bool = False, parent_path: str = "") -> Dict[st
 
 async def read_file(file_path: str) -> str:
     """读取文件内容"""
-    full_path = Path(settings.NOVEL_DIR) / file_path
+    full_path = Path(settings.DATA_DIR) / file_path
     # 如果文件不存在，返回空字符串（用于AI创建新文件的场景）
     if not full_path.exists():
         return ''
@@ -112,7 +184,7 @@ async def read_file(file_path: str) -> str:
 
 async def update_file(file_path: str, content: str):
     """更新文件内容"""
-    full_path = Path(settings.NOVEL_DIR) / file_path
+    full_path = Path(settings.DATA_DIR) / file_path
     # 自动创建父文件夹（如果不存在）
     full_path.parent.mkdir(parents=True, exist_ok=True)
     # 将 \r\n 转换为 \n，避免Windows换行符问题
@@ -123,7 +195,7 @@ async def update_file(file_path: str, content: str):
 
 async def delete_file(file_path: str):
     """删除文件或文件夹"""
-    full_path = Path(settings.NOVEL_DIR) / file_path
+    full_path = Path(settings.DATA_DIR) / file_path
     if os.path.isdir(full_path):
         shutil.rmtree(full_path)
     else:
@@ -131,7 +203,7 @@ async def delete_file(file_path: str):
 
 async def rename_file(old_path: str, new_name: str):
     """重命名文件或文件夹"""
-    full_old_path = Path(settings.NOVEL_DIR) / old_path
+    full_old_path = Path(settings.DATA_DIR) / old_path
     parent_dir = os.path.dirname(full_old_path)
     new_path = os.path.join(parent_dir, new_name)
     # 检查目标路径是否已存在
@@ -148,8 +220,8 @@ async def rename_file(old_path: str, new_name: str):
 
 async def move_file(source_path: str, target_path: str):
     """移动文件或文件夹"""
-    full_source = Path(settings.NOVEL_DIR) / source_path
-    full_target_dir = Path(settings.NOVEL_DIR) / target_path
+    full_source = Path(settings.DATA_DIR) / source_path
+    full_target_dir = Path(settings.DATA_DIR) / target_path
     source_name = os.path.basename(full_source)
     full_target_path = os.path.join(full_target_dir, source_name)
     print("完整来源路径:",full_source,"完整目标路径：",full_target_dir)
@@ -165,8 +237,8 @@ async def move_file(source_path: str, target_path: str):
 
 async def copy_file(source_path: str, target_path: str):
     """复制文件或文件夹，如果目标已存在则失败"""
-    full_source = Path(settings.NOVEL_DIR) / source_path # 原路径
-    full_target_dir = Path(settings.NOVEL_DIR) / target_path # 目标目录
+    full_source = Path(settings.DATA_DIR) / source_path # 原路径
+    full_target_dir = Path(settings.DATA_DIR) / target_path # 目标目录
     source_name = os.path.basename(full_source)
     full_target_path = os.path.join(full_target_dir, source_name) # 最终形成的新路径（目标目录+文件名/文件夹名）
     print("完整来源路径:",full_source,"完整目标路径：",full_target_dir)
@@ -183,29 +255,136 @@ async def copy_file(source_path: str, target_path: str):
         shutil.copy2(full_source, full_target_path)
 
 
-async def search_files(query: str) -> List[Dict[str, Any]]:
-    """搜索文件内容"""
-    results = []
-    for root, dirs, files in os.walk(settings.NOVEL_DIR):
-        for item in dirs + files:
-            if query.lower() in item.lower():
-                item_path = os.path.join(root, item)
-                item_type = "folder" if os.path.isdir(item_path) else "file"
-                content = None
-                if item_type == "file":
-                    try:
-                        async with aiofiles.open(item_path, 'r', encoding='utf-8') as f:
-                            content = await f.read()
-                    except:
-                        content = None
-                relative_id = os.path.relpath(item_path, settings.NOVEL_DIR)
-                results.append({
-                    "id": relative_id,
-                    "title": item,
-                    "path": item_path,
-                    "type": item_type,
-                    "content": content,
-                })
+def _normalize_search_path(file_path: str) -> str:
+    r"""规范化搜索结果中的文件路径
+    
+    去除 backend\data\ 或 backend/data/ 前缀，统一路径分隔符为 /
+    
+    Args:
+        file_path: 原始文件路径
+    
+    Returns:
+        规范化后的文件路径
+    """
+    # 去除 backend\data\ 或 backend/data/ 前缀，只保留相对路径
+    if file_path.startswith('backend\\data\\'):
+        file_path = file_path[len('backend\\data\\'):]
+    elif file_path.startswith('backend/data/'):
+        file_path = file_path[len('backend/data/'):]
+    
+    # 统一路径分隔符为 /
+    file_path = file_path.replace('\\', '/')
+    
+    return file_path
+
+
+async def search_files(query: str, ignore_file: Optional[str] = None) -> str:
+    """搜索文件内容（使用 ripgrep）
+    
+    Args:
+        query: 搜索关键词
+        ignore_file: 忽略规则文件路径
+    
+    Returns:
+        ripgrep 原始输出字符串
+    """
+    # 使用 ripgrep 搜索
+    try:
+        return await ripgrep_service.search(
+            query=query,
+            case_sensitive=False,
+            ignore_file=ignore_file
+        )
+    except Exception as e:
+        logger.error(f"ripgrep 搜索失败: {e}")
+        return ""
+
+
+async def search_files_for_user(query: str) -> Dict[str, Dict[str, Any]]:
+    """搜索文件内容（用于前端用户）
+    
+    使用 .userignore 文件过滤文件
+    
+    Args:
+        query: 搜索关键词
+    
+    Returns:
+        搜索结果字典，按文件路径分组
+        格式: {
+            "文件路径1": {
+                "path": "文件路径1",
+                "content": ["内容1", "内容2", ...]
+            },
+            ...
+        }
+    """
+    ignore_file = os.path.join(settings.DATA_DIR, '.userignore')
+    rg_output = await search_files(query, ignore_file)
+    
+    # 解析 ripgrep 输出，按文件路径分组
+    results = {}
+    for line in rg_output.split('\n'):
+        if not line.strip() or line == '--':
+            continue
+        
+        # 匹配格式：文件路径:行号:内容
+        match = re.match(r'^(.+?):(\d+):(.*)$', line)
+        if match:
+            file_path = match.group(1)
+            line_number = match.group(2)
+            line_content = match.group(3)
+            
+            # 使用辅助函数规范化路径
+            file_path = _normalize_search_path(file_path)
+            
+            # 按文件路径分组
+            if file_path not in results:
+                results[file_path] = {
+                    "path": file_path,
+                    "content": []
+                }
+            results[file_path]["content"].append(line_content)
+    
+    return results
+
+
+async def search_files_for_ai(query: str) -> str:
+    """搜索文件内容（用于AI工具）
+    
+    使用 .aiignore 文件过滤文件
+    
+    Args:
+        query: 搜索关键词
+    
+    Returns:
+        ripgrep 原始输出字符串（已规范化路径）
+    """
+    ignore_file = os.path.join(settings.DATA_DIR, '.aiignore')
+    rg_output = await search_files(query, ignore_file)
+    
+    # 规范化输出中的路径
+    filtered_lines = []
+    for line in rg_output.split('\n'):
+        if not line.strip() or line == '--':
+            continue
+        
+        # 匹配格式：文件路径:行号:内容
+        match = re.match(r'^(.+?):(\d+):(.*)$', line)
+        if match:
+            file_path = match.group(1)
+            line_number = match.group(2)
+            line_content = match.group(3)
+            
+            # 使用辅助函数规范化路径
+            file_path = _normalize_search_path(file_path)
+            
+            # 重新组装行
+            filtered_lines.append(f"{file_path}:{line_number}:{line_content}")
+        else:
+            # 不匹配的行直接添加
+            filtered_lines.append(line)
+    
+    return '\n'.join(filtered_lines)
 
 
 async def upload_image(file: UploadFile) -> Dict[str, Any]:

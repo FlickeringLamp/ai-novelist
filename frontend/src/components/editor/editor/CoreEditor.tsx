@@ -8,6 +8,36 @@ import { updateTabContent, saveTabContent, isTabInDiffMode, type RootState } fro
 import api from '../../../utils/httpClient.ts';
 import UnifiedModal from '../../others/UnifiedModal';
 
+// 根据文件后缀获取Monaco编辑器的语言类型
+const getLanguageFromExtension = (filename: string): string => {
+  if (!filename) return 'markdown';
+  
+  // 特殊处理无扩展名的文件（如 .gitignore）
+  if (filename.startsWith('.') && !filename.includes('.', 1)) {
+    return 'plaintext';
+  }
+  
+  // 只取最后一个点之后的部分作为后缀
+  const lastDotIndex = filename.lastIndexOf('.');
+  const ext = lastDotIndex > 0 ? filename.slice(lastDotIndex + 1).toLowerCase() : '';
+  if (!ext) return 'markdown';
+
+  const languageMap: Record<string, string> = {
+    // 脚本语言
+    'js': 'javascript',
+    'py': 'python',
+    'sh': 'shell',
+    'ps1': 'powershell',
+    // 标记语言
+    'json': 'json',
+    'md': 'markdown',
+    // 其他
+    'txt': 'plaintext',
+  };
+
+  return languageMap[ext] || 'markdown';
+};
+
 interface ThemeColors {
   green: string;
   white: string;
@@ -203,7 +233,7 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
       {isDiffMode ? (
         <DiffEditor
           height="100%"
-          language="markdown"
+          language={activeTab ? getLanguageFromExtension(activeTab) : 'markdown'}
           beforeMount={(monaco) => {
             defineTheme(monaco, theme);
           }}
@@ -236,8 +266,7 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
       ) : (
         <Editor
           height="100%"
-          defaultLanguage="markdown" // 暂时没用，以后根据文件后缀动态切换多语言可能有点用
-          language="markdown"
+          language={activeTab ? getLanguageFromExtension(activeTab) : 'markdown'}
           beforeMount={(monaco) => {
             // 在编辑器挂载前定义主题
             defineTheme(monaco, theme);

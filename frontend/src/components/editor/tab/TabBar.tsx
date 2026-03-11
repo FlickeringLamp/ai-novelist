@@ -102,7 +102,7 @@ const TabBar = ({
               }
             }}
           >
-            {new DisplayNameHelper(tab).getLastDisplayName().removeSuffix().getValue()}
+            {new DisplayNameHelper(tab).getLastDisplayName().getValue()}
             <button
               className="hover:bg-theme-gray3 rounded px-1 text-xs"
               onClick={(e) => {
@@ -119,7 +119,7 @@ const TabBar = ({
       <div className="h-[40%] text-sm text-theme-gray5 whitespace-nowrap px-3">
         {(() => {
           const activeTab = tabBar.tabs.find(tab => tab === tabBar.activeTabId);
-          return activeTab ? new DisplayNameHelper(activeTab).removeSuffix().getValue() : '';
+          return activeTab ? new DisplayNameHelper(activeTab).getValue() : '';
         })()}
       </div>
     </div>

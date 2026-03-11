@@ -9,7 +9,7 @@ from typing import Optional
 import logging
 
 from backend.config.config import settings
-from backend.file.file_service import get_file_tree, read_file
+from backend.file.file_service import get_file_tree_for_ai, read_file
 from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb, get_two_step_rag_config
 from backend.ai_agent.skill import get_skill_loader
 
@@ -20,18 +20,10 @@ class SystemPromptBuilder:
     """系统提示词构建器"""
     
     def __init__(self):
-        self.novel_dir = settings.NOVEL_DIR
+        self.data_dir = settings.DATA_DIR
         self.file_tree_cache = None
         self.last_cache_time = None
         self.cache_timeout = 30  # 缓存30秒
-        
-    def get_novel_path(self) -> str:
-        """获取novel目录路径
-        
-        在开发环境中，novel目录位于项目根目录下的data/novel
-        在生产环境中，novel目录位于.exe文件同级目录
-        """
-        return self.novel_dir
     
     async def _get_additional_files_content(self, mode: str) -> str:
         """获取指定模式的 additionalInfo 文件列表内容
@@ -200,14 +192,14 @@ class SystemPromptBuilder:
             ```
         """
         try:
-            # 获取novel目录路径
-            novel_path = self.get_novel_path()
+            # 获取data目录路径
+            data_path = self.data_dir
             
-            # 确保novel目录存在
-            os.makedirs(novel_path, exist_ok=True)
+            # 确保data目录存在
+            os.makedirs(data_path, exist_ok=True)
             
             # 获取文件树
-            file_tree_result = {"success": True, "tree": await get_file_tree(novel_path, novel_path)}
+            file_tree_result = {"success": True, "tree": await get_file_tree_for_ai(data_path, data_path)}
             
             if not file_tree_result.get("success", False):
                 logger.error(f"获取文件树失败: {file_tree_result.get('error', '未知错误')}")
@@ -330,15 +322,15 @@ class SystemPromptBuilder:
     async def refresh_file_tree_cache(self):
         """刷新文件树缓存"""
         try:
-            # 获取novel目录路径
-            novel_path = self.get_novel_path()
+            # 获取data目录路径
+            data_path = self.data_dir
             
             # 重新获取文件树
-            file_tree_result = {"success": True, "tree": await get_file_tree(novel_path, novel_path)}
+            file_tree_result = {"success": True, "tree": await get_file_tree_for_ai(data_path, data_path)}
             
             if file_tree_result.get("success", False):
                 self.file_tree_cache = file_tree_result.get("tree", [])
-                self.last_cache_time = os.path.getmtime(novel_path) if os.path.exists(novel_path) else None
+                self.last_cache_time = os.path.getmtime(data_path) if os.path.exists(data_path) else None
                 logger.info("文件树缓存已刷新")
             else:
                 logger.error(f"刷新文件树缓存失败: {file_tree_result.get('error', '未知错误')}")

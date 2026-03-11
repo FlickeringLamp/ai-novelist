@@ -17,17 +17,6 @@ class DisplayNameHelper {
     return new DisplayNameHelper(lastDisplayName, this.isFolder);
   }
 
-  // 去除后缀
-  removeSuffix() {
-    if (this.isFolder) {
-      return new DisplayNameHelper(this.name, this.isFolder);
-    }
-    const lastDotIndex = this.name.lastIndexOf(".");
-    const nameWithoutSuffix =
-      lastDotIndex !== -1 ? this.name.substring(0, lastDotIndex) : this.name;
-    return new DisplayNameHelper(nameWithoutSuffix, this.isFolder);
-  }
-
   // 获取最终结果
   getValue() {
     return this.name;

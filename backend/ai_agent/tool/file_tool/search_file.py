@@ -1,14 +1,11 @@
-import re
 from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from backend.config.config import settings
-from backend.file.file_service import read_file as file_service_read_file
-from backend.ai_agent.utils.file_utils import split_paragraphs
+from backend.file.file_service import search_files_for_ai
 
 class SearchFilesInput(BaseModel):
-    """搜索文件的输入参数"""
     path: Optional[str] = Field(default=None, description="搜索路径，不填则搜索根目录")
     regex: str = Field(description="正则表达式")
 
@@ -41,63 +38,12 @@ async def search_file(path: Optional[str] = None, regex: str = None) -> str:
     """
     try:
         display_path = path if path else "根目录"
-        # 将相对路径拼接NOVEL_DIR，如果不填path则使用根目录
-        if path is None or path == "":
-            search_path = Path(settings.NOVEL_DIR)
-            display_path = "根目录"
-        else:
-            search_path = Path(settings.NOVEL_DIR) / path
-            display_path = path
         
-        pattern = re.compile(regex)
-        results = []
-        
-        if search_path.is_file():
-            # 搜索单个文件
-            try:
-                content = await file_service_read_file(path)
-                
-                # 使用统一的段落分割函数
-                paragraphs, _ = split_paragraphs(content)
-                for paragraph_num, paragraph in enumerate(paragraphs, 1):
-                    if pattern.search(paragraph):
-                        results.append({
-                            "file": str(search_path),
-                            "paragraph": paragraph_num,
-                            "content": paragraph.strip()
-                        })
-            except Exception as e:
-                return f"【工具结果】：读取文件失败: {str(e)}"
-                
-        elif search_path.is_dir():
-            # 递归搜索目录中的所有文件
-            for file_path in search_path.rglob("*"):
-                if file_path.is_file():
-                    try:
-                        relative_path = str(file_path.relative_to(settings.NOVEL_DIR))
-                        content = await file_service_read_file(relative_path)
-                        
-                        # 使用统一的段落分割函数
-                        paragraphs, _ = split_paragraphs(content)
-                        for paragraph_num, paragraph in enumerate(paragraphs, 1):
-                            if pattern.search(paragraph):
-                                results.append({
-                                    "file": str(file_path.relative_to(search_path)),
-                                    "paragraph": paragraph_num,
-                                    "content": paragraph.strip()
-                                })
-                    except Exception as e:
-                        continue  # 跳过无法读取的文件
-        else:
-            return f"【工具结果】：路径不存在: {display_path}"
+        # 使用 search_files_for_ai 进行搜索（已内置 .aiignore 过滤）
+        results = await search_files_for_ai(regex)
         
         if results:
-            result_str = f"【工具结果】：在 '{display_path}' 中找到 {len(results)} 个匹配项：\n\n"
-            for result in results:
-                result_str += f"文件: {result['file']}:{result['paragraph']}\n"
-                result_str += f"内容: {result['content']}\n\n"
-            
-            return result_str
+            return f"【工具结果】：在 '{display_path}' 中找到匹配项：\n\n{results}"
         else:
             return f"【工具结果】：在 '{display_path}' 中没有找到匹配项"
             
