@@ -36,7 +36,6 @@ logging.basicConfig(
     level=log_level,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('app.log'),
         logging.StreamHandler()
     ]
 )
@@ -144,10 +143,10 @@ if __name__ == "__main__":
         # 启动服务器
         logger.info("后端运行中......")
         uvicorn.run(
-            app,
+            "main:app",
             host=settings.HOST,
             port=settings.PORT,
-            reload=False,  # 禁用重载机制，避免双重启动
+            reload=True,  # 启用热重载机制
             log_level="warning",  # 减少uvicorn的日志输出
             access_log=False  # 禁用访问日志
         )

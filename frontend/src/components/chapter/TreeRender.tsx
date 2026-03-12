@@ -6,6 +6,7 @@ import { addTab, setActiveTab, updateTabId } from '../../store/editor.ts';
 import { toggleCollapse } from '../../store/file.ts';
 import { useEffect, useRef, useState } from 'react';
 import httpClient from '../../utils/httpClient.ts';
+import { useFetchFileTree } from '../../utils/fileTreeHelper.ts';
 
 // 类型定义
 interface ChapterItem {
@@ -24,7 +25,6 @@ interface ChapterTreeItemProps {
     selectedItem: { state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null };
     lastSelectedItem: { id: string | null };
     setSelectedItem: (item: { state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null }) => void;
-    fetchChapters: () => void;
     setModal: (modal: { show: boolean; message: string; onConfirm: (() => void) | null; onCancel: (() => void) | null }) => void;
   };
 }
@@ -33,13 +33,13 @@ interface ChapterTreeItemProps {
 function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
   const dispatch = useDispatch();
   const collapsedChapters = useSelector((state: any) => state.fileSlice.collapsedChapters);
+  const fetchFileTree = useFetchFileTree();
 
   const {
     handleContextMenu,
     selectedItem,
     lastSelectedItem,
     setSelectedItem,
-    fetchChapters,
     setModal
   } = props;
 
@@ -117,7 +117,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
           itemParentPath: null
         });
         // 触发父组件刷新
-        fetchChapters();
+        fetchFileTree();
       } catch (error) {
         console.error('重命名失败:', error);
         setModal({ show: true, message: '重命名失败: ' + (error as Error).toString(), onConfirm: null, onCancel: null });

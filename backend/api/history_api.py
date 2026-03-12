@@ -9,10 +9,11 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.messages import RemoveMessage, HumanMessage
+from langchain_core.messages import RemoveMessage, HumanMessage, AIMessage
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
 
 from backend.config.config import settings
+from backend.ai_agent.models.stream_interrupt_manager import stream_interrupt_manager
 from backend.ai_agent.core.graph_builder import with_graph_builder
 from backend.config.config import get_db_connection
 import time
@@ -44,138 +45,44 @@ class SummarizeRequest(BaseModel):
     """总结对话请求"""
     thread_id: str = Field(default="default", description="会话ID")
 
+class RollbackRequest(BaseModel):
+    """回档请求"""
+    thread_id: str = Field(default="default", description="会话ID")
+    message_id: str = Field(..., description="目标消息ID，用于定位回档点")
+    node_name: Optional[str] = Field(default="call_llm", description="节点名称，用于筛选存档点")
+
+class RegenerateRequest(BaseModel):
+    """重新生成请求"""
+    thread_id: str = Field(default="default", description="会话ID")
+    message_id: str = Field(..., description="目标消息ID，用于定位重新生成点")
+    new_content: Optional[str] = Field(default=None, description="新的消息内容（可选，不传则不修改）")
+    message_type: Optional[str] = Field(default="human", description="消息类型：'human' 或 'ai'")
+
 # 创建API路由器
 router = APIRouter(prefix="/api/history", tags=["History"])
 
 # API端点
 
-@router.post("/checkpoints", summary="获取存档点列表", response_model=List[Dict[str, Any]])
+@router.post("/checkpoints", summary="获取指定会话id的存档点列表")
 async def get_checkpoints(request: GetCheckpointsRequest):
     """
     获取指定会话的所有存档点列表
     
     - **thread_id**: 会话ID
     """
-    thread_id = request.thread_id
-    
-    # 使用装饰器创建图操作函数
     @with_graph_builder
-    async def process_get_checkpoints(graph):
-        """处理获取存档点列表"""
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-        
-        # 获取存档点历史
-        states = []
-        async for state in graph.aget_state_history(config):
-            states.append(state)
-        
+    async def list_history_checkpoint(graph,thread_id):
+        config = {"configurable": {"thread_id": thread_id}}
         checkpoints = []
-        for index, state in enumerate(states):
-            # 获取检查点ID
-            checkpoint_id = state.config.get('configurable', {}).get('checkpoint_id', 'unknown')
-            
-            # 获取最后一条消息内容
-            messages = state.values.get("messages", [])
-            last_message_type = "unknown"
-            last_message_content = ""
-            tool_calls = None
-            
-            if messages:
-                last_message = messages[-1]
-                last_message_type = last_message.type if hasattr(last_message, 'type') else 'unknown'
-                last_message_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
-                
-                # 如果是工具调用，显示工具信息
-                if last_message_type == 'ai' and hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-                    tool_names = [tc.get('name', 'unknown') for tc in last_message.tool_calls]
-                    tool_calls = tool_names
-                    last_message_content = f"工具调用: {', '.join(tool_names)}"
-            
-            checkpoint_info = {
-                "checkpoint_id": checkpoint_id,
-                "index": index,
-                "next_node": state.next,
-                "last_message_type": last_message_type,
-                "last_message_content": last_message_content,
-                "tool_calls": tool_calls
-            }
-            checkpoints.append(checkpoint_info)
-        
-        return checkpoints
-    
-    # 使用async for遍历生成器并获取结果
-    result = None
-    async for item in process_get_checkpoints():
-        result = item
-    return result
-
-@router.post("/checkpoint/rollback", summary="回档到指定存档点", response_model=Dict[str, Any])
-async def rollback_to_checkpoint(request: RollbackCheckpointRequest):
-    """
-    回档到指定存档点并继续对话
-    
-    - **thread_id**: 会话ID
-    - **checkpoint_index**: 存档点索引
-    - **new_message**: 新的用户消息内容
-    """
-    thread_id = request.thread_id
-    checkpoint_index = request.checkpoint_index
-    new_message = request.new_message
-    
-    # 使用装饰器创建图操作函数
-    @with_graph_builder
-    async def process_rollback(graph):
-        """处理回档操作"""
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-        
-        # 获取存档点历史
-        states = []
         async for state in graph.aget_state_history(config):
-            states.append(state)
-        
-        if checkpoint_index < 0 or checkpoint_index >= len(states):
-            raise HTTPException(status_code=400, detail="存档点索引无效")
-        
-        # 获取选中的存档点
-        selected_state = states[checkpoint_index]
-        
-        # 更新状态：获取整个消息列表，去掉最后一条用户信息，添加新的用户消息
-        current_messages = selected_state.values.get("messages", [])
-        
-        # 如果消息列表为空，直接添加新消息
-        if not current_messages:
-            new_messages = [HumanMessage(content=new_message)]
-        else:
-            # 检查最后一条消息是否是用户消息
-            last_message = current_messages[-1]
-            if hasattr(last_message, 'type') and last_message.type == 'human':
-                # 如果最后一条是用户消息，替换它
-                new_messages = current_messages[:-1] + [HumanMessage(content=new_message)]
-            else:
-                # 如果最后一条不是用户消息，直接添加新消息
-                new_messages = current_messages + [HumanMessage(content=new_message)]
-        
-        # 用整个新状态替换原本的旧状态
-        new_config = await graph.aupdate_state(selected_state.config, values={"messages": new_messages})
-        
-        # 触发回复（直接传入消息列表，使用operator.add自动追加）
-        # 执行对话（使用astream异步流式处理）
-        result = None
-        async for chunk in graph.astream(new_messages, new_config):
-            if result is None:
-                result = chunk
-            else:
-                # 合并结果
-                result.update(chunk)
-        
-        return {
-            "new_config": new_config,
-            "result": serialize_langchain_object(result)
-        }
-    
-    # 使用async for遍历生成器并获取结果
-    result = None
-    async for item in process_rollback():
+            print(f"next={state.next}, checkpoint_id={state.config['configurable']['checkpoint_id']}")
+            checkpoints.append({
+                "next": state.next,
+                "value": state.values,
+                "checkpoint_id": state.config['configurable']['checkpoint_id']
+            })
+        return {"checkpoints": checkpoints}
+    async for item in list_history_checkpoint(request.thread_id):
         result = item
     return result
 
@@ -469,3 +376,150 @@ async def delete_session(session_id: str):
     
     finally:
         conn.close()
+
+# ========== 辅助函数 ==========
+
+async def find_checkpoint_by_message_id(graph, thread_id: str, message_id: str):
+    """
+    通过消息ID查找对应的checkpoint（匹配最后一个消息的ID）
+    
+    Args:
+        graph: 编译后的图实例
+        thread_id: 会话ID
+        message_id: 目标消息ID
+    
+    Returns:
+        匹配的checkpoint的config，如果找不到则返回None
+    """
+    config = {"configurable": {"thread_id": thread_id}}
+    
+    # 获取历史状态（按时间倒序）
+    async for state in graph.aget_state_history(config):
+        # 检查末尾消息的id是否匹配
+        messages = state.values.get("messages", [])
+        if messages:
+            last_message = messages[-1]
+            if hasattr(last_message, 'id') and last_message.id == message_id:
+                # 找到了匹配的checkpoint
+                logger.info(f"找到匹配的checkpoint: {state.config}, next={state.next}")
+                return state.config
+    
+    return None
+
+
+async def find_previous_checkpoint(graph, thread_id: str, target_config):
+    """
+    找到目标checkpoint的前一个checkpoint
+    
+    Args:
+        graph: 编译后的图实例
+        thread_id: 会话ID
+        target_config: 目标checkpoint的config
+    
+    Returns:
+        前一个checkpoint的config，如果找不到则返回None
+    """
+    config = {"configurable": {"thread_id": thread_id}}
+    
+    # 获取历史状态（按时间倒序）
+    checkpoints = []
+    async for state in graph.aget_state_history(config):
+        checkpoints.append(state.config)
+    
+    # 找到目标checkpoint的索引
+    target_checkpoint_id = target_config.get('configurable', {}).get('checkpoint_id')
+    
+    for i, cp_config in enumerate(checkpoints):
+        cp_checkpoint_id = cp_config.get('configurable', {}).get('checkpoint_id')
+        if cp_checkpoint_id == target_checkpoint_id:
+            # 找到了目标checkpoint，返回前一个
+            if i + 1 < len(checkpoints):
+                logger.info(f"找到前一个checkpoint: {checkpoints[i + 1]}")
+                return checkpoints[i + 1]
+            break
+    
+    return None
+
+
+# ========== 回档和重新生成API ==========
+
+@router.post("/regenerate/stream", summary="重新生成（流式，支持修改消息）")
+async def regenerate_from_checkpoint_stream(request: RegenerateRequest):
+    """
+    重新生成，可选择修改消息内容
+    
+    - **thread_id**: 会话ID
+    - **message_id**: 目标消息ID（前端气泡的ID）
+    - **new_content**: 新的消息内容（可选，不传则不修改，仅重新生成）
+    - **message_type**: 消息类型：'human' 或 'ai'
+    """
+    thread_id = request.thread_id
+    message_id = request.message_id
+    new_content = request.new_content
+    message_type = request.message_type or "human"
+    
+    # 为thread_id创建流式传输任务
+    stream_interrupt_manager.create_task(thread_id)
+    logger.info(f"为thread_id创建流式传输任务: {thread_id}")
+    
+    @with_graph_builder
+    async def process_regenerate_stream(graph):
+        """处理重新生成操作并流式返回"""
+        try:
+            # 通过消息ID找到对应的checkpoint（匹配最后一个消息的ID）
+            target_config = await find_checkpoint_by_message_id(graph, thread_id, message_id)
+            
+            if target_config is None:
+                yield json.dumps(
+                    {"error": f"未找到消息ID {message_id} 对应的checkpoint"},
+                    ensure_ascii=False
+                ) + "\n"
+                return
+            
+            logger.info(f"找到目标checkpoint: {target_config}")
+            
+            # 找到前一个checkpoint（更早期的快照）
+            previous_config = await find_previous_checkpoint(graph, thread_id, target_config)
+            
+            if previous_config is None:
+                yield json.dumps(
+                    {"error": f"未找到消息ID {message_id} 之前的checkpoint"},
+                    ensure_ascii=False
+                ) + "\n"
+                return
+            
+            logger.info(f"找到前一个checkpoint: {previous_config}")
+            
+            # 如果提供了新内容，需要先更新状态
+            if new_content is not None:
+                # 根据message_type创建新的消息对象
+                if message_type == "human":
+                    new_msg = HumanMessage(content=new_content)
+                else:
+                    new_msg = AIMessage(content=new_content)
+                
+                # 使用前一个checkpoint更新状态，添加新消息
+                await graph.aupdate_state(previous_config, value={"messages": [new_msg]})
+                logger.info(f"已更新消息内容: {message_id}")
+            
+            # 从前一个checkpoint开始流式处理
+            async for message_chunk, metadata in graph.astream(None, previous_config, stream_mode="messages"):
+                # 检查是否被中断
+                if stream_interrupt_manager.is_interrupted(thread_id):
+                    logger.info(f"流式传输被中断: {thread_id}")
+                    yield json.dumps({"interrupted": True}, ensure_ascii=False) + "\n"
+                    break
+                
+                if message_chunk.content:
+                    print(message_chunk.content, end="|", flush=True)
+                
+                # 使用model_dump方法序列化完整的消息对象
+                serialized_chunk = message_chunk.model_dump()
+                yield json.dumps(serialized_chunk, ensure_ascii=False) + "\n"
+                await asyncio.sleep(0)
+        finally:
+            # 清理任务
+            stream_interrupt_manager.remove_task(thread_id)
+            logger.info(f"清理流式传输任务: {thread_id}")
+    
+    return StreamingResponse(process_regenerate_stream(), media_type="text/event-stream")

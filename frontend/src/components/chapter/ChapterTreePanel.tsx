@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGear, faFolder, faFile, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
+import { faGear, faFolder, faFile, faFolderOpen, faRotate } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { collapseAll, setChapters } from '../../store/file.ts';
+import { collapseAll } from '../../store/file.ts';
 import type { RootState } from '../../store/store';
 import ChapterContextMenu from './FileContextMenu.tsx';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.ts';
 import ChapterTreeItem from './TreeRender.tsx';
+import { useFetchFileTree } from '../../utils/fileTreeHelper.ts';
 
 function ChapterTreePanel() {
   const dispatch = useDispatch();
   const chapters = useSelector((state: RootState) => state.fileSlice.chapters);
+  const fetchFileTree = useFetchFileTree();
   /*
    * 以下是两个item状态的思路
    * 首先，文件操作分为三类：
@@ -48,19 +50,9 @@ function ChapterTreePanel() {
     y: 0
   });
 
-  // 获取章节列表
-  const fetchChapters = async () => {
-    try {
-      const result = await httpClient.get('/api/file/tree');
-      dispatch(setChapters(result || []));
-    } catch (error) {
-      console.error('获取章节列表失败：', error);
-      setModal({ show: true, message: (error as Error).toString(), onConfirm: null, onCancel: null });
-    }
-  };
-  // 注册章节更新监听器和初始加载
+  // 初始加载文件树
   useEffect(() => {
-    fetchChapters();
+    fetchFileTree();
   }, []);
 
   // 看看每次的数据长啥样
@@ -101,7 +93,7 @@ function ChapterTreePanel() {
         is_folder: isFolder
       });
       handleCloseContextMenu();
-      await fetchChapters();
+      await fetchFileTree();
       // 自动进入重命名状态
       if (result && result.id) {
         setSelectedItem({
@@ -136,6 +128,9 @@ function ChapterTreePanel() {
         <button className={commonBtnStyle} onClick={() => dispatch(collapseAll())} title="折叠所有">
           <FontAwesomeIcon icon={faFolderOpen} />
         </button>
+        <button className={commonBtnStyle} onClick={fetchFileTree} title="刷新文件树">
+          <FontAwesomeIcon icon={faRotate} />
+        </button>
       </div>
 
       <div className="flex flex-col h-[90%] flex-shrink-0 bg-theme-gray1 w-full">
@@ -154,7 +149,6 @@ function ChapterTreePanel() {
                     selectedItem,
                     lastSelectedItem,
                     setSelectedItem,
-                    fetchChapters,
                     setModal
                   }}
                 />
@@ -172,7 +166,6 @@ function ChapterTreePanel() {
         setLastSelectedItem={setLastSelectedItem}
         handleCloseContextMenu={handleCloseContextMenu}
         handleCreateItem={handleCreateItem}
-        fetchChapters={fetchChapters}
         setModal={setModal}
       />
 
