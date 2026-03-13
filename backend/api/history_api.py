@@ -78,7 +78,7 @@ async def get_checkpoints(request: GetCheckpointsRequest):
             print(f"next={state.next}, checkpoint_id={state.config['configurable']['checkpoint_id']}")
             checkpoints.append({
                 "next": state.next,
-                "value": state.values,
+                "values": state.values,
                 "checkpoint_id": state.config['configurable']['checkpoint_id']
             })
         return {"checkpoints": checkpoints}
@@ -389,7 +389,7 @@ async def find_checkpoint_by_message_id(graph, thread_id: str, message_id: str):
         message_id: 目标消息ID
     
     Returns:
-        匹配的checkpoint的config，如果找不到则返回None
+        匹配的checkpoint的完整state对象，如果找不到则返回None
     """
     config = {"configurable": {"thread_id": thread_id}}
     
@@ -402,41 +402,7 @@ async def find_checkpoint_by_message_id(graph, thread_id: str, message_id: str):
             if hasattr(last_message, 'id') and last_message.id == message_id:
                 # 找到了匹配的checkpoint
                 logger.info(f"找到匹配的checkpoint: {state.config}, next={state.next}")
-                return state.config
-    
-    return None
-
-
-async def find_previous_checkpoint(graph, thread_id: str, target_config):
-    """
-    找到目标checkpoint的前一个checkpoint
-    
-    Args:
-        graph: 编译后的图实例
-        thread_id: 会话ID
-        target_config: 目标checkpoint的config
-    
-    Returns:
-        前一个checkpoint的config，如果找不到则返回None
-    """
-    config = {"configurable": {"thread_id": thread_id}}
-    
-    # 获取历史状态（按时间倒序）
-    checkpoints = []
-    async for state in graph.aget_state_history(config):
-        checkpoints.append(state.config)
-    
-    # 找到目标checkpoint的索引
-    target_checkpoint_id = target_config.get('configurable', {}).get('checkpoint_id')
-    
-    for i, cp_config in enumerate(checkpoints):
-        cp_checkpoint_id = cp_config.get('configurable', {}).get('checkpoint_id')
-        if cp_checkpoint_id == target_checkpoint_id:
-            # 找到了目标checkpoint，返回前一个
-            if i + 1 < len(checkpoints):
-                logger.info(f"找到前一个checkpoint: {checkpoints[i + 1]}")
-                return checkpoints[i + 1]
-            break
+                return state
     
     return None
 
@@ -467,43 +433,33 @@ async def regenerate_from_checkpoint_stream(request: RegenerateRequest):
         """处理重新生成操作并流式返回"""
         try:
             # 通过消息ID找到对应的checkpoint（匹配最后一个消息的ID）
-            target_config = await find_checkpoint_by_message_id(graph, thread_id, message_id)
+            target_checkpoint = await find_checkpoint_by_message_id(graph, thread_id, message_id)
             
-            if target_config is None:
+            if target_checkpoint is None:
                 yield json.dumps(
                     {"error": f"未找到消息ID {message_id} 对应的checkpoint"},
                     ensure_ascii=False
                 ) + "\n"
                 return
             
-            logger.info(f"找到目标checkpoint: {target_config}")
+            logger.info(f"找到目标checkpoint: {target_checkpoint.config}")
             
-            # 找到前一个checkpoint（更早期的快照）
-            previous_config = await find_previous_checkpoint(graph, thread_id, target_config)
-            
-            if previous_config is None:
-                yield json.dumps(
-                    {"error": f"未找到消息ID {message_id} 之前的checkpoint"},
-                    ensure_ascii=False
-                ) + "\n"
-                return
-            
-            logger.info(f"找到前一个checkpoint: {previous_config}")
+            # 解析checkpoint对象获取config
+            target_config = target_checkpoint.config
             
             # 如果提供了新内容，需要先更新状态
             if new_content is not None:
-                # 根据message_type创建新的消息对象
+                # 根据message_type创建新的消息对象，带上前端传来的message_id
                 if message_type == "human":
-                    new_msg = HumanMessage(content=new_content)
+                    new_msg = HumanMessage(content=new_content, id=message_id)
                 else:
-                    new_msg = AIMessage(content=new_content)
+                    new_msg = AIMessage(content=new_content, id=message_id)
                 
-                # 使用前一个checkpoint更新状态，添加新消息
-                await graph.aupdate_state(previous_config, value={"messages": [new_msg]})
-                logger.info(f"已更新消息内容: {message_id}")
+                # 使用当前checkpoint更新状态，添加新消息
+                fork_config =  await graph.aupdate_state(target_config, values={"messages": [new_msg]})
             
-            # 从前一个checkpoint开始流式处理
-            async for message_chunk, metadata in graph.astream(None, previous_config, stream_mode="messages"):
+            # 从当前checkpoint开始流式处理
+            async for message_chunk, metadata in graph.astream(None, fork_config, stream_mode="messages"):
                 # 检查是否被中断
                 if stream_interrupt_manager.is_interrupted(thread_id):
                     logger.info(f"流式传输被中断: {thread_id}")

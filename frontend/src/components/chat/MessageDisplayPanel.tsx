@@ -531,16 +531,8 @@ const MessageDisplayPanel = () => {
           {isUser ? (
             <>
               <div className="whitespace-pre-wrap">{msg.content}</div>
-              {/* 用户消息的重新生成和编辑按钮 */}
+              {/* 用户消息的编辑按钮 */}
               <div className="mt-2 flex gap-2">
-                <button
-                  className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"
-                  onClick={() => regenerateMessage(msg.id, 'human')}
-                  title="重新生成"
-                >
-                  <FontAwesomeIcon icon={faRotateRight} />
-                  <span>重新生成</span>
-                </button>
                 <button
                   className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"
                   onClick={() => editMessage(msg.id, 'human', msg.content || '')}
