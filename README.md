@@ -31,19 +31,19 @@
 
 ## Languages
 Date : 2026-02-14 11:56:11
-Total : 134 files,  11085 codes, 1762 comments, 1932 blanks, all 14779 lines
+Total : 168 files,  13797 codes, 2811 comments, 2433 blanks, all 19041 lines
 
 | language | files | code | comment | blank | total |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| TypeScript JSX | 56 | 5,413 | 329 | 676 | 6,418 |
-| Python | 42 | 3,207 | 1,146 | 784 | 5,137 |
-| TypeScript | 17 | 1,291 | 201 | 216 | 1,708 |
-| Markdown | 7 | 775 | 0 | 201 | 976 |
-| PostCSS | 4 | 180 | 18 | 29 | 227 |
-| JavaScript | 4 | 78 | 44 | 12 | 134 |
-| JSON | 1 | 78 | 0 | 1 | 79 |
+| TypeScript JSX | 70 | 7,183 | 481 | 904 | 8,568 |
+| Python | 58 | 4,100 | 1,982 | 1,097 | 7,179 |
+| TypeScript | 22 | 1,616 | 234 | 262 | 2,112 |
+| JavaScript | 6 | 286 | 76 | 44 | 406 |
+| Markdown | 3 | 224 | 0 | 86 | 310 |
+| PostCSS | 4 | 183 | 19 | 30 | 232 |
+| JSON | 2 | 132 | 0 | 2 | 134 |
+| pip requirements | 1 | 30 | 0 | 0 | 30 |
 | JSON with Comments | 1 | 29 | 19 | 7 | 55 |
-| Ignore | 1 | 20 | 5 | 5 | 30 |
 | HTML | 1 | 14 | 0 | 1 | 15 |
 
 
