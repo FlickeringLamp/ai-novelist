@@ -72,6 +72,75 @@ def initialize_directories_and_files():
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, ensure_ascii=False, indent=2)
         logger.info(f"创建配置文件: {config_file}")
+    
+    # 初始化Git仓库和相关配置文件
+    _initialize_git(base_dir)
+
+
+def _initialize_git(base_dir: Path):
+    """
+    初始化Git仓库和相关配置文件
+    
+    Args:
+        base_dir: data目录路径
+    """
+    try:
+        import git
+        from git import Repo, GitCommandError
+        
+        git_dir = base_dir / ".git"
+        gitignore_path = base_dir / ".gitignore"
+        aiignore_path = base_dir / ".aiignore"
+        userignore_path = base_dir / ".userignore"
+        
+        # 如果Git仓库已存在，跳过初始化
+        if git_dir.exists():
+            logger.info("Git仓库已存在，跳过初始化")
+            return
+        
+        logger.info(f"正在初始化Git仓库: {base_dir}")
+        
+        # 初始化Git仓库
+        repo = Repo.init(base_dir)
+        
+        # 配置Git用户信息
+        with repo.config_writer() as config:
+            config.set_value("user", "name", "AI Novelist")
+            config.set_value("user", "email", "noreply@ai-novelist.local")
+            config.set_value("commit", "gpgSign", "false")
+        
+        # 创建ignore文件
+        _create_ignore_file(gitignore_path, ["config/", "chromadb/", "db/", "uploads/", "temp/"], "gitignore")
+        _create_ignore_file(aiignore_path, ["config/", "chromadb/", "db/", "uploads/", "temp/", "skills/"], "aiignore")
+        _create_ignore_file(userignore_path, ["config/", "chromadb/", "db/", "uploads/", "temp/", "skills/"], "userignore")
+        
+        # 创建初始提交
+        repo.index.add(["."])
+        repo.index.commit(
+            "Initial checkpoint",
+            author_date=time.strftime("%Y-%m-%dT%H:%M:%S"),
+            commit_date=time.strftime("%Y-%m-%dT%H:%M:%S"),
+        )
+        
+        logger.info("Git仓库初始化成功")
+        
+    except ImportError:
+        logger.warning("GitPython未安装，跳过Git仓库初始化")
+    except GitCommandError as e:
+        logger.error(f"Git仓库初始化失败: {e}")
+
+
+def _create_ignore_file(file_path: Path, patterns: list, file_type: str):
+    """创建ignore文件的通用函数
+    
+    Args:
+        file_path: 文件路径
+        patterns: 忽略模式列表
+        file_type: 文件类型（用于日志）
+    """
+    if not file_path.exists():
+        file_path.write_text("\n".join(patterns), encoding="utf-8")
+        logger.info(f"创建.{file_type}: {file_path}")
 
 
 class Settings:

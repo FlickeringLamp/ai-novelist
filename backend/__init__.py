@@ -7,6 +7,7 @@ from backend.api.knowledge_api import router as knowledge_router
 from backend.api.provider_api import router as model_router
 from backend.api.mode_api import router as mode_router
 from backend.api.mcp_api import router as mcp_router
+from backend.api.checkpoint_api import checkpoint_router
 
 __all__ = [
     "settings",
@@ -18,5 +19,6 @@ __all__ = [
     "knowledge_router",
     "model_router",
     "mode_router",
-    "mcp_router"
+    "mcp_router",
+    "checkpoint_router"
 ]
