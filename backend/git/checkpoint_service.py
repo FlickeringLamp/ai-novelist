@@ -136,7 +136,7 @@ class CheckpointService:
 
     def get_checkpoint_diff(self, commit_hash: str) -> Dict[str, Any]:
         """
-        获取当前状态与检查点之间的差异。
+        获取检查点与其父提交之间的差异。
 
         Args:
             commit_hash: 要比较的提交哈希。
@@ -150,42 +150,56 @@ class CheckpointService:
             # 获取提交
             commit = repo.commit(commit_hash)
 
-            # 获取差异
-            diff = commit.diff(repo.head.commit, create_patch=True, unified=3)
+            # 获取父提交
+            parents = list(commit.parents)
+
+            # 如果没有父提交（初始提交），返回空差异
+            if not parents:
+                return {
+                    "success": True,
+                    "commit_hash": commit_hash,
+                    "short_hash": commit_hash[:8],
+                    "changes": [],
+                    "is_initial_commit": True,
+                }
+
+            # 获取与父提交的差异（使用 raw 模式）
+            parent_commit = parents[0]
+            diff = parent_commit.diff(commit) # 看起来父.diff(子)，才能计算出后者相较于前者的变更。
 
             changes = []
             for item in diff:
+                # 根据变更类型选择正确的路径
+                if item.change_type == 'A':  # 新增的文件
+                    file_path = item.b_path
+                elif item.change_type == 'D':  # 删除的文件
+                    file_path = item.a_path
+                else:  # 修改的文件或其他
+                    file_path = item.b_path if item.b_path else item.a_path
+
                 change_info = {
-                    "path": item.a_path,
+                    "path": file_path,
                     "change_type": item.change_type,
-                    "new_file": item.new_file,
-                    "deleted_file": item.deleted_file,
                 }
 
-                # 获取详细的diff文本
-                if item.diff:
-                    # diff是bytes，需要解码为字符串
-                    diff_text = item.diff.decode('utf-8', errors='replace')
-                    change_info["diff"] = diff_text
-
-                # 对于新文件，获取新文件内容
-                if item.new_file and item.b_blob:
-                    change_info["new_content"] = item.b_blob.data_stream.read().decode('utf-8', errors='replace')
-
-                # 对于删除的文件，获取旧文件内容
-                if item.deleted_file and item.a_blob:
-                    change_info["old_content"] = item.a_blob.data_stream.read().decode('utf-8', errors='replace')
-
-                # 对于修改的文件，可以添加统计信息
-                if item.change_type == 'M':
-                    # 计算添加和删除的行数
-                    diff_text = item.diff.decode('utf-8', errors='replace') if item.diff else ""
-                    added_lines = diff_text.count('\n+') - diff_text.count('\n+++')
-                    deleted_lines = diff_text.count('\n-') - diff_text.count('\n---')
-                    change_info["stats"] = {
-                        "added_lines": added_lines,
-                        "deleted_lines": deleted_lines,
-                    }
+                # 根据变更类型获取文件内容
+                if item.change_type == 'M':  # 修改的文件
+                    # 获取旧文件内容（父提交中的版本）
+                    if item.a_blob:
+                        change_info["old_content"] = item.a_blob.data_stream.read().decode('utf-8', errors='replace')
+                    # 获取新文件内容（当前提交中的版本）
+                    if item.b_blob:
+                        change_info["new_content"] = item.b_blob.data_stream.read().decode('utf-8', errors='replace')
+                elif item.change_type == 'A':  # 新增的文件
+                    # 新文件只有新内容
+                    if item.b_blob:
+                        change_info["new_content"] = item.b_blob.data_stream.read().decode('utf-8', errors='replace')
+                    change_info["old_content"] = ""
+                elif item.change_type == 'D':  # 删除的文件
+                    # 删除的文件只有旧内容
+                    if item.a_blob:
+                        change_info["old_content"] = item.a_blob.data_stream.read().decode('utf-8', errors='replace')
+                    change_info["new_content"] = ""
 
                 changes.append(change_info)
 
@@ -202,6 +216,7 @@ class CheckpointService:
                 "success": False,
                 "message": f"获取差异失败: {str(e)}",
             }
+
 
     def get_status(self) -> Dict[str, Any]:
         """

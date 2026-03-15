@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faAngleRight, faAngleUp, faTrash, faRotateRight, faEdit } from '@fortawesome/free-solid-svg-icons';
+import { faAngleRight, faAngleUp, faTrash, faRotateRight, faEdit, faCopy } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
 import type { Message, AIMessage, StreamChunk, ToolCall } from '../../types/langgraph';
 import { setAvailableTools } from '../../store/mode';
@@ -28,22 +28,10 @@ const MessageDisplayPanel = () => {
     onCancel: null
   });
   
-  // 编辑消息对话框状态
-  const [editModal, setEditModal] = useState<{
-    show: boolean;
-    messageId: string;
-    messageType: 'human' | 'ai';
-    content: string;
-    onConfirm: ((newContent: string) => void) | null;
-    onCancel: (() => void) | null;
-  }>({
-    show: false,
-    messageId: '',
-    messageType: 'human',
-    content: '',
-    onConfirm: null,
-    onCancel: null
-  });
+  // 内联编辑状态
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState<string>('');
+  const [editingMessageType, setEditingMessageType] = useState<'human' | 'ai'>('human');
   
   // 从Redux获取可用工具信息
   const availableTools = useSelector((state: RootState) => state.modeSlice.availableTools);
@@ -118,6 +106,15 @@ const MessageDisplayPanel = () => {
       }
       return newSet;
     });
+  };
+
+  // 复制消息内容到剪贴板
+  const copyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch (error) {
+      setModal({ show: true, message: '复制失败: ' + (error as Error).toString(), onConfirm: null, onCancel: null });
+    }
   };
 
   // 删除消息
@@ -304,156 +301,160 @@ const MessageDisplayPanel = () => {
     }
   };
 
-  // 编辑消息
+  // 编辑消息 - 进入编辑模式
   const editMessage = (msgId: string, messageType: 'human' | 'ai', content: string) => {
-    setEditModal({
-      show: true,
-      messageId: msgId,
-      messageType,
-      content,
-      onConfirm: async (newContent: string) => {
-        try {
-          dispatch(setIsStreaming(true));
+    setEditingMessageId(msgId);
+    setEditingMessageType(messageType);
+    setEditingContent(content);
+  };
 
-          const response = await httpClient.streamRequest('/api/history/regenerate/stream', {
-            method: 'POST',
-            body: {
-              thread_id: threadId,
-              message_id: msgId,
-              new_content: newContent,
-              message_type: messageType
+  // 确认编辑并重新生成
+  const confirmEdit = async (msgId: string, newContent: string, messageType: 'human' | 'ai') => {
+    try {
+      setEditingMessageId(null);
+      setEditingContent('');
+      dispatch(setIsStreaming(true));
+
+      const response = await httpClient.streamRequest('/api/history/regenerate/stream', {
+        method: 'POST',
+        body: {
+          thread_id: threadId,
+          message_id: msgId,
+          new_content: newContent,
+          message_type: messageType
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('编辑并重新生成请求失败');
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法获取响应流');
+      }
+
+      const decoder = new TextDecoder();
+      let currentAiMessageId: string | null = null;
+      let newAiResponse = "";
+      let newReasoningContent = "";
+      const toolCallChunksMap = new Map<number, { name?: string; args: string; id?: string }>();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+          try {
+            const parsedChunk = JSON.parse(line) as StreamChunk;
+
+            // 处理流式传输中断信号
+            if (parsedChunk.interrupted) {
+              console.log("编辑后重新生成被中断");
+              dispatch(setIsStreaming(false));
+              break;
             }
-          });
 
-          if (!response.ok) {
-            throw new Error('编辑并重新生成请求失败');
-          }
+            if (parsedChunk.type === 'AIMessageChunk') {
+              if (!currentAiMessageId && parsedChunk.id) {
+                const messageId = parsedChunk.id;
+                currentAiMessageId = messageId;
+                dispatch(createAiMessage({ id: messageId }));
+              }
 
-          const reader = response.body?.getReader();
-          if (!reader) {
-            throw new Error('无法获取响应流');
-          }
+              if (parsedChunk.content) {
+                newAiResponse += parsedChunk.content;
+              }
 
-          const decoder = new TextDecoder();
-          let currentAiMessageId: string | null = null;
-          let newAiResponse = "";
-          let newReasoningContent = "";
-          const toolCallChunksMap = new Map<number, { name?: string; args: string; id?: string }>();
+              // 处理 reasoning_content
+              if (parsedChunk.additional_kwargs?.reasoning_content) {
+                newReasoningContent += parsedChunk.additional_kwargs.reasoning_content as string;
+              }
 
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+              // 有content或reasoning_content时立即更新，实现流式渲染
+              if (currentAiMessageId) {
+                const updateData: any = {
+                  id: currentAiMessageId,
+                  content: newAiResponse
+                };
+                if (newReasoningContent) {
+                  updateData.reasoning_content = newReasoningContent;
+                }
+                dispatch(updateAiMessage(updateData));
+              }
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-            for (const line of lines) {
-              try {
-                const parsedChunk = JSON.parse(line) as StreamChunk;
-
-                // 处理流式传输中断信号
-                if (parsedChunk.interrupted) {
-                  console.log("编辑后重新生成被中断");
-                  dispatch(setIsStreaming(false));
-                  break;
+              if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {
+                for (const chunk of parsedChunk.tool_call_chunks) {
+                  const index = chunk.index ?? 0;
+                  if (!toolCallChunksMap.has(index)) {
+                    toolCallChunksMap.set(index, { args: '' });
+                  }
+                  const existing = toolCallChunksMap.get(index)!;
+                  if (chunk.name) {
+                    (existing as any).name = chunk.name;
+                  }
+                  if (chunk.args) {
+                    existing.args += chunk.args;
+                  }
+                  if (chunk.id !== null && chunk.id !== undefined) {
+                    (existing as any).id = chunk.id;
+                  }
                 }
 
-                if (parsedChunk.type === 'AIMessageChunk') {
-                  if (!currentAiMessageId && parsedChunk.id) {
-                    const messageId = parsedChunk.id;
-                    currentAiMessageId = messageId;
-                    dispatch(createAiMessage({ id: messageId }));
-                  }
-
-                  if (parsedChunk.content) {
-                    newAiResponse += parsedChunk.content;
-                  }
-
-                  // 处理 reasoning_content
-                  if (parsedChunk.additional_kwargs?.reasoning_content) {
-                    newReasoningContent += parsedChunk.additional_kwargs.reasoning_content as string;
-                  }
-
-                  // 有content或reasoning_content时立即更新，实现流式渲染
-                  if (currentAiMessageId) {
-                    const updateData: any = {
-                      id: currentAiMessageId,
-                      content: newAiResponse
-                    };
-                    if (newReasoningContent) {
-                      updateData.reasoning_content = newReasoningContent;
-                    }
-                    dispatch(updateAiMessage(updateData));
-                  }
-
-                  if (parsedChunk.tool_call_chunks && parsedChunk.tool_call_chunks.length > 0) {
-                    for (const chunk of parsedChunk.tool_call_chunks) {
-                      const index = chunk.index ?? 0;
-                      if (!toolCallChunksMap.has(index)) {
-                        toolCallChunksMap.set(index, { args: '' });
-                      }
-                      const existing = toolCallChunksMap.get(index)!;
-                      if (chunk.name) {
-                        (existing as any).name = chunk.name;
-                      }
-                      if (chunk.args) {
-                        existing.args += chunk.args;
-                      }
-                      if (chunk.id !== null && chunk.id !== undefined) {
-                        (existing as any).id = chunk.id;
-                      }
-                    }
-
-                    const toolCalls: ToolCall[] = [];
-                    for (const [index, existing] of toolCallChunksMap.entries()) {
-                      try {
-                        const args = JSON.parse(existing.args);
-                        toolCalls.push({
-                          id: (existing as any).id || 'unknown',
-                          name: (existing as any).name || 'unknown',
-                          args: args,
-                          type: 'tool_call'
-                        });
-                      } catch (e) {
-                        const completedArgs = tryCompleteJSON(existing.args);
-                        toolCalls.push({
-                          id: (existing as any).id || 'unknown',
-                          name: (existing as any).name || 'unknown',
-                          args: { _loading: true, _partial_args: completedArgs },
-                          type: 'tool_call'
-                        });
-                      }
-                    }
-
-                    dispatch(updateAiMessage({
-                      id: currentAiMessageId!,
-                      content: newAiResponse,
-                      tool_calls: toolCalls
-                    }));
-
-                    processFileToolCalls(toolCalls);
+                const toolCalls: ToolCall[] = [];
+                for (const [index, existing] of toolCallChunksMap.entries()) {
+                  try {
+                    const args = JSON.parse(existing.args);
+                    toolCalls.push({
+                      id: (existing as any).id || 'unknown',
+                      name: (existing as any).name || 'unknown',
+                      args: args,
+                      type: 'tool_call'
+                    });
+                  } catch (e) {
+                    const completedArgs = tryCompleteJSON(existing.args);
+                    toolCalls.push({
+                      id: (existing as any).id || 'unknown',
+                      name: (existing as any).name || 'unknown',
+                      args: { _loading: true, _partial_args: completedArgs },
+                      type: 'tool_call'
+                    });
                   }
                 }
-              } catch (e) {
-                console.log('无法解析chunk:', line);
+
+                dispatch(updateAiMessage({
+                  id: currentAiMessageId!,
+                  content: newAiResponse,
+                  tool_calls: toolCalls
+                }));
+
+                processFileToolCalls(toolCalls);
               }
             }
+          } catch (e) {
+            console.log('无法解析chunk:', line);
           }
-
-          // 编辑完成后，刷新state
-          const stateData = await httpClient.get('/api/chat/state');
-          dispatch(setState(stateData));
-        } catch (error) {
-          console.error('编辑消息失败:', error);
-          setModal({ show: true, message: (error as Error).toString(), onConfirm: null, onCancel: null });
-        } finally {
-          dispatch(setIsStreaming(false));
         }
-      },
-      onCancel: () => {
-        setEditModal({ show: false, messageId: '', messageType: 'human', content: '', onConfirm: null, onCancel: null });
       }
-    });
+
+      // 编辑完成后，刷新state
+      const stateData = await httpClient.get('/api/chat/state');
+      dispatch(setState(stateData));
+    } catch (error) {
+      console.error('编辑消息失败:', error);
+      setModal({ show: true, message: (error as Error).toString(), onConfirm: null, onCancel: null });
+    } finally {
+      dispatch(setIsStreaming(false));
+    }
+  };
+
+  // 取消编辑
+  const cancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingContent('');
   };
 
   // 获取预览内容（第一行或前几个字）
@@ -477,6 +478,7 @@ const MessageDisplayPanel = () => {
   const renderMessage = (msg: Message) => {
     const isUser = msg.type === 'human';
     const isToolResult = msg.type === 'tool';
+    const isEditing = editingMessageId === msg.id;
     
     // 工具结果消息独立渲染
     if (isToolResult) {
@@ -486,7 +488,7 @@ const MessageDisplayPanel = () => {
       return (
         <div
           key={msg.id}
-          className="flex flex-col max-w-[80%] self-start bg-theme-gray1 border border-theme-green p-2.5 rounded-medium break-words overflow-wrap break-word"
+          className="flex flex-col w-[80%] self-start bg-theme-gray1 border border-theme-green p-2.5 rounded-medium break-words overflow-wrap break-word"
         >
           <div className="flex items-center">
             <div className="flex items-center cursor-pointer" onClick={() => toggleToolResultExpand(msg.id)}>
@@ -506,144 +508,191 @@ const MessageDisplayPanel = () => {
     }
     
     // 用户消息、AI消息
+    const usageMetadata = msg.type === 'ai' ? (msg as AIMessage).usage_metadata : null;
+    const inputTokens = usageMetadata?.input_tokens || 0;
+    const outputTokens = usageMetadata?.output_tokens || 0;
+    
     return (
       <div
         key={msg.id}
-        className={`flex flex-col max-w-[80%] p-2.5 rounded-medium break-words overflow-wrap break-word ${
-          isUser
-            ? 'self-end bg-theme-green1 text-theme-white'
-            : 'self-start bg-theme-gray2 text-theme-white'
+        className={`flex flex-col w-[80%] ${
+          isUser ? 'self-end' : 'self-start'
         }`}
       >
-        <div className="flex items-center justify-between mb-1">
-          <div className="font-bold text-[0.9em]">
-            {isUser ? '用户' : 'AI'}
+        {/* 消息气泡 */}
+        <div
+          className={`flex flex-col w-full p-2.5 rounded-medium break-words overflow-wrap break-word ${
+            isUser
+              ? 'bg-theme-green1 text-theme-white'
+              : 'bg-theme-gray2 text-theme-white'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <div className="font-bold text-[0.9em]">
+              {isEditing ? '编辑消息' : (isUser ? '用户' : 'AI')}
+            </div>
           </div>
-          {!isInterrupted && (
-            <FontAwesomeIcon
-              icon={faTrash}
-              className="text-xs cursor-pointer hover:text-theme-red transition-colors"
-              onClick={() => deleteMessage(msg.id)}
-            />
-          )}
-        </div>
-        <div className="leading-[1.4] overflow-wrap break-word break-words">
-          {isUser ? (
-            <>
-              <div className="whitespace-pre-wrap">{msg.content}</div>
-              {/* 用户消息的编辑按钮 */}
-              <div className="mt-2 flex gap-2">
-                <button
-                  className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"
-                  onClick={() => editMessage(msg.id, 'human', msg.content || '')}
-                  title="编辑"
-                >
-                  <FontAwesomeIcon icon={faEdit} />
-                  <span>编辑</span>
-                </button>
-              </div>
-            </>
-          ) : (
-            <div>
-              {msg.type === 'ai' && Boolean((msg as AIMessage).additional_kwargs?.reasoning_content) && (
-                <div className="mt-2 p-2 bg-black/20 rounded-small">
-                  <div className="flex items-center gap-2">
-                    <FontAwesomeIcon
-                      icon={expandedReasonings.has(msg.id) ? faAngleUp : faAngleRight}
-                      className="text-xs text-theme-green cursor-pointer hover:text-theme-white"
-                      onClick={() => toggleReasoningExpand(msg.id)}
-                    />
-                    <span className="font-bold text-theme-green">思维链</span>
-                  </div>
-                  {expandedReasonings.has(msg.id) && (
-                    <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words">
-                      {(msg as AIMessage).additional_kwargs.reasoning_content as string}
-                    </div>
-                  )}
+          <div className="leading-[1.4] overflow-wrap break-word break-words">
+            {isEditing ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  className="w-full bg-theme-gray1 text-theme-white p-2 rounded-small border border-theme-gray3 focus:border-theme-green outline-none resize-none"
+                  rows={6}
+                  value={editingContent}
+                  onChange={(e) => setEditingContent(e.target.value)}
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="px-4 py-2 rounded-small bg-theme-gray3 text-theme-white hover:bg-theme-gray4 transition-colors"
+                    onClick={cancelEdit}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="px-4 py-2 rounded-small bg-theme-green text-theme-white hover:bg-theme-green1 transition-colors"
+                    onClick={() => confirmEdit(msg.id, editingContent, isUser ? 'human' : 'ai')}
+                  >
+                    确定并重新生成
+                  </button>
                 </div>
-              )}
-              <div className="whitespace-pre-wrap">{msg.content}</div>
-              {msg.type === 'ai' && (msg as AIMessage).tool_calls && (msg as AIMessage).tool_calls.length > 0 && (
-                <div className="mt-2 p-2 bg-black/20 rounded-small">
-                  {(msg as AIMessage).tool_calls.map((toolCall, toolIndex) => {
-                    const toolKey = `${msg.id}-${toolIndex}`;
-                    const isExpanded = !expandedTools.has(toolKey); // 默认展开（未在集合中即为展开）
-                    const args = toolCall.args;
-                    const path = args && typeof args === 'object' && 'path' in args ? (args as any).path : null;
-                    
-                    return (
-                      <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
+              </div>
+            ) : (
+              <div>
+                {isUser ? (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                ) : (
+                  <div>
+                    {msg.type === 'ai' && Boolean((msg as AIMessage).additional_kwargs?.reasoning_content) && (
+                      <div className="mt-2 p-2 bg-black/20 rounded-small">
                         <div className="flex items-center gap-2">
                           <FontAwesomeIcon
-                            icon={isExpanded ? faAngleUp : faAngleRight}
+                            icon={expandedReasonings.has(msg.id) ? faAngleUp : faAngleRight}
                             className="text-xs text-theme-green cursor-pointer hover:text-theme-white"
-                            onClick={() => toggleToolExpand(msg.id, toolIndex)}
+                            onClick={() => toggleReasoningExpand(msg.id)}
                           />
-                          <span className="font-bold text-theme-green">
-                            {availableTools[toolCall.name || '']?.name || toolCall.name || '未知工具'}
-                          </span>
-                          {path && (
-                            <span className="text-xs text-theme-gray3">
-                              {path}
-                            </span>
-                          )}
+                          <span className="font-bold text-theme-green">思维链</span>
                         </div>
-                        {isExpanded && args && (
+                        {expandedReasonings.has(msg.id) && (
                           <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words">
-                            {(() => {
-                              const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
-                              
-                              return (args as any)._loading
-                                ? `加载中... ${(args as any)._partial_args || ''}`
-                                : (() => {
-                                    const content = parsedArgs.content;
-                                    if (content !== undefined) {
-                                      return content;
-                                    }
-                                    // 如果没有content，显示所有键值对，但排除content键（如果存在）
-                                    const result: Record<string, any> = {};
-                                    for (const [key, value] of Object.entries(parsedArgs)) {
-                                      if (key !== 'content') {
-                                        result[key] = value;
-                                      }
-                                    }
-                                    return JSON.stringify(result, null, 2);
-                                  })();
-                            })()}
+                            {(msg as AIMessage).additional_kwargs.reasoning_content as string}
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                    {msg.type === 'ai' && (msg as AIMessage).tool_calls && (msg as AIMessage).tool_calls.length > 0 && (
+                      <div className="mt-2 p-2 bg-black/20 rounded-small">
+                        {(msg as AIMessage).tool_calls.map((toolCall, toolIndex) => {
+                          const toolKey = `${msg.id}-${toolIndex}`;
+                          const isExpanded = !expandedTools.has(toolKey); // 默认展开（未在集合中即为展开）
+                          const args = toolCall.args;
+                          const path = args && typeof args === 'object' && 'path' in args ? (args as any).path : null;
+                          
+                          return (
+                            <div key={toolIndex} className="mb-1.5 p-1 bg-black/10 rounded-small">
+                              <div className="flex items-center gap-2">
+                                <FontAwesomeIcon
+                                  icon={isExpanded ? faAngleUp : faAngleRight}
+                                  className="text-xs text-theme-green cursor-pointer hover:text-theme-white"
+                                  onClick={() => toggleToolExpand(msg.id, toolIndex)}
+                                />
+                                <span className="font-bold text-theme-green">
+                                  {availableTools[toolCall.name || '']?.name || toolCall.name || '未知工具'}
+                                </span>
+                                {path && (
+                                  <span className="text-xs text-theme-gray3">
+                                    {path}
+                                  </span>
+                                )}
+                              </div>
+                              {isExpanded && args && (
+                                <div className="mt-1 text-[0.8em] text-theme-white whitespace-pre-wrap break-words">
+                                  {(() => {
+                                    const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
+                                    
+                                    return (args as any)._loading
+                                      ? `加载中... ${(args as any)._partial_args || ''}`
+                                      : (() => {
+                                          const content = parsedArgs.content;
+                                          if (content !== undefined) {
+                                            return content;
+                                          }
+                                          // 如果没有content，显示所有键值对，但排除content键（如果存在）
+                                          const result: Record<string, any> = {};
+                                          for (const [key, value] of Object.entries(parsedArgs)) {
+                                            if (key !== 'content') {
+                                              result[key] = value;
+                                            }
+                                          }
+                                          return JSON.stringify(result, null, 2);
+                                        })();
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* 气泡下方的操作栏（编辑模式下隐藏） */}
+        {!isEditing && (
+          <div className="flex items-center justify-between mt-1 px-1">
+            {/* 按钮组 */}
+            <div className="flex gap-2">
+              {!isInterrupted && (
+                <button
+                  className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"
+                  onClick={() => copyMessage(msg.content || '')}
+                  title="复制"
+                >
+                  <FontAwesomeIcon icon={faCopy} />
+                </button>
               )}
-              {msg.type === 'ai' && (msg as AIMessage).usage_metadata && (
-                <div className="mt-2 text-[0.75em] text-theme-gray3">
-                  输入: {(msg as AIMessage).usage_metadata?.input_tokens || 0} / 输出: {(msg as AIMessage).usage_metadata?.output_tokens || 0}
-                </div>
-              )}
-              {/* AI消息的重新生成和编辑按钮 */}
-              <div className="mt-2 flex gap-2">
+              {!isUser && !isInterrupted && (
                 <button
                   className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"
                   onClick={() => regenerateMessage(msg.id, 'ai')}
                   title="重新生成"
                 >
                   <FontAwesomeIcon icon={faRotateRight} />
-                  <span>重新生成</span>
                 </button>
+              )}
+              {!isInterrupted && (
+                <button
+                  className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-red transition-colors"
+                  onClick={() => deleteMessage(msg.id)}
+                  title="删除"
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                </button>
+              )}
+              {!isInterrupted && (
                 <button
                   className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"
-                  onClick={() => editMessage(msg.id, 'ai', msg.content || '')}
+                  onClick={() => editMessage(msg.id, isUser ? 'human' : 'ai', msg.content || '')}
                   title="编辑"
                 >
                   <FontAwesomeIcon icon={faEdit} />
-                  <span>编辑</span>
                 </button>
-              </div>
+              )}
             </div>
-          )}
-        </div>
+            
+            {/* 右侧上下文信息 */}
+            {usageMetadata && (inputTokens > 0 || outputTokens > 0) && (
+              <div className="text-xs text-theme-gray3">
+                ↑ {inputTokens} ↓ {outputTokens}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -663,37 +712,6 @@ const MessageDisplayPanel = () => {
             { text: '取消', onClick: modal.onCancel || (() => setModal({ show: false, message: '', onConfirm: null, onCancel: null })), className: 'bg-theme-gray3' }
           ]}
         />
-      )}
-      {/* 编辑消息对话框 */}
-      {editModal.show && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-theme-gray2 p-4 rounded-medium max-w-lg w-full mx-4">
-            <h3 className="text-lg font-bold text-theme-white mb-4">编辑消息</h3>
-            <textarea
-              className="w-full bg-theme-gray1 text-theme-white p-2 rounded-small border border-theme-gray3 focus:border-theme-green outline-none resize-none"
-              rows={6}
-              value={editModal.content}
-              onChange={(e) => setEditModal({ ...editModal, content: e.target.value })}
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                className="px-4 py-2 rounded-small bg-theme-gray3 text-theme-white hover:bg-theme-gray4 transition-colors"
-                onClick={() => editModal.onCancel?.()}
-              >
-                取消
-              </button>
-              <button
-                className="px-4 py-2 rounded-small bg-theme-green text-theme-white hover:bg-theme-green1 transition-colors"
-                onClick={() => {
-                  editModal.onConfirm?.(editModal.content);
-                  setEditModal({ show: false, messageId: '', messageType: 'human', content: '', onConfirm: null, onCancel: null });
-                }}
-              >
-                确定并重新生成
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

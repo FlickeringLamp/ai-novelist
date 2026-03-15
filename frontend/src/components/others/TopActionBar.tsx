@@ -1,13 +1,13 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faList } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faList, faSave } from '@fortawesome/free-solid-svg-icons';
 import StatusLogo from './StatusLogo';
 import WindowControls from './WindowControls';
 
 interface TopActionBarProps {
   isLeftPanelCollapsed: boolean;
-  leftPanelContent: 'chapter' | 'search';
+  leftPanelContent: 'chapter' | 'search' | 'checkpoint';
   onToggleCollapse: () => void;
-  onLeftPanelContentChange: (content: 'chapter' | 'search') => void;
+  onLeftPanelContentChange: (content: 'chapter' | 'search' | 'checkpoint') => void;
 }
 
 function TopActionBar({ isLeftPanelCollapsed, leftPanelContent, onToggleCollapse, onLeftPanelContentChange }: TopActionBarProps) {
@@ -36,6 +36,14 @@ function TopActionBar({ isLeftPanelCollapsed, leftPanelContent, onToggleCollapse
               title="搜索文件"
             >
               <FontAwesomeIcon icon={faSearch} className="text-sm" />
+            </button>
+            {/* 存档点按钮 */}
+            <button
+              onClick={() => onLeftPanelContentChange('checkpoint')}
+              className={`p-2 hover:bg-theme-gray3 rounded transition-colors ${leftPanelContent === 'checkpoint' ? 'text-theme-green' : ''}`}
+              title="存档点"
+            >
+              <FontAwesomeIcon icon={faSave} className="text-sm" />
             </button>
           </div>
         )}

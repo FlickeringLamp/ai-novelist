@@ -39,8 +39,8 @@ ALL_AVAILABLE_TOOLS = {
         "name": "加载 Skill",
         "description": "加载指定 Skill 的详细内容"
     },
-    "execute_skill": {
-        "name": "执行 Skill",
-        "description": "执行指定 Skill 的脚本"
+    "execute_command": {
+        "name": "执行命令",
+        "description": "执行任意命令行命令，支持管道、重定向和技能命令"
     }
 }
