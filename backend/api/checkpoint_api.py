@@ -83,7 +83,7 @@ async def restore_checkpoint(request: RestoreCheckpointRequest):
 @checkpoint_router.get("/diff/{commit_hash}")
 async def get_checkpoint_diff(commit_hash: str):
     """
-    获取当前状态与检查点之间的差异。
+    获取检查点与上一个检查点之间的差异。
     """
     try:
         service = get_checkpoint_service()

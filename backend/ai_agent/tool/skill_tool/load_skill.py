@@ -20,22 +20,15 @@ class LoadSkillInput(BaseModel):
 
 @tool(args_schema=LoadSkillInput)
 async def load_skill(skill_name: str) -> str:
-    """加载指定 Skill 的详细内容。
-    
-    当 AI 需要使用某个 Skill 时，调用此工具获取 Skill 的完整说明。
-    
+    """加载指定 Skill 的详细内容   
     可用的 Skills 可以从系统提示词中的 [可用 Skills] 部分查看。
     
     使用场景示例：
     {
         "skill_name": "code-review"
     }
-    
     Args:
         skill_name: Skill 名称
-        
-    Returns:
-        Skill 的完整内容（包含 frontmatter 和 body）
     """
     try:
         skill_loader = get_skill_loader()

@@ -457,6 +457,9 @@ async def regenerate_from_checkpoint_stream(request: RegenerateRequest):
                 
                 # 使用当前checkpoint更新状态，添加新消息
                 fork_config =  await graph.aupdate_state(target_config, values={"messages": [new_msg]})
+            else:
+                # 如果没有新内容，直接使用目标配置
+                fork_config = target_config
             
             # 从当前checkpoint开始流式处理
             async for message_chunk, metadata in graph.astream(None, fork_config, stream_mode="messages"):

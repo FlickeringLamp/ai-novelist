@@ -9,6 +9,7 @@ import AgentPanel from './agent/AgentPanel';
 import MCPSettingsPanel from './mcp/MCPSettingsPanel';
 import TopActionBar from './others/TopActionBar';
 import SearchPanel from './search/SearchPanel';
+import CheckpointPanel from './checkpoint/CheckpointPanel';
 import httpClient from '../utils/httpClient';
 
 interface LayoutComponentProps {
@@ -21,7 +22,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
   const dispatch = useDispatch();
   const [activePanel, setActivePanel] = useState<string | null>(null); // 'api' | 'rag' | 'agent' | 'mcp' | null
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false); // 是否折叠
-  const [leftPanelContent, setLeftPanelContent] = useState<'chapter' | 'search'>('chapter'); // 展开时显示的内容
+  const [leftPanelContent, setLeftPanelContent] = useState<'chapter' | 'search' | 'checkpoint'>('chapter'); // 展开时显示的内容
   const [leftPanelSize, setLeftPanelSize] = useState(15);
   const [rightPanelSize, setRightPanelSize] = useState(25);
   const leftPanelRef = useRef<ImperativePanelHandle>(null);
@@ -53,7 +54,7 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
   };
 
   // 切换左侧面板内容
-  const handleLeftPanelContentChange = (content: 'chapter' | 'search') => {
+  const handleLeftPanelContentChange = (content: 'chapter' | 'search' | 'checkpoint') => {
     setLeftPanelContent(content);
     if (isLeftPanelCollapsed) {
       setIsLeftPanelCollapsed(false);
@@ -107,6 +108,9 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
               onFileSelect={handleFileSelect}
               embedded={true} /* 嵌入模式，不是全屏覆盖 */
             />
+          )}
+          {leftPanelContent === 'checkpoint' && (
+            <CheckpointPanel />
           )}
         </Panel>
         

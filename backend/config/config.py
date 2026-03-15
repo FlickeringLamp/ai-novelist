@@ -42,6 +42,7 @@ def initialize_directories_and_files():
     temp_dir = base_dir / "temp"
     skills_dir = base_dir / "skills"
     config_file = config_dir / "store.json"
+    skills_config_file = config_dir / "skills_config.json"
     
     # 确保所有目录存在
     directories = [base_dir, config_dir, chromadb_dir, db_dir, uploads_dir, temp_dir, skills_dir]
@@ -64,14 +65,40 @@ def initialize_directories_and_files():
             "thread_id": thread_id,
             "knowledgeBase":{},
             "two-step-rag": None,
-            "mcpServers": {},  # MCP服务器配置
-            "skills": {  # Skills配置
-                "entries": {}
-            }
+            "mcpServers": {} # MCP服务器配置
         }
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, ensure_ascii=False, indent=2)
         logger.info(f"创建配置文件: {config_file}")
+    
+    # 确保skills配置文件存在
+    if not skills_config_file.exists():
+        default_skills_config = {
+            "baidu-search": {
+                "name": "百度搜索",
+                "description": "使用百度搜索API进行网络搜索",
+                "env": {
+                    "BAIDU_API_KEY": "",
+                    "BAIDU_SECRET_KEY": ""
+                },
+                "enabled": true
+            },
+            "text-polish": {
+                "name": "文本润色",
+                "description": "对文本进行润色和优化",
+                "env": {},
+                "enabled": true
+            },
+            "code-review": {
+                "name": "代码审查",
+                "description": "对代码进行审查和优化",
+                "env": {},
+                "enabled": true
+            }
+        }
+        with open(skills_config_file, 'w', encoding='utf-8') as f:
+            json.dump(default_skills_config, f, ensure_ascii=False, indent=2)
+        logger.info(f"创建skills配置文件: {skills_config_file}")
     
     # 初始化Git仓库和相关配置文件
     _initialize_git(base_dir)
@@ -159,8 +186,7 @@ class Settings:
         self.DATA_DIR: str = str(base_dir)
         
         # 配置文件目录
-        self.config_file = base_dir / "config" / "store.json"
-        self.CONFIG_DIR = str(self.config_file.parent)
+        self.CONFIG_DIR = str(base_dir / "config")
         
         # 向量数据库目录
         self.CHROMADB_PERSIST_DIR: str = str(base_dir / "chromadb")
@@ -202,21 +228,28 @@ class Settings:
         logger.info(f"使用系统 {cmd_name}")
         return cmd_name
         
-    def _load_config(self) -> Dict[str, Any]:
-        """从 store.json 加载配置，每次都会创建全新的字典对象"""
+    def _load_config(self, config_file: str = "store.json") -> Dict[str, Any]:
+        """加载配置，每次都会创建全新的字典对象
+        
+        Args:
+            config_file: 配置文件名，如 'store.json' 或 'skills_config.json'
+        """
         try:
-            with open(self.config_file, 'r', encoding='utf-8') as f:
+            config_path = Path(self.CONFIG_DIR) / config_file
+            with open(config_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (json.JSONDecodeError, Exception):
             return {}
-    def get_config(self, *keys: str, default: Any = None) -> Any:
+    
+    def get_config(self, *keys: str, default: Any = None, config_file: str = "store.json") -> Any:
         """获取指定配置值，支持多层嵌套。返回临时字典的引用，必须使用update_config更新，才能保存到磁盘
         
         Args:
             *keys: 嵌套的键路径，如 get_config('level1', 'level2', 'level3')
             default: 默认值
+            config_file: 配置文件名，如 'store.json' 或 'skills_config.json'
         """
-        config = self._load_config()
+        config = self._load_config(config_file)
         current = config
         
         try:
@@ -227,15 +260,16 @@ class Settings:
         except (KeyError, TypeError):
             return default
     
-    def update_config(self, value: Any, *keys: str) -> bool:
+    def update_config(self, value: Any, *keys: str, config_file: str = "store.json") -> bool:
         """更新配置，支持多层嵌套
         
         Args:
             value: 要设置的值
             *keys: 嵌套的键路径，如 update_config(new_value, 'level1', 'level2', 'level3')
+            config_file: 配置文件名，如 'store.json' 或 'skills_config.json'
         """
         try:
-            config = self._load_config()
+            config = self._load_config(config_file)
             current = config
             
             # 遍历到最后一层的前一个
@@ -248,24 +282,26 @@ class Settings:
             current[keys[-1]] = value
             
             # 保存配置
-            with open(self.config_file, 'w', encoding='utf-8') as f:
+            config_path = Path(self.CONFIG_DIR) / config_file
+            with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
             return True
         except (KeyError, TypeError, IndexError) as e:
             logger.error(f"更新配置失败: {e}")
             return False
     
-    def delete_config(self, *keys: str) -> bool:
+    def delete_config(self, *keys: str, config_file: str = "store.json") -> bool:
         """删除配置，支持多层嵌套
         
         Args:
             *keys: 嵌套的键路径，如 delete_config('level1', 'level2', 'level3')
+            config_file: 配置文件名，如 'store.json' 或 'skills_config.json'
         
         Returns:
             bool: 删除成功返回True，失败返回False
         """
         try:
-            config = self._load_config()
+            config = self._load_config(config_file)
             current = config
             
             # 遍历到最后一层的前一个
@@ -279,7 +315,8 @@ class Settings:
                 del current[keys[-1]]
                 
                 # 保存配置
-                with open(self.config_file, 'w', encoding='utf-8') as f:
+                config_path = Path(self.CONFIG_DIR) / config_file
+                with open(config_path, 'w', encoding='utf-8') as f:
                     json.dump(config, f, ensure_ascii=False, indent=2)
                 return True
             return False
