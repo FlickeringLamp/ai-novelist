@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSave, faPlus, faHistory, faFile, faChevronDown, faChevronRight, faUndo } from '@fortawesome/free-solid-svg-icons';
+import { faSave, faPlus, faHistory, faFile, faUndo, faChevronRight, faChevronDown} from '@fortawesome/free-solid-svg-icons';
 import httpClient from '../../utils/httpClient';
-import { createTempDiffTab } from '../../store/editor.ts';
+import { setCheckpointPreview } from '../../store/editor.ts';
 import UnifiedModal from '../others/UnifiedModal';
 
 interface Checkpoint {
@@ -19,11 +19,17 @@ interface FileChange {
   new_content?: string;
 }
 
+interface GitChange {
+  path: string;
+  change_type: string;  // 'M'=修改, 'A'=新增, 'D'=删除
+}
+
 interface GitStatus {
   branch: string;
   dirty: boolean;
   untracked_files: string[];
   modified_files: string[];
+  changes: GitChange[];  // 带变更类型的文件列表
 }
 
 interface CheckpointPanelProps {
@@ -39,7 +45,7 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
   const [expandedCheckpoint, setExpandedCheckpoint] = useState<string | null>(null);
   const [checkpointChanges, setCheckpointChanges] = useState<FileChange[]>([]);
   const [checkpointChangesMap, setCheckpointChangesMap] = useState<Record<string, any>>({});
-  const [showStagedFiles, setShowStagedFiles] = useState(false);
+
   const [restoreModal, setRestoreModal] = useState<{ show: boolean; checkpoint: Checkpoint | null }>({ show: false, checkpoint: null });
   const [restoring, setRestoring] = useState(false);
 
@@ -134,29 +140,38 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
           const originalContent = change.old_content || '';
           const modifiedContent = change.new_content || '';
           
-          // 使用 Redux 创建差异对比标签
-          dispatch(createTempDiffTab({
+          // 使用 Redux 创建存档点预览标签
+          dispatch(setCheckpointPreview({
             id: filePath,
-            originalContent,
-            modifiedContent
+            checkpointContent: originalContent,
+            currentContent: modifiedContent
           }));
         } else {
           console.warn('未找到文件的变更信息:', filePath);
         }
       } else {
-        // 获取当前工作区与HEAD的差异（暂不处理，如需要可添加逻辑）
-        console.warn('当前工作区差异暂未实现');
+        // 获取当前工作区与最新提交之间的差异
+        const response = await httpClient.get(`/api/checkpoints/working-diff/${filePath}`);
+        if (response.success) {
+          dispatch(setCheckpointPreview({
+            id: filePath,
+            checkpointContent: response.old_content || '',
+            currentContent: response.new_content || ''
+          }));
+        } else {
+          console.warn('获取工作区差异失败:', response.message);
+        }
       }
     } catch (error) {
       console.error('获取文件差异失败:', error);
     }
   };
 
-  const getChangeTypeIcon = (change: FileChange) => {
-    if (change.change_type === 'A') return <FontAwesomeIcon icon={faFile} className="text-green-500" />;
-    if (change.change_type === 'D') return <FontAwesomeIcon icon={faFile} className="text-red-500" />;
-    if (change.change_type === 'M') return <FontAwesomeIcon icon={faFile} className="text-yellow-500" />;
-    return <FontAwesomeIcon icon={faFile} className="text-theme-gray4" />;
+  const getChangeTypeIcon = (change: FileChange | GitChange) => {
+    if (change.change_type === 'A') return <FontAwesomeIcon icon={faFile} className="text-theme-green text-xs" />;
+    if (change.change_type === 'D') return <FontAwesomeIcon icon={faFile} className="text-theme-red text-xs" />;
+    if (change.change_type === 'M') return <FontAwesomeIcon icon={faFile} className="text-theme-yellow text-xs" />;
+    return <FontAwesomeIcon icon={faFile} className="text-theme-gray4 text-xs" />;
   };
 
   const handleRestoreCheckpoint = async (checkpoint: Checkpoint) => {
@@ -192,94 +207,75 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
   };
 
   return (
-    <div className="w-full h-full bg-theme-black flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-theme-black overflow-hidden">
       {/* 保存存档点区域 */}
-      <div className="p-4 border-b border-theme-gray3">
+      <div className="h-[40%] flex flex-col p-1 border-b border-theme-gray3 overflow-hidden">
         <div className="flex items-center gap-2 mb-2">
-          <FontAwesomeIcon icon={faSave} className="text-theme-green" />
-          <h2 className="text-sm font-semibold text-theme-white">保存存档点</h2>
+          <h2 className="text-sm font-semibold text-theme-white">当前更改</h2>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           <input
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="输入存档点消息..."
-            className="flex-1 bg-theme-gray2 border border-theme-gray3 rounded px-3 py-2 text-sm text-theme-white placeholder-theme-gray4 focus:outline-none focus:border-theme-green"
+            placeholder="保存消息"
+            className="w-full bg-theme-gray2 border border-theme-gray3 text-sm px-2 py-1 rounded"
             disabled={loading}
           />
           <button
             onClick={handleSaveCheckpoint}
             disabled={loading}
-            className="px-4 py-2 bg-theme-green text-black rounded text-sm font-semibold hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-theme-green text-black rounded text-sm font-semibold hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors py-1"
           >
             {loading ? '保存中...' : '保存'}
           </button>
         </div>
-      </div>
-
-      {/* 当前状态区域 */}
-      <div className="flex-1 overflow-y-auto">
         {/* 更改文件 */}
-        <div className="border-b border-theme-gray3">
-          <div
-            className="p-3 flex items-center gap-2 cursor-pointer hover:bg-theme-gray2 transition-colors"
-            onClick={() => setShowStagedFiles(!showStagedFiles)}
-          >
-            <FontAwesomeIcon
-              icon={showStagedFiles ? faChevronDown : faChevronRight}
-              className="text-theme-gray4 text-xs"
-            />
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="pb-1 border-b border-theme-gray3 flex items-center gap-2">
             <FontAwesomeIcon icon={faHistory} className="text-theme-green" />
             <span className="text-sm text-theme-white font-semibold">当前更改</span>
           </div>
 
-          {showStagedFiles && status && (
-            <div className="px-3 pb-3">
-              {/* 修改的文件 */}
-              {status.modified_files && status.modified_files.length > 0 && (
-                <div className="mb-2">
-                  <p className="text-xs text-theme-gray4 mb-1">修改的文件:</p>
-                  {status.modified_files.map((file, index) => (
-                    <div
-                      key={`modified-${index}`}
-                      className="flex items-center gap-2 px-2 py-1 hover:bg-theme-gray2 rounded cursor-pointer transition-colors"
-                      onClick={() => handleShowFileDiff(file)}
-                    >
-                      <FontAwesomeIcon icon={faFile} className="text-yellow-500 text-xs" />
-                      <span className="text-xs text-theme-white truncate">{file}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {status && (
+            <div className="flex-1 overflow-y-auto">
+              {/* 所有变更文件 */}
+              {(() => {
+                // 将未跟踪文件转换为 GitChange 对象
+                const untrackedChanges: GitChange[] = (status.untracked_files || []).map(file => ({
+                  path: file,
+                  change_type: 'A'
+                }));
+                // 合并所有变更并按路径排序
+                const allChanges = [...(status.changes || []), ...untrackedChanges].sort((a, b) =>
+                  a.path.localeCompare(b.path)
+                );
 
-              {/* 未跟踪的文件 */}
-              {status.untracked_files && status.untracked_files.length > 0 && (
-                <div>
-                  <p className="text-xs text-theme-gray4 mb-1">未跟踪的文件:</p>
-                  {status.untracked_files.map((file, index) => (
-                    <div
-                      key={`untracked-${index}`}
-                      className="flex items-center gap-2 px-2 py-1 hover:bg-theme-gray2 rounded transition-colors"
-                    >
-                      <FontAwesomeIcon icon={faFile} className="text-green-500 text-xs" />
-                      <span className="text-xs text-theme-white truncate">{file}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                if (allChanges.length === 0) {
+                  return <p className="text-xs text-theme-gray4">没有更改</p>;
+                }
 
-              {(!status.modified_files || status.modified_files.length === 0) &&
-               (!status.untracked_files || status.untracked_files.length === 0) && (
-                <p className="text-xs text-theme-gray4">没有更改</p>
-              )}
+                return allChanges.map((change, index) => (
+                  <div
+                    key={`change-${index}`}
+                    className="flex items-center gap-2 px-2 py-1 hover:bg-theme-gray2 rounded cursor-pointer transition-colors"
+                    onClick={() => handleShowFileDiff(change.path)}
+                  >
+                    {getChangeTypeIcon(change)}
+                    <span className="text-xs text-theme-white truncate">{change.path}</span>
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </div>
+      </div>
 
+      {/* 当前状态区域 */}
+      <div className="h-[60%] overflow-y-auto">
         {/* 存档点历史 */}
         <div className="flex-1">
-          <div className="p-3 flex items-center gap-2">
+          <div className="pb-1 border-b border-theme-gray3 flex items-center gap-2">
             <FontAwesomeIcon icon={faHistory} className="text-theme-green" />
             <h3 className="text-sm font-semibold text-theme-white">存档点历史</h3>
           </div>
@@ -289,17 +285,19 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
               <p className="text-xs text-theme-gray4">暂无存档点</p>
             </div>
           ) : (
-            <div className="px-3 pb-3">
+            <div className="w-full">
               {checkpoints.map((checkpoint) => (
                 <div key={checkpoint.commit_hash} className="mb-2">
-                  <div className="flex items-center justify-between p-2 bg-theme-gray2 rounded hover:bg-theme-gray3 transition-colors">
-                    <div className="flex items-center gap-2">
+                  <div className="w-full flex items-center justify-between p-2 bg-theme-gray2 rounded hover:bg-theme-gray3 overflow-hidden cursor-pointer">
+                    <div
+                      className="flex items-center gap-2 min-w-0 flex-1"
+                      onClick={() => handleExpandCheckpoint(checkpoint)}
+                      >
                       <FontAwesomeIcon
                         icon={expandedCheckpoint === checkpoint.commit_hash ? faChevronDown : faChevronRight}
-                        className="text-theme-gray4 text-xs cursor-pointer"
-                        onClick={() => handleExpandCheckpoint(checkpoint)}
+                        className="flex-shrink-0"
                       />
-                      <span className="text-xs font-mono text-theme-green">{checkpoint.short_hash}</span>
+                      <span className="text-xs text-theme-green">{checkpoint.short_hash}</span>
                       <span className="text-xs text-theme-white truncate">{checkpoint.message}</span>
                     </div>
                     <button
@@ -348,12 +346,12 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
             {
               text: '取消',
               onClick: cancelRestore,
-              className: 'bg-gray-600'
+              className: 'bg-theme-gray3'
             },
             {
-              text: restoring ? '恢复中...' : '确认恢复',
+              text: restoring ? '恢复中...' : '确认',
               onClick: confirmRestore,
-              className: 'bg-blue-600',
+              className: 'bg-theme-green',
             }
           ]}
         />

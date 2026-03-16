@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGear, faFolder, faFile, faFolderOpen, faRotate } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch, useSelector } from 'react-redux';
+import { updateTabId } from '../../store/editor.ts';
 import { collapseAll } from '../../store/file.ts';
 import type { RootState } from '../../store/store';
 import ChapterContextMenu from './FileContextMenu.tsx';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.ts';
 import ChapterTreeItem from './TreeRender.tsx';
+import CreateInput from './CreateInput.tsx';
 import { useFetchFileTree } from '../../utils/fileTreeHelper.ts';
 
 function ChapterTreePanel() {
@@ -21,9 +23,9 @@ function ChapterTreePanel() {
    * 2. 需要两个对象的操作，比如复制粘贴，剪切粘贴
    * 3. 特殊状态：选中，这个状态主要出现在右键项目后，具体操作完成前，用于强调被选中的文件，呈现更加醒目的视觉效果
    * 单对象操作，只用selectedItem即可，两对象操作，需要读取lastSelectedItem和selectedItem的状态
-  */
+   */
   const [selectedItem, setSelectedItem] = useState<{ state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null }>({
-    state: null, // 'selected' | 'renaming' | null
+    state: null, // 'selected' | 'renaming' | 'creating' | null
     id: null,
     isFolder: false,
     itemTitle: null,
@@ -35,6 +37,16 @@ function ChapterTreePanel() {
     isFolder: false,
     itemTitle: null,
     itemParentPath: null
+  });
+  // 创建新文件/文件夹的状态
+  const [creatingItem, setCreatingItem] = useState<{
+    isCreating: boolean;
+    isFolder: boolean;
+    parentPath: string;
+  }>({
+    isCreating: false,
+    isFolder: false,
+    parentPath: ''
   });
   // 消息模态框状态
   const [modal, setModal] = useState<{ show: boolean; message: string; onConfirm: (() => void) | null; onCancel: (() => void) | null }>({
@@ -49,6 +61,10 @@ function ChapterTreePanel() {
     x: 0,
     y: 0
   });
+
+  // 拖拽相关状态
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   // 初始加载文件树
   useEffect(() => {
@@ -85,32 +101,122 @@ function ChapterTreePanel() {
     })
   };
 
-  // 新建
-  const handleCreateItem = async (isFolder: boolean, parentPath: string = '') => {
+  // 新建 - 显示输入框让用户输入名称
+  const handleCreateItem = (isFolder: boolean, parentPath: string = '') => {
+    handleCloseContextMenu();
+    setCreatingItem({
+      isCreating: true,
+      isFolder,
+      parentPath
+    });
+  };
+
+  // 实际创建文件/文件夹
+  const handleConfirmCreate = async (name: string) => {
+    if (!name || name.trim() === '') {
+      // 名称为空，取消创建
+      setCreatingItem({ isCreating: false, isFolder: false, parentPath: '' });
+      return;
+    }
+
     try {
       const result = await httpClient.post('/api/file/items', {
-        parent_path: parentPath,
-        is_folder: isFolder
+        parent_path: creatingItem.parentPath,
+        is_folder: creatingItem.isFolder,
+        name: name.trim()
       });
-      handleCloseContextMenu();
+      
+      // 重置创建状态
+      setCreatingItem({ isCreating: false, isFolder: false, parentPath: '' });
+      
+      // 刷新文件树
       await fetchFileTree();
-      // 自动进入重命名状态
+      
+      // 自动选中刚创建的文件/文件夹
       if (result && result.id) {
         setSelectedItem({
-          state: 'renaming',
+          state: 'selected',
           id: result.id,
-          isFolder: isFolder,
+          isFolder: creatingItem.isFolder,
           itemTitle: result.title,
-          itemParentPath: parentPath
+          itemParentPath: creatingItem.parentPath
         });
       }
     } catch (error) {
       console.error('创建失败:', error);
       setModal({ show: true, message: (error as Error).toString(), onConfirm: null, onCancel: null });
+      setCreatingItem({ isCreating: false, isFolder: false, parentPath: '' });
     }
   };
 
+  // 取消创建
+  const handleCancelCreate = () => {
+    setCreatingItem({ isCreating: false, isFolder: false, parentPath: '' });
+  };
 
+  // 处理移动文件/文件夹
+  const handleMoveItem = async (sourcePath: string, targetPath: string) => {
+    try {
+      // 计算目标路径（如果是文件夹，则是 folder/sourceName；如果是根目录，则是 sourceName）
+      const sourceName = sourcePath.includes('/') 
+        ? sourcePath.substring(sourcePath.lastIndexOf('/') + 1) 
+        : sourcePath;
+      const finalTargetPath = targetPath 
+        ? `${targetPath}/${sourceName}` 
+        : sourceName;
+      
+      await httpClient.post('/api/file/move', {
+        source_path: sourcePath,
+        target_path: targetPath
+      });
+      
+      // 更新所有标签栏中的标签 id
+      dispatch(updateTabId({ oldId: sourcePath, newId: finalTargetPath }));
+      
+      // 刷新文件树
+      await fetchFileTree();
+    } catch (error) {
+      console.error('移动失败:', error);
+      setModal({ 
+        show: true, 
+        message: '移动失败: ' + (error as Error).toString(), 
+        onConfirm: () => setModal({ show: false, message: '', onConfirm: null, onCancel: null }), 
+        onCancel: null 
+      });
+    }
+  };
+
+  // 处理根目录的拖放（拖放到空白区域或根目录）
+  const handleRootDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (draggedItemId) {
+      e.dataTransfer.dropEffect = 'move';
+      setDropTargetId('');
+    }
+  };
+
+  const handleRootDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    // 检查是否真的离开了容器
+    const rect = (e.currentTarget as Element).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      setDropTargetId(null);
+    }
+  };
+
+  const handleRootDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const sourcePath = e.dataTransfer.getData('text/plain');
+    if (!sourcePath) return;
+
+    setDropTargetId(null);
+
+    // 拖放到根目录
+    await handleMoveItem(sourcePath, '');
+  };
 
   // 按钮样式
   const commonBtnStyle = "text-theme-white border border-theme-gray1 p-2 rounded-small cursor-pointer text-base flex items-center gap-1 hover:border-theme-green hover:text-theme-green";
@@ -134,22 +240,51 @@ function ChapterTreePanel() {
       </div>
 
       <div className="flex flex-col h-[90%] flex-shrink-0 bg-theme-gray1 w-full">
-        <div className="flex-grow overflow-y-auto p-2.5" onContextMenu={(e) => handleContextMenu(e, '', false, '', '')}>
-          {chapters.length === 0 ? (
+        <div 
+          className={`flex-grow overflow-y-auto p-2.5 ${dropTargetId === '' ? 'ring-2 ring-theme-green ring-inset' : ''}`}
+          onContextMenu={(e) => handleContextMenu(e, '', false, '', '')}
+          onDragOver={handleRootDragOver}
+          onDragLeave={handleRootDragLeave}
+          onDrop={handleRootDrop}
+        >
+          {(chapters.length === 0 && !creatingItem.isCreating) ? (
             <p className="p-2.5 text-center text-theme-green">暂无文件</p>
           ) : (
             <ul className="list-none p-0 m-0">
+              {creatingItem.isCreating && creatingItem.parentPath === '' && (
+                <li className="chapter-list-item">
+                  <div
+                    className="chapter-item-content flex cursor-pointer text-theme-green bg-theme-gray2"
+                    style={{ paddingLeft: '0px' }}
+                  >
+                    <CreateInput
+                      isFolder={creatingItem.isFolder}
+                      onConfirm={handleConfirmCreate}
+                      onCancel={handleCancelCreate}
+                    />
+                  </div>
+                </li>
+              )}
               {chapters.map(item => (
                 <ChapterTreeItem
                   key={item.id}
                   item={item}
                   level={0}
+                  creatingItem={creatingItem}
+                  onConfirmCreate={handleConfirmCreate}
+                  onCancelCreate={handleCancelCreate}
                   props={{
                     handleContextMenu,
                     selectedItem,
                     lastSelectedItem,
                     setSelectedItem,
-                    setModal
+                    setModal,
+                    // 拖拽相关
+                    draggedItemId,
+                    setDraggedItemId,
+                    dropTargetId,
+                    setDropTargetId,
+                    handleMoveItem
                   }}
                 />
               ))}

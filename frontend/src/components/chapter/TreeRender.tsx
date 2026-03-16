@@ -6,6 +6,7 @@ import { addTab, setActiveTab, updateTabId } from '../../store/editor.ts';
 import { toggleCollapse } from '../../store/file.ts';
 import { useEffect, useRef, useState } from 'react';
 import httpClient from '../../utils/httpClient.ts';
+import CreateInput from './CreateInput.tsx';
 import { useFetchFileTree } from '../../utils/fileTreeHelper.ts';
 
 // 类型定义
@@ -20,17 +21,30 @@ interface ChapterItem {
 interface ChapterTreeItemProps {
   item: ChapterItem;
   level: number;
+  creatingItem: {
+    isCreating: boolean;
+    isFolder: boolean;
+    parentPath: string;
+  };
+  onConfirmCreate: (name: string) => void;
+  onCancelCreate: () => void;
   props: {
     handleContextMenu: (e: React.MouseEvent, id: string, isFolder: boolean, title: string, parentPath: string) => void;
     selectedItem: { state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null };
     lastSelectedItem: { id: string | null };
     setSelectedItem: (item: { state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null }) => void;
     setModal: (modal: { show: boolean; message: string; onConfirm: (() => void) | null; onCancel: (() => void) | null }) => void;
+    // 拖拽相关
+    draggedItemId: string | null;
+    setDraggedItemId: (id: string | null) => void;
+    dropTargetId: string | null;
+    setDropTargetId: (id: string | null) => void;
+    handleMoveItem: (sourcePath: string, targetPath: string) => Promise<void>;
   };
 }
 
 // 章节树节点组件
-function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
+function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelCreate, props }: ChapterTreeItemProps) {
   const dispatch = useDispatch();
   const collapsedChapters = useSelector((state: any) => state.fileSlice.collapsedChapters);
   const fetchFileTree = useFetchFileTree();
@@ -40,7 +54,13 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
     selectedItem,
     lastSelectedItem,
     setSelectedItem,
-    setModal
+    setModal,
+    // 拖拽相关
+    draggedItemId,
+    setDraggedItemId,
+    dropTargetId,
+    setDropTargetId,
+    handleMoveItem
   } = props;
 
   const itemId = item.id || '';
@@ -52,10 +72,11 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [editingValue, setEditingValue] = useState('');
   const [showInvalidCharWarning, setShowInvalidCharWarning] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // 检查是否包含特殊字符
   const containsInvalidChars = (value: string): boolean => {
-    const invalidChars = /[*\\/<>\:|?"']/;
+    const invalidChars = /[*\\/<>:|?"']/;
     return invalidChars.test(value);
   };
 
@@ -70,7 +91,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
         }
       }, 0);
     }
-  }, [selectedItem]);
+  }, [selectedItem, itemId, displayName]);
 
   const handleSaveRename = async () => {
     if (editingValue && editingValue.trim() !== '') {
@@ -78,7 +99,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
       if (containsInvalidChars(editingValue)) {
         setModal({
           show: true,
-          message: '不可包含* " \' \\ / < > : | 特殊字符',
+          message: '不可包含* " \ / < > : | 特殊字符',
           onConfirm: () => setModal({ show: false, message: '', onConfirm: null, onCancel: null }),
           onCancel: null
         });
@@ -162,6 +183,104 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
     }
   };
 
+  // 检查是否在当前文件夹中创建新文件/文件夹
+  const isCreatingHere = creatingItem.isCreating && creatingItem.parentPath === itemId;
+
+  // 检查是否是自身的后代（防止文件夹拖入自己内部）
+  const isDescendantOf = (ancestorId: string, descendantId: string): boolean => {
+    if (!descendantId || !ancestorId) return false;
+    if (descendantId === ancestorId) return true;
+    // 检查后缀：如果 descendantId 以 ancestorId + '/' 开头，则是后代
+    return descendantId.startsWith(ancestorId + '/');
+  };
+
+  // 拖拽开始
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    setDraggedItemId(itemId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', itemId);
+    // 设置拖拽时的半透明效果
+    e.dataTransfer.setDragImage(e.currentTarget as Element, 0, 0);
+  };
+
+  // 拖拽结束
+  const handleDragEnd = () => {
+    setDraggedItemId(null);
+    setDropTargetId(null);
+    setIsDragOver(false);
+  };
+
+  // 拖拽经过
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // 如果不是文件夹，不能作为放置目标
+    if (!isFolder) return;
+
+    // 不能拖到自己身上
+    if (draggedItemId === itemId) return;
+
+    // 不能拖到正在拖拽的项的后代身上
+    if (draggedItemId && isDescendantOf(itemId, draggedItemId)) return;
+
+    e.dataTransfer.dropEffect = 'move';
+    setDropTargetId(itemId);
+    setIsDragOver(true);
+  };
+
+  // 拖拽离开
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // 检查是否真的离开了当前元素（而不是进入了子元素）
+    const rect = (e.currentTarget as Element).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      setIsDragOver(false);
+      if (dropTargetId === itemId) {
+        setDropTargetId(null);
+      }
+    }
+  };
+
+  // 放置
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsDragOver(false);
+    setDropTargetId(null);
+
+    const sourcePath = e.dataTransfer.getData('text/plain');
+    if (!sourcePath) return;
+
+    // 不能拖到自己身上
+    if (sourcePath === itemId) return;
+
+    // 如果不是文件夹，不能作为放置目标
+    if (!isFolder) return;
+
+    // 不能拖到自身的后代身上
+    if (isDescendantOf(itemId, sourcePath)) {
+      setModal({
+        show: true,
+        message: '不能将文件夹移动到自身的子文件夹中',
+        onConfirm: () => setModal({ show: false, message: '', onConfirm: null, onCancel: null }),
+        onCancel: null
+      });
+      return;
+    }
+
+    await handleMoveItem(sourcePath, itemId);
+  };
+
+  // 判断是否是当前放置目标
+  const isDropTarget = dropTargetId === itemId;
+
   return (
     <li
       key={itemId}
@@ -175,8 +294,18 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
         />
       )}
       <div
-        className={`chapter-item-content flex ${isFolder && level > 0 ? 'nested-folder-content' : ''} cursor-pointer ${(selectedItem.id === itemId || lastSelectedItem.id === itemId) ? 'bg-theme-gray2 text-theme-green' : 'text-theme-white hover:text-theme-green hover:bg-theme-gray2'}`}
+        className={`chapter-item-content flex ${isFolder && level > 0 ? 'nested-folder-content' : ''} cursor-pointer 
+          ${(selectedItem.id === itemId || lastSelectedItem.id === itemId) ? 'bg-theme-gray2 text-theme-green' : 'text-theme-white hover:text-theme-green hover:bg-theme-gray2'}
+          ${draggedItemId === itemId ? 'opacity-50' : ''}
+          ${isDropTarget && isFolder ? 'ring-2 ring-theme-green ring-inset' : ''}
+          ${isDragOver && isFolder ? 'bg-theme-gray3' : ''}`}
         style={{ paddingLeft: `${level * 20}px` }}
+        draggable={true}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         onClick={() => {
           // 如果正在编辑，不触发点击事件
           if (selectedItem.state === 'renaming' && selectedItem.id === itemId) {
@@ -225,7 +354,7 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
               onClick={(e) => e.stopPropagation()}
             />
             {showInvalidCharWarning && (
-              <span className="text-theme-red text-xs mt-1">不可包含* " ' \ / {"< >"} : |特殊字符</span>
+              <span className="text-theme-red text-xs mt-1">不可包含* " \ / {"< >"} : |特殊字符</span>
             )}
           </div>
         ) : (
@@ -234,13 +363,32 @@ function ChapterTreeItem({ item, level, props }: ChapterTreeItemProps) {
           </span>
         )}
       </div>
-      {isFolder && hasChildren && collapsedChapters[itemId] && item.children && (
+      {/* 展开文件夹显示内容：有子项或正在创建新文件时显示 */}
+      {isFolder && (collapsedChapters[itemId] || isCreatingHere) && (
         <ul className="sub-chapter-list">
-          {item.children.map((child: ChapterItem) => (
+          {/* 在此文件夹中创建新文件/文件夹的输入框 */}
+          {isCreatingHere && (
+            <li className="chapter-list-item">
+              <div
+                className="chapter-item-content flex cursor-pointer text-theme-green bg-theme-gray2"
+                style={{ paddingLeft: `${(level + 1) * 20}px` }}
+              >
+                <CreateInput
+                  isFolder={creatingItem.isFolder}
+                  onConfirm={onConfirmCreate}
+                  onCancel={onCancelCreate}
+                />
+              </div>
+            </li>
+          )}
+          {hasChildren && item.children && item.children.map((child: ChapterItem) => (
             <ChapterTreeItem
               key={child.id}
               item={child}
               level={level + 1}
+              creatingItem={creatingItem}
+              onConfirmCreate={onConfirmCreate}
+              onCancelCreate={onCancelCreate}
               props={props}
             />
           ))}

@@ -34,7 +34,7 @@ interface ChapterContextMenuProps {
   lastSelectedItem: LastSelectedItem;
   setLastSelectedItem: (item: LastSelectedItem) => void;
   handleCloseContextMenu: () => void;
-  handleCreateItem: (isFolder: boolean, parentId: string | undefined) => void;
+  handleCreateItem: (isFolder: boolean, parentPath: string) => void;
   setModal: (modal: Modal) => void;
 }
 
@@ -144,8 +144,8 @@ function ChapterContextMenu({
       if (isFolder) {
         items.push(
           { divider: true },
-          { label: '新建文件', onClick: () => handleCreateItem(false, selectedItem.id || undefined) },
-          { label: '新建文件夹', onClick: () => handleCreateItem(true, selectedItem.id || undefined) }
+          { label: '新建文件', onClick: () => handleCreateItem(false, selectedItem.id || '') },
+          { label: '新建文件夹', onClick: () => handleCreateItem(true, selectedItem.id || '') }
         );
       }
     } else {

@@ -10,6 +10,7 @@ import MCPSettingsPanel from './mcp/MCPSettingsPanel';
 import TopActionBar from './others/TopActionBar';
 import SearchPanel from './search/SearchPanel';
 import CheckpointPanel from './checkpoint/CheckpointPanel';
+import { TerminalPanel } from './terminal';
 import httpClient from '../utils/httpClient';
 
 interface LayoutComponentProps {
@@ -20,11 +21,12 @@ interface LayoutComponentProps {
 
 function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutComponentProps) {
   const dispatch = useDispatch();
-  const [activePanel, setActivePanel] = useState<string | null>(null); // 'api' | 'rag' | 'agent' | 'mcp' | null
-  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false); // 是否折叠
-  const [leftPanelContent, setLeftPanelContent] = useState<'chapter' | 'search' | 'checkpoint'>('chapter'); // 展开时显示的内容
+  const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+  const [leftPanelContent, setLeftPanelContent] = useState<'chapter' | 'search' | 'checkpoint'>('chapter');
   const [leftPanelSize, setLeftPanelSize] = useState(15);
   const [rightPanelSize, setRightPanelSize] = useState(25);
+  const [isTerminalVisible, setIsTerminalVisible] = useState(false);
   const leftPanelRef = useRef<ImperativePanelHandle>(null);
 
   // 同步折叠状态
@@ -61,6 +63,25 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
     }
   };
 
+  // 切换终端面板显示
+  const handleToggleTerminal = () => {
+    setIsTerminalVisible(prev => !prev);
+  };
+
+  // 监听键盘快捷键
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+` 切换终端
+      if (event.ctrlKey && event.key === '`') {
+        event.preventDefault();
+        handleToggleTerminal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // 处理搜索结果中的文件选择
   const handleFileSelect = async (filePath: string) => {
     try {
@@ -79,86 +100,110 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
         leftPanelContent={leftPanelContent}
         onToggleCollapse={handleToggleCollapse}
         onLeftPanelContentChange={handleLeftPanelContentChange}
+        isTerminalVisible={isTerminalVisible}
+        onToggleTerminal={handleToggleTerminal}
       />
       <div className="h-[97%] flex-grow flex">
-      <PanelGroup direction="horizontal" className="flex-grow flex h-full overflow-hidden min-h-0">
-        {/* 左侧组件栏 - 固定宽度 */}
-        <div className="bg-theme-black p-0 w-[50px] flex-shrink-0 overflow-hidden border-r border-theme-gray3">
-          <SidebarComponent
-            activePanel={activePanel}
-            setActivePanel={setActivePanel}
-          />
-        </div>
-        
-        {/* 左侧面板 - 章节列表或搜索面板 */}
-        <Panel
-          ref={leftPanelRef}
-          defaultSize={leftPanelSize}
-          minSize={0}
-          maxSize={100}
-          collapsible={true}
-          onResize={handleLeftPanelChange}
-          onCollapse={() => setIsLeftPanelCollapsed(true)}
-          onExpand={() => setIsLeftPanelCollapsed(false)}
-          className="bg-theme-black p-0"
-        >
-          {leftPanelContent === 'chapter' && chapterPanel}
-          {leftPanelContent === 'search' && (
-            <SearchPanel
-              onFileSelect={handleFileSelect}
-              embedded={true} /* 嵌入模式，不是全屏覆盖 */
-            />
-          )}
-          {leftPanelContent === 'checkpoint' && (
-            <CheckpointPanel />
-          )}
-        </Panel>
-        
-        <PanelResizeHandle className="w-[1px] bg-theme-gray3 cursor-ew-resize flex-shrink-0 relative" />
-        
-        {/* 编辑器面板 */}
-        <Panel
-          defaultSize={60}
-          minSize={0}
-          maxSize={100}
-          className="bg-theme-black p-0 flex flex-col h-full overflow-hidden"
-        >
-          {editorPanel}
-        </Panel>
+        <PanelGroup direction="vertical" className="flex-grow flex h-full overflow-hidden min-h-0">
+          {/* 上部区域：现有三栏布局 */}
+          <Panel 
+            defaultSize={isTerminalVisible ? 75 : 100} 
+            minSize={30}
+            className="flex flex-col"
+          >
+            <PanelGroup direction="horizontal" className="flex-grow flex h-full overflow-hidden min-h-0">
+              {/* 左侧组件栏 - 固定宽度 */}
+              <div className="bg-theme-black p-0 w-[50px] flex-shrink-0 overflow-hidden border-r border-theme-gray3">
+                <SidebarComponent
+                  activePanel={activePanel}
+                  setActivePanel={setActivePanel}
+                />
+              </div>
+              
+              {/* 左侧面板 - 章节列表或搜索面板 */}
+              <Panel
+                ref={leftPanelRef}
+                defaultSize={leftPanelSize}
+                minSize={0}
+                maxSize={100}
+                collapsible={true}
+                onResize={handleLeftPanelChange}
+                onCollapse={() => setIsLeftPanelCollapsed(true)}
+                onExpand={() => setIsLeftPanelCollapsed(false)}
+                className="bg-theme-black p-0"
+              >
+                {leftPanelContent === 'chapter' && chapterPanel}
+                {leftPanelContent === 'search' && (
+                  <SearchPanel
+                    onFileSelect={handleFileSelect}
+                    embedded={true}
+                  />
+                )}
+                {leftPanelContent === 'checkpoint' && (
+                  <CheckpointPanel />
+                )}
+              </Panel>
+              
+              <PanelResizeHandle className="w-[1px] bg-theme-gray3 cursor-ew-resize flex-shrink-0 relative" />
+              
+              {/* 编辑器面板 */}
+              <Panel
+                defaultSize={60}
+                minSize={0}
+                maxSize={100}
+                className="bg-theme-black p-0 flex flex-col h-full overflow-hidden"
+              >
+                {editorPanel}
+              </Panel>
 
-        <PanelResizeHandle className="w-[1px] bg-theme-gray3 cursor-ew-resize flex-shrink-0 relative" />
-        
-        {/* 聊天面板 */}
-        <Panel
-          defaultSize={rightPanelSize} /* 使用 defaultSize 允许用户拖动 */
-          minSize={0} /* 允许完全隐藏 */
-          maxSize={100} /* 允许全范围拖动 */
-          className="bg-theme-black p-0 flex flex-col h-full overflow-hidden"
-          onResize={handleRightPanelChange} /* 监听尺寸变化 */
-        >
-          {chatPanel}
-        </Panel>
-      </PanelGroup>
+              <PanelResizeHandle className="w-[1px] bg-theme-gray3 cursor-ew-resize flex-shrink-0 relative" />
+              
+              {/* 聊天面板 */}
+              <Panel
+                defaultSize={rightPanelSize}
+                minSize={0}
+                maxSize={100}
+                className="bg-theme-black p-0 flex flex-col h-full overflow-hidden"
+                onResize={handleRightPanelChange}
+              >
+                {chatPanel}
+              </Panel>
+            </PanelGroup>
+          </Panel>
 
-      {/* 设置面板 - 全屏覆盖 */}
-      {activePanel && (
-        <div className="fixed top-[3%] left-[51px] right-0 bottom-0 bg-theme-black z-[1000]">
-          {activePanel === 'api' && (
-            <ProviderSettingsPanel />
+          {/* 终端面板 */}
+          {isTerminalVisible && (
+            <>
+              <PanelResizeHandle className="h-[2px] bg-theme-gray3 hover:bg-theme-green cursor-ns-resize" />
+              <Panel
+                defaultSize={25}
+                minSize={10}
+                maxSize={60}
+                className="bg-theme-black"
+              >
+                <TerminalPanel isVisible={isTerminalVisible} />
+              </Panel>
+            </>
           )}
-          {activePanel === 'rag' && (
-            <RagManagementPanel />
-          )}
-          {activePanel === 'agent' && (
-            <AgentPanel
-            />
-          )}
-          {activePanel === 'mcp' && (
-            <MCPSettingsPanel />
-          )}
-        </div>
-      )}
+        </PanelGroup>
 
+        {/* 设置面板 - 全屏覆盖 */}
+        {activePanel && (
+          <div className="fixed top-[3%] left-[51px] right-0 bottom-0 bg-theme-black z-[1000]">
+            {activePanel === 'api' && (
+              <ProviderSettingsPanel />
+            )}
+            {activePanel === 'rag' && (
+              <RagManagementPanel />
+            )}
+            {activePanel === 'agent' && (
+              <AgentPanel />
+            )}
+            {activePanel === 'mcp' && (
+              <MCPSettingsPanel />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

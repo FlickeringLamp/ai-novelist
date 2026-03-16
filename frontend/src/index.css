@@ -7,6 +7,7 @@
   --color-theme-green1: var(--color-green1);
   --color-theme-white: var(--color-white);
   --color-theme-red:   var(--color-red);
+  --color-theme-yellow: var(--color-yellow);
   --color-theme-gray1: var(--color-gray1);
   --color-theme-gray2: var(--color-gray2);
   --color-theme-gray3: var(--color-gray3);
@@ -29,7 +30,8 @@
   --color-green: #34eb5c;    /* 绿色：普通状态，用于小件 */
   --color-green1: #2ad541;  /* 暗绿色：用于用户消息气泡 */
   --color-white: #FFFFFF;    /* 纯白色：普通状态，多用于字体 */
-  --color-red:   #ff0000;      /* 红色：错误/离线状态，用于小件 */
+  --color-red:   #ff0000;    /* 红色：错误/离线状态，用于小件 */
+  --color-yellow: #eab308;   /* 黄色：修改状态，用于小件 */
   --color-gray1: #111111;    /* 焦浓重淡清 */
   --color-gray2: #333333;
   --color-gray3: #666666;

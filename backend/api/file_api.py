@@ -15,8 +15,10 @@ from backend.file.file_service import (
     get_file_tree_for_user,
     upload_image,
     search_files_for_user,
+    get_all_file_paths,
 )
 from backend.config.config import settings
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,7 @@ class CreateItemRequest(BaseModel):
     """创建文件或文件夹请求（通用）"""
     parent_path: str = Field(default="", description="父目录路径")
     is_folder: bool = Field(default=False, description="是否为文件夹")
+    name: str = Field(..., description="文件或文件夹名称")
 
 
 class RenameItemRequest(BaseModel):
@@ -57,6 +60,7 @@ class UpdateContentRequest(BaseModel):
 async def api_create_item(request: CreateItemRequest) -> Dict[str, Any]:
     """创建文件或文件夹"""
     return await create_item(
+        name=request.name,
         is_folder=request.is_folder,
         parent_path=request.parent_path
     )
@@ -126,4 +130,11 @@ async def api_search_files(query: str):
     logger.info(f"搜索关键词: {query}, 搜索结果数量: {len(results)}")
     logger.info(f"搜索结果: {results}")
     return results
+
+
+@router.get("/all-paths", summary="获取所有文件路径", response_model=List[str])
+async def api_get_all_file_paths():
+    """获取所有文件路径列表（用于文件路径补全）"""
+    file_paths = await get_all_file_paths()
+    return file_paths
 

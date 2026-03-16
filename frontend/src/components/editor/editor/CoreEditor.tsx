@@ -4,7 +4,7 @@ import loader from '@monaco-editor/loader';
 import type * as Monaco from 'monaco-editor';
 import { useTheme } from '../../../context/ThemeContext.tsx';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateTabContent, saveTabContent, isTabInDiffMode, type RootState } from '../../../store/editor.ts';
+import { updateTabContent, saveTabContent, isTabInDiffMode, isTabInCheckpointPreview, getCheckpointContent, type RootState } from '../../../store/editor.ts';
 import api from '../../../utils/httpClient.ts';
 import UnifiedModal from '../../others/UnifiedModal';
 import { useFetchFileTree } from '../../../utils/fileTreeHelper.ts';
@@ -108,6 +108,8 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
   const backUpData = useSelector((state: RootState) => state.tabSlice.backUp);
   const value = activeTab ? (currentData[activeTab] || '') : '';
   const isDiffMode = useSelector((state: RootState) => activeTab ? isTabInDiffMode(state, activeTab) : false);
+  const isCheckpointPreview = useSelector((state: RootState) => activeTab ? isTabInCheckpointPreview(state, activeTab) : false);
+  const checkpointContent = useSelector((state: RootState) => activeTab ? getCheckpointContent(state, activeTab) : '');
   const [isSaving, setIsSaving] = useState(false);
   const [errorModal, setErrorModal] = useState<string | null>(null);
 
@@ -234,7 +236,7 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
         />
       )}
       
-      {isDiffMode ? (
+      {isDiffMode || isCheckpointPreview ? (
         <DiffEditor
           height="100%"
           language={activeTab ? getLanguageFromExtension(activeTab) : 'markdown'}
@@ -242,7 +244,7 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
             defineTheme(monaco, theme);
           }}
           theme="theme-green"
-          original={activeTab ? (backUpData[activeTab] || '') : ''}
+          original={isCheckpointPreview ? checkpointContent : (activeTab ? (backUpData[activeTab] || '') : '')}
           modified={value}
           onMount={(editor, monaco) => {
             editorRef.current = editor.getModifiedEditor();

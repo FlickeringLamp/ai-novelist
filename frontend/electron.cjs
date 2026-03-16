@@ -33,52 +33,39 @@ function getBackendPath() {
 // 启动后端服务
 function startBackend() {
   const backend = getBackendPath();
+  const { spawn } = require('child_process');
   
   if (backend.type === 'python') {
     // 开发环境：使用 Python 运行
-    const { exec } = require('child_process');
-    backendProcess = exec(`start cmd /k "python ${backend.path}"`, {
-      cwd: path.dirname(backend.path)
+    // 跨平台启动 Python
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    backendProcess = spawn(pythonCmd, [backend.path], {
+      cwd: path.dirname(backend.path),
+      detached: false,
+      stdio: 'inherit'
     });
-    // 获取 Python 进程的 PID（需要稍后通过进程名查找）
-    setTimeout(() => {
-      const { execSync } = require('child_process');
-      try {
-        const output = execSync('tasklist /FI "IMAGENAME eq python.exe" /FO CSV /NH').toString();
-        const lines = output.trim().split('\n');
-        if (lines.length > 0) {
-          const pid = lines[0].split(',')[1].replace(/"/g, '');
-          backendPid = parseInt(pid);
-        }
-      } catch (e) {
-        console.error('获取后端进程 PID 失败:', e);
-      }
-    }, 1000);
+    
+    // 直接获取 PID
+    if (backendProcess.pid) {
+      backendPid = backendProcess.pid;
+    }
   } else {
     // 生产环境：运行 exe
     if (!fs.existsSync(backend.path)) {
       console.error('后端可执行文件不存在:', backend.path);
       return;
     }
-    const { exec } = require('child_process');
-    backendProcess = exec(`start "" "${backend.path}"`, {
-      cwd: path.dirname(backend.path)
+    
+    backendProcess = spawn(backend.path, [], {
+      cwd: path.dirname(backend.path),
+      detached: false,
+      stdio: 'inherit'
     });
-    // 获取后端进程的 PID（需要稍后通过进程名查找）
-    setTimeout(() => {
-      const { execSync } = require('child_process');
-      try {
-        const exeName = path.basename(backend.path);
-        const output = execSync(`tasklist /FI "IMAGENAME eq ${exeName}" /FO CSV /NH`).toString();
-        const lines = output.trim().split('\n');
-        if (lines.length > 0) {
-          const pid = lines[0].split(',')[1].replace(/"/g, '');
-          backendPid = parseInt(pid);
-        }
-      } catch (e) {
-        console.error('获取后端进程 PID 失败:', e);
-      }
-    }, 1000);
+    
+    // 直接获取 PID
+    if (backendProcess.pid) {
+      backendPid = backendProcess.pid;
+    }
   }
 
   backendProcess.on('close', (code) => {
@@ -86,41 +73,78 @@ function startBackend() {
     backendProcess = null;
   });
 
-  console.log('后端服务已启动');
+  console.log('后端服务已启动，PID:', backendPid);
 }
 
 // 停止后端服务
 function stopBackend(callback) {
   const { exec, execSync } = require('child_process');
   
-  const checkAndKill = () => {
+  // 跨平台获取端口占用进程PID
+  const getPidByPort = (port) => {
     try {
-      const output = execSync('netstat -ano | findstr :8000').toString();
-      if (output.trim().length > 0) {
-        // 解析PID并关闭
+      let output;
+      if (process.platform === 'win32') {
+        // Windows: netstat -ano | findstr :8000
+        output = execSync(`netstat -ano | findstr :${port}`).toString();
         const lines = output.trim().split('\n');
+        const pids = new Set();
         for (const line of lines) {
           const parts = line.trim().split(/\s+/);
           if (parts.length >= 5) {
-            const pid = parts[parts.length - 1];
-            exec(`taskkill /F /PID ${pid}`, (error) => {
-              if (error) {
-                console.error('关闭进程失败:', error);
-              } else {
-                console.log(`已关闭进程 PID: ${pid}`);
-              }
-            });
+            pids.add(parts[parts.length - 1]);
           }
         }
-        // 继续检查
-        setTimeout(checkAndKill, 500);
+        return Array.from(pids);
       } else {
-        // 没有进程了，执行回调
-        console.log('8000端口已释放');
-        if (callback) callback();
+        // Linux/Mac: lsof -ti:8000 或 ss -tlnp
+        try {
+          output = execSync(`lsof -ti:${port}`).toString();
+          return output.trim().split('\n').filter(pid => pid);
+        } catch (e) {
+          // lsof 可能不存在，尝试使用 fuser
+          try {
+            output = execSync(`fuser ${port}/tcp 2>/dev/null`).toString();
+            return output.trim().split(/\s+/).filter(pid => pid);
+          } catch (e2) {
+            return [];
+          }
+        }
       }
     } catch (e) {
-      // netstat命令失败说明没有占用
+      return [];
+    }
+  };
+  
+  // 跨平台杀死进程
+  const killProcess = (pid, signal = 'SIGTERM') => {
+    return new Promise((resolve) => {
+      if (process.platform === 'win32') {
+        exec(`taskkill /F /PID ${pid}`, (error) => {
+          resolve(!error);
+        });
+      } else {
+        try {
+          process.kill(parseInt(pid), signal);
+          resolve(true);
+        } catch (e) {
+          resolve(false);
+        }
+      }
+    });
+  };
+  
+  const checkAndKill = async () => {
+    const pids = getPidByPort(8000);
+    if (pids.length > 0) {
+      // 关闭所有占用端口的进程
+      for (const pid of pids) {
+        await killProcess(pid, 'SIGTERM');
+      }
+      // 继续检查
+      setTimeout(checkAndKill, 500);
+    } else {
+      // 没有进程了，执行回调
       console.log('8000端口已释放');
       if (callback) callback();
     }
@@ -128,12 +152,8 @@ function stopBackend(callback) {
   
   // 先关闭已知的backendPid
   if (backendPid) {
-    exec(`taskkill /F /PID ${backendPid}`, (error) => {
-      if (error) {
-        console.error('停止后端服务失败:', error);
-      } else {
-        console.log('后端服务已停止');
-      }
+    killProcess(backendPid, 'SIGTERM').then(() => {
+      console.log('后端服务已停止');
       backendPid = null;
       backendProcess = null;
       // 检查端口是否还有进程
@@ -253,5 +273,99 @@ ipcMain.handle('window-close', () => {
   if (mainWindow) {
     mainWindow.close();
   }
+});
+
+// ============ 终端功能 ============
+const pty = require('node-pty');
+
+// 存储终端实例
+const terminals = new Map();
+
+// 获取默认 shell
+function getDefaultShell() {
+  if (process.platform === 'win32') {
+    return 'powershell.exe';
+  }
+  return process.env.SHELL || '/bin/bash';
+}
+
+// 创建终端
+ipcMain.handle('terminal:create', (event, { terminalId, shell, cwd }) => {
+  try {
+    const shellPath = shell || getDefaultShell();
+    const cwdPath = cwd || process.env.HOME || process.cwd();
+
+    const ptyProcess = pty.spawn(shellPath, [], {
+      name: 'xterm-color',
+      cwd: cwdPath,
+      env: process.env,
+      useConpty: process.platform === 'win32',
+    });
+
+    // 转发 PTY 输出到前端
+    ptyProcess.onData((data) => {
+      event.sender.send(`terminal:data:${terminalId}`, data);
+    });
+
+    ptyProcess.onExit(({ exitCode, signal }) => {
+      event.sender.send(`terminal:exit:${terminalId}`, { exitCode, signal });
+      terminals.delete(terminalId);
+    });
+
+    terminals.set(terminalId, ptyProcess);
+
+    return { success: true, pid: ptyProcess.pid };
+  } catch (error) {
+    console.error('创建终端失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 向终端写入数据
+ipcMain.handle('terminal:write', (event, { terminalId, data }) => {
+  const ptyProcess = terminals.get(terminalId);
+  if (ptyProcess) {
+    ptyProcess.write(data);
+    return { success: true };
+  }
+  return { success: false, error: 'Terminal not found' };
+});
+
+// 调整终端大小
+ipcMain.handle('terminal:resize', (event, { terminalId, cols, rows }) => {
+  const ptyProcess = terminals.get(terminalId);
+  if (ptyProcess) {
+    ptyProcess.resize(cols, rows);
+    return { success: true };
+  }
+  return { success: false, error: 'Terminal not found' };
+});
+
+// 关闭终端
+ipcMain.handle('terminal:kill', (event, { terminalId }) => {
+  const ptyProcess = terminals.get(terminalId);
+  if (ptyProcess) {
+    ptyProcess.kill();
+    terminals.delete(terminalId);
+    return { success: true };
+  }
+  return { success: false, error: 'Terminal not found' };
+});
+
+// 清理所有终端
+ipcMain.handle('terminal:kill-all', () => {
+  for (const [terminalId, ptyProcess] of terminals) {
+    ptyProcess.kill();
+  }
+  terminals.clear();
+  return { success: true };
+});
+
+// 应用退出时清理终端
+app.on('before-quit', () => {
+  for (const [terminalId, ptyProcess] of terminals) {
+    ptyProcess.kill();
+  }
+  terminals.clear();
 });
 

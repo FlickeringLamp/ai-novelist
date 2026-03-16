@@ -16,6 +16,8 @@ export interface EditorState {
   currentData: Record<string, string>; // id → content，用户实时操作的数据
   backUp: Record<string, string>; // id → content，备份用的，主要功能是对比，显示脏数据情况，后续可能用于ai编辑操作
   diffModeTabs: Record<string, boolean>; // 处于差异对比模式的标签ID集合
+  checkpointContent: Record<string, string>; // id → content，存档点预览的旧版本内容（仅左侧显示用）
+  checkpointPreviewTabs: Record<string, boolean>; // 处于存档点预览模式的标签ID集合
 }
 
 // 定义 RootState 类型
@@ -35,6 +37,8 @@ const editorState: EditorState = {
   currentData: {},
   backUp: {},
   diffModeTabs: {},
+  checkpointContent: {},
+  checkpointPreviewTabs: {},
 };
 
 // 其他给reducer用的辅助函数
@@ -164,6 +168,12 @@ export const tabSlice = createSlice({
 
       // 清理currentData
       cleanCurrentData(state, [tabId]);
+      
+      // 如果是checkpoint预览标签，清理相关状态
+      if (state.checkpointPreviewTabs[tabId]) {
+        delete state.checkpointPreviewTabs[tabId];
+        delete state.checkpointContent[tabId];
+      }
     },
     // 设置活跃标签
     setActiveTab: (
@@ -251,6 +261,14 @@ export const tabSlice = createSlice({
 
       // 清理被关闭标签的currentData
       cleanCurrentData(state, closedTabs);
+      
+      // 清理被关闭标签的checkpoint预览状态
+      closedTabs.forEach(tabId => {
+        if (state.checkpointPreviewTabs[tabId]) {
+          delete state.checkpointPreviewTabs[tabId];
+          delete state.checkpointContent[tabId];
+        }
+      });
     },
     // 关闭所有已保存标签
     closeSavedTabs: (state: Draft<EditorState>) => {
@@ -280,6 +298,14 @@ export const tabSlice = createSlice({
 
       // 清理被关闭标签的currentData
       cleanCurrentData(state, closedTabs);
+      
+      // 清理被关闭标签的checkpoint预览状态
+      closedTabs.forEach(tabId => {
+        if (state.checkpointPreviewTabs[tabId]) {
+          delete state.checkpointPreviewTabs[tabId];
+          delete state.checkpointContent[tabId];
+        }
+      });
     },
     // 关闭所有标签
     closeAllTabs: (state: Draft<EditorState>) => {
@@ -293,6 +319,12 @@ export const tabSlice = createSlice({
 
       // 清理被关闭标签的currentData
       cleanCurrentData(state, closedTabs);
+      
+      // 清理所有checkpoint预览状态
+      closedTabs.forEach(tabId => {
+        delete state.checkpointPreviewTabs[tabId];
+        delete state.checkpointContent[tabId];
+      });
     },
     // 从所有标签栏中删除指定标签（用于文件删除时清理标签）
     deleteTabFromAllBars: (
@@ -331,6 +363,10 @@ export const tabSlice = createSlice({
       // 清理currentData和backUp
       delete state.currentData[tabId];
       delete state.backUp[tabId];
+      
+      // 清理checkpoint预览状态
+      delete state.checkpointPreviewTabs[tabId];
+      delete state.checkpointContent[tabId];
     },
     // 创建临时标签用于差异对比（用于文件工具调用）
     createTempDiffTab: (
@@ -388,6 +424,58 @@ export const tabSlice = createSlice({
       const { id } = action.payload;
       delete state.diffModeTabs[id];
     },
+    // 设置存档点预览（用于存档面板查看历史版本差异）
+    setCheckpointPreview: (
+      state: Draft<EditorState>,
+      action: PayloadAction<{ id: string; checkpointContent: string; currentContent: string }>,
+    ) => {
+      const { id, checkpointContent: oldContent, currentContent } = action.payload;
+
+      // 找到第一个有内容的标签栏，如果没有则使用第一个标签栏
+      const tabBarIds = Object.keys(state.tabBars);
+      let targetTabBarId = tabBarIds[0];
+
+      for (const tabBarId of tabBarIds) {
+        if (state.tabBars[tabBarId]!.tabs.length > 0) {
+          targetTabBarId = tabBarId;
+          break;
+        }
+      }
+
+      if (targetTabBarId) {
+        const targetTabBar = state.tabBars[targetTabBarId]!;
+
+        // 如果标签不存在，则添加
+        if (!targetTabBar.tabs.find((tab) => tab === id)) {
+          targetTabBar.tabs.push(id);
+        }
+
+        // 设置为活跃标签
+        targetTabBar.activeTabId = id;
+
+        // 设置活跃标签栏
+        state.activeTabBarId = targetTabBarId;
+      }
+
+      // 存档预览模式：
+      // - checkpointContent 存储旧版本（用于左侧显示）
+      // - backUp 和 currentData 都存储当前版本（避免脏状态）
+      state.checkpointContent[id] = oldContent;
+      state.backUp[id] = currentContent;
+      state.currentData[id] = currentContent;
+
+      // 添加到存档预览标签集合
+      state.checkpointPreviewTabs[id] = true;
+    },
+    // 退出存档点预览模式
+    exitCheckpointPreview: (
+      state: Draft<EditorState>,
+      action: PayloadAction<{ id: string }>,
+    ) => {
+      const { id } = action.payload;
+      delete state.checkpointPreviewTabs[id];
+      delete state.checkpointContent[id];
+    },
   },
 });
 
@@ -409,6 +497,8 @@ export const {
   updateDiffTabContent,
   exitDiffMode,
   updateBackUp,
+  setCheckpointPreview,
+  exitCheckpointPreview,
 } = tabSlice.actions;
 
 export default tabSlice.reducer;
@@ -456,5 +546,21 @@ export const isTabInDiffMode = createSelector(
   [(state: RootState) => state.tabSlice.diffModeTabs, (_: RootState, tabId: string) => tabId],
   (diffModeTabs, tabId): boolean => {
     return diffModeTabs[tabId] || false;
+  },
+);
+
+// 返回指定标签是否处于存档点预览模式
+export const isTabInCheckpointPreview = createSelector(
+  [(state: RootState) => state.tabSlice.checkpointPreviewTabs, (_: RootState, tabId: string) => tabId],
+  (checkpointPreviewTabs, tabId): boolean => {
+    return checkpointPreviewTabs[tabId] || false;
+  },
+);
+
+// 返回指定标签的存档点内容（用于左侧显示）
+export const getCheckpointContent = createSelector(
+  [(state: RootState) => state.tabSlice.checkpointContent, (_: RootState, tabId: string) => tabId],
+  (checkpointContent, tabId): string => {
+    return checkpointContent[tabId] || '';
   },
 );

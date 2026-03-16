@@ -467,6 +467,27 @@ const MessageDisplayPanel = () => {
     return firstLine || '...';
   };
 
+  // 渲染用户消息内容，高亮@文件路径
+  const renderUserMessageContent = (content: string) => {
+    if (!content) return null;
+    
+    // 匹配 @文件路径 的模式
+    const parts = content.split(/(@[^\s\n]+)/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('@') && part.length > 1) {
+        // 这是文件路径引用，使用theme-gray3高亮
+        return (
+          <span key={index} className="text-theme-gray3">
+            {part}
+          </span>
+        );
+      }
+      // 普通文本
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   // 当消息列表变化时自动滚动到底部
   const scrollRef = useRef(messages.length);
   if (messages.length !== scrollRef.current) {
@@ -560,7 +581,7 @@ const MessageDisplayPanel = () => {
             ) : (
               <div>
                 {isUser ? (
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  <div className="whitespace-pre-wrap">{renderUserMessageContent(msg.content || '')}</div>
                 ) : (
                   <div>
                     {msg.type === 'ai' && Boolean((msg as AIMessage).additional_kwargs?.reasoning_content) && (
