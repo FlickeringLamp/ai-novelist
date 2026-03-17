@@ -4,8 +4,9 @@
 """
 
 import os
+import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 import logging
 
 from backend.config.config import settings
@@ -24,6 +25,78 @@ class SystemPromptBuilder:
         self.file_tree_cache = None
         self.last_cache_time = None
         self.cache_timeout = 30  # 缓存30秒
+    
+    def _extract_at_paths(self, user_input: str) -> List[str]:
+        """从用户输入中提取 @+路径 模式的路径列表
+        
+        匹配规则：@后面跟随的路径不包含空格或换行
+        例如："请查看 @folder/file.txt 和 @readme.md" -> ["folder/file.txt", "readme.md"]
+        
+        Args:
+            user_input: 用户输入文本
+            
+        Returns:
+            提取的文件路径列表（去重）
+        """
+        if not user_input:
+            return []
+        
+        # 匹配 @ 后面跟随的非空白字符（路径）
+        # 路径可以包含字母、数字、下划线、连字符、点、斜杠
+        pattern = r'@([\w\-\./]+)'
+        matches = re.findall(pattern, user_input)
+        
+        # 去重并保持顺序
+        seen = set()
+        unique_paths = []
+        for path in matches:
+            if path not in seen:
+                seen.add(path)
+                unique_paths.append(path)
+        
+        return unique_paths
+    
+    async def _get_at_files_content(self, user_input: str) -> str:
+        """获取用户输入中 @路径 对应的文件内容
+        
+        Args:
+            user_input: 用户输入文本
+            
+        Returns:
+            格式化的文件内容字符串
+        """
+        try:
+            # 提取 @路径
+            at_paths = self._extract_at_paths(user_input)
+            
+            if not at_paths:
+                return ""
+            
+            logger.info(f"从用户输入中提取到 @路径: {at_paths}")
+            
+            # 构建格式化的文件内容
+            file_contents = []
+            
+            for file_path in at_paths:
+                try:
+                    # 使用 file_service 的 read_file 读取文件内容
+                    content = await read_file(file_path)
+                    
+                    if content:
+                        file_contents.append(f"[@引用文件 - {file_path}]:\n{content}")
+                    else:
+                        logger.warning(f"@引用文件内容为空或文件不存在: {file_path}")
+                except Exception as e:
+                    logger.error(f"读取@引用文件失败 {file_path}: {e}")
+            
+            if file_contents:
+                return "\n\n".join(file_contents)
+            else:
+                return ""
+                
+        except Exception as e:
+            logger.error(f"获取 @路径 文件内容失败: {e}")
+            return ""
     
     async def _get_additional_files_content(self, mode: str) -> str:
         """获取指定模式的 additionalInfo 文件列表内容
@@ -295,11 +368,25 @@ class SystemPromptBuilder:
                 file_tree_content = await self.get_file_tree_content()
                 prompt_parts.append(file_tree_content)
             
-            # 添加额外文件内容
+            # 添加额外文件内容（包括 @路径 引用的文件和模式配置中的 additionalInfo）
             if include_persistent_memory:
+                # 添加 @路径 引用的文件内容（用户输入中的 @文件路径）
+                at_files_content = ""
+                if user_input:
+                    at_files_content = await self._get_at_files_content(user_input)
+                
+                # 添加模式配置中的 additionalInfo 文件内容
                 additional_files_content = await self._get_additional_files_content(mode or "")
+                
+                # 合并所有额外文件内容
+                all_extra_content = []
+                if at_files_content:
+                    all_extra_content.append(at_files_content)
                 if additional_files_content:
-                    prompt_parts.append(f"[额外文件内容]:\n{additional_files_content}")
+                    all_extra_content.append(additional_files_content)
+                
+                if all_extra_content:
+                    prompt_parts.append(f"[额外文件内容]:\n\n{'\n\n'.join(all_extra_content)}")
             
             # 执行RAG检索并添加结果
             if enable_rag and user_input:

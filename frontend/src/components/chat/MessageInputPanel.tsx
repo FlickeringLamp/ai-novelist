@@ -1,7 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faStop } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { RootState } from '../../store/store';
 import {
   addUserMessage,
@@ -17,10 +17,13 @@ import httpClient from '../../utils/httpClient';
 import { tryCompleteJSON } from '../../utils/jsonUtils';
 import { useFileToolHandler } from '../../utils/fileToolHandler';
 import { handleInterruptResponse } from '../../utils/interruptHandler';
+import { useFilePathAutocomplete } from './hooks/useFilePathAutocomplete';
+import { FilePathAutocomplete } from './FilePathAutocomplete';
 
 const MessageInputPanel = () => {
   const dispatch = useDispatch();
   const { processFileToolCalls } = useFileToolHandler();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // 从Redux获取状态
   const message = useSelector((state: RootState) => state.chatSlice.message);
@@ -32,6 +35,31 @@ const MessageInputPanel = () => {
   
   // 本地错误状态
   const [error, setError] = useState('');
+  
+  // 文件路径补全功能
+  const {
+    isOpen: isAutocompleteOpen,
+    filteredPaths,
+    selectedIndex,
+    query,
+    handleInputChange: handleAutocompleteInput,
+    handleKeyDown: handleAutocompleteKeyDown,
+    selectPath,
+    closeAutocomplete
+  } = useFilePathAutocomplete(message, (newMessage) => {
+    dispatch(setMessage(newMessage));
+    // 设置光标位置到选中路径之后
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const atIndex = newMessage.lastIndexOf('@');
+        if (atIndex !== -1) {
+          const endPos = atIndex + 1 + (filteredPaths[selectedIndex] || '').length;
+          textareaRef.current.setSelectionRange(endPos, endPos);
+          textareaRef.current.focus();
+        }
+      }
+    }, 0);
+  });
   
   // 生成唯一消息ID
   const generateMessageId = () => {
@@ -268,12 +296,61 @@ const MessageInputPanel = () => {
 
   // 处理键盘事件
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // 先处理文件路径补全的键盘事件
+    if (handleAutocompleteKeyDown(e)) {
+      return;
+    }
+    
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
+  // 处理输入变化
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    dispatch(setMessage(value));
+    handleAutocompleteInput(value, cursorPos);
+  };
+
+  // 处理选中文件路径
+  const handleSelectPath = (path: string) => {
+    const newMessage = selectPath(path);
+    dispatch(setMessage(newMessage));
+    // 设置光标位置
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const atIndex = newMessage.indexOf('@' + path);
+        if (atIndex !== -1) {
+          const endPos = atIndex + 1 + path.length;
+          textareaRef.current.setSelectionRange(endPos, endPos);
+          textareaRef.current.focus();
+        }
+      }
+    }, 0);
+  };
+
+
+  // 渲染带高亮的文本内容
+  const renderHighlightedContent = () => {
+    if (!message) return <br />;
+    
+    // 匹配 @路径 的模式
+    const parts = message.split(/(@[^\s\n]+)/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('@') && part.length > 1) {
+        return (
+          <span key={index} className="bg-theme-gray3 text-theme-green rounded-sm px-0.5">
+            {part}
+          </span>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
 
   return (
     <>
@@ -281,12 +358,30 @@ const MessageInputPanel = () => {
       <div className="h-[15%] p-2.5 border border-theme-gray3 flex flex-col">
         {/* 输入框占位 */}
         <div className="flex w-full flex-1 relative overflow-visible">
+          {/* 文件路径补全下拉框 */}
+          <FilePathAutocomplete
+            isOpen={isAutocompleteOpen}
+            paths={filteredPaths}
+            selectedIndex={selectedIndex}
+            query={query}
+            onSelect={handleSelectPath}
+            onClose={closeAutocomplete}
+          />
+          {/* 高亮层 - 显示带背景色的文本 */}
+          <pre
+            className="absolute inset-0 m-0 p-0 bg-transparent text-transparent border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 pointer-events-none overflow-hidden whitespace-pre-wrap break-words leading-[normal]"
+            style={{ fontFamily: 'inherit' }}
+            aria-hidden="true"
+          >
+            {renderHighlightedContent()}
+          </pre>
           <textarea
-            className="bg-theme-black text-theme-white border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 focus:outline-none"
-            placeholder="同时按下shift+回车可换行"
+            ref={textareaRef}
+            className="bg-transparent text-theme-white border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 focus:outline-none"
+            placeholder="输入@引用文件，同时按下shift+回车可换行"
             rows={3}
             value={message}
-            onChange={(e) => dispatch(setMessage(e.target.value))}
+            onChange={handleChange}
             onKeyDown={handleKeyDown}
           />
           {isStreaming ? (

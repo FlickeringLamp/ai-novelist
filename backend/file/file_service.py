@@ -121,34 +121,23 @@ async def get_file_tree_for_ai(dir_path: str, base_dir_path: str) -> List[Dict]:
     return await get_file_tree(dir_path, base_dir_path, ignore_parser)
 
 
-async def generate_unique_name(target_dir: str, is_folder: bool = False) -> str:
-    """生成唯一的文件或文件夹名称"""
-    if is_folder:
-        base_name = "新建文件夹"
-        ext_name = ""
-    else:
-        base_name = "新建文件"
-        ext_name = ""
-
-    counter = 0
-    unique_name = ""
-
-    while True:
-        counter += 1
-        current_name = f"{base_name}{counter}{ext_name}"
-
-        full_path = os.path.join(target_dir, current_name)
-
-        if not os.path.exists(full_path):
-            unique_name = current_name
-            break
-    return unique_name
-
-async def create_item(is_folder: bool = False, parent_path: str = "") -> Dict[str, Any]:
-    """创建文件或文件夹"""
+async def create_item(name: str, is_folder: bool = False, parent_path: str = "") -> Dict[str, Any]:
+    """创建文件或文件夹
+    
+    Args:
+        name: 文件或文件夹名称
+        is_folder: 是否为文件夹
+        parent_path: 父目录路径
+    
+    Returns:
+        创建的项目信息
+    """
     target_dir = os.path.join(settings.DATA_DIR, parent_path)
-    unique_name = await generate_unique_name(target_dir, is_folder)
-    item_path = os.path.join(target_dir, unique_name)
+    item_path = os.path.join(target_dir, name)
+    
+    # 检查文件/文件夹是否已存在
+    if os.path.exists(item_path):
+        raise HTTPException(status_code=409, detail=f"{'文件夹' if is_folder else '文件'} '{name}' 已存在")
 
     # 根据类型创建文件或文件夹
     if is_folder:
@@ -163,7 +152,7 @@ async def create_item(is_folder: bool = False, parent_path: str = "") -> Dict[st
     # 构建返回结果
     result = {
         "id": relative_id,
-        "title": unique_name,
+        "title": name,
         "path": item_path,
         "type": "folder" if is_folder else "file"
     }
@@ -415,3 +404,34 @@ async def upload_image(file: UploadFile) -> Dict[str, Any]:
         "filename": filename,
         "url": f"http://{settings.HOST}:{settings.PORT}/uploads/{filename}"
     }
+
+
+async def get_all_file_paths() -> List[str]:
+    """获取所有文件路径列表（用于文件路径补全）
+    
+    返回所有文件的相对路径列表，按字母顺序排序
+    
+    Returns:
+        文件路径列表
+    """
+    ignore_file = os.path.join(settings.DATA_DIR, '.userignore')
+    ignore_parser = IgnoreParser(ignore_file, settings.DATA_DIR)
+    ignored_paths = ignore_parser.get_ignored_paths()
+    
+    file_paths = []
+    
+    for root, dirs, files in os.walk(settings.DATA_DIR):
+        # 过滤掉被忽略的目录
+        dirs[:] = [d for d in dirs if os.path.normpath(os.path.join(root, d)) not in ignored_paths]
+        
+        for file in files:
+            file_path = os.path.normpath(os.path.join(root, file))
+            if file_path not in ignored_paths:
+                # 转换为相对路径
+                relative_path = os.path.relpath(file_path, settings.DATA_DIR)
+                # 统一使用正斜杠
+                relative_path = relative_path.replace('\\', '/')
+                file_paths.append(relative_path)
+    
+    # 使用自然排序
+    return natsorted(file_paths)

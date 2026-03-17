@@ -94,3 +94,17 @@ async def get_checkpoint_diff(commit_hash: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@checkpoint_router.get("/working-diff/{file_path:path}")
+async def get_working_diff(file_path: str):
+    """
+    获取当前工作区中指定文件与最新提交之间的差异。
+    """
+    try:
+        service = get_checkpoint_service()
+        result = service.get_working_diff(file_path=file_path)
+        return result
+    except Exception as e:
+        logger.error(f"获取工作区差异失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+

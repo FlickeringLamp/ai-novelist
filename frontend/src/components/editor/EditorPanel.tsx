@@ -88,7 +88,7 @@ const EditorPanel = () => {
         {/* 遍历所有"标签栏+地址栏+编辑器" */}
         {hasTabBars ? (Object.entries(tabBars).map(([tabBarId, tabBar]) => (
           // 标签栏与编辑器垂直排列
-          <div key={tabBarId} className="flex flex-col min-w-0" style={{ flex: 1 }}>
+          <div key={tabBarId} className="flex flex-col min-w-0 h-full" style={{ flex: 1 }}>
             {/* 标签栏和地址栏组件 */}
             <TabBar
               tabBarId={tabBarId}
@@ -121,7 +121,7 @@ const EditorPanel = () => {
               onTabDrop={(fromIndex, toIndex) => dispatch(reorderTabs({ fromIndex, toIndex }))}
             />
             {/* 编辑器区域 */}
-            <TabBarEditorArea 
+            <TabBarEditorArea
               tabBar={tabBar}
               tabBarId={tabBarId}
             />

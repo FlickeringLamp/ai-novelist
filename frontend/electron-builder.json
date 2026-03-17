@@ -5,8 +5,7 @@
     "output": "../dist/exe"
   },
   "files": [
-    "electron.cjs",
-    "preload.cjs",
+    "electron/**/*",
     "package.json",
     {
       "from": "../dist/frontend",

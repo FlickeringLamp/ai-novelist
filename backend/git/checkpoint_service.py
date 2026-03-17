@@ -223,13 +223,20 @@ class CheckpointService:
         获取当前Git状态。
 
         Returns:
-            包含状态信息的字典。
+            包含状态信息的字典，包含带变更类型的文件列表。
         """
         try:
             repo = self.repo
 
-            # 获取修改的文件
-            modified_files = [item.a_path for item in repo.index.diff(None)]
+            # 获取工作区与暂存区之间的差异
+            diff_items = repo.index.diff(None)
+            changes = []
+            for item in diff_items:
+                change_info = {
+                    "path": item.a_path,
+                    "change_type": item.change_type,  # 'M'=修改, 'A'=新增, 'D'=删除
+                }
+                changes.append(change_info)
 
             # 判断是否有更改
             dirty = repo.is_dirty(untracked_files=True)
@@ -238,7 +245,9 @@ class CheckpointService:
                 "branch": repo.active_branch.name,
                 "dirty": dirty,
                 "untracked_files": repo.untracked_files,
-                "modified_files": modified_files,
+                "changes": changes,  # 带变更类型的文件列表
+                # 保留旧字段以保持向后兼容
+                "modified_files": [item["path"] for item in changes],
             }
 
         except GitCommandError as e:
@@ -246,6 +255,67 @@ class CheckpointService:
             return {
                 "initialized": False,
                 "error": str(e),
+            }
+
+    def get_working_diff(self, file_path: str) -> Dict[str, Any]:
+        """
+        获取当前工作区中指定文件与最新提交之间的差异。
+
+        Args:
+            file_path: 文件路径（相对路径）。
+
+        Returns:
+            包含差异信息的字典，包括 old_content 和 new_content。
+        """
+        try:
+            repo = self.repo
+            data_dir = Path(settings.DATA_DIR)
+            full_path = data_dir / file_path
+
+            # 读取当前工作区的文件内容（新内容）
+            # 如果文件不存在（被删除），则新内容为空字符串
+            new_content = ""
+            try:
+                with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
+                    new_content = f.read()
+            except FileNotFoundError:
+                # 文件在工作区不存在（已被删除）
+                new_content = ""
+            except Exception as e:
+                logger.error(f"读取文件失败: {e}")
+                return {
+                    "success": False,
+                    "message": f"读取文件失败: {str(e)}",
+                }
+
+            # 尝试从最新提交获取文件内容（旧内容）
+            old_content = ""
+            try:
+                # 获取最新提交
+                latest_commit = repo.head.commit
+                # 尝试获取该文件在最新提交中的内容
+                blob = latest_commit.tree / file_path
+                if blob:
+                    old_content = blob.data_stream.read().decode('utf-8', errors='replace')
+            except (KeyError, AttributeError):
+                # 文件在最新提交中不存在（新文件）
+                old_content = ""
+            except Exception as e:
+                logger.warning(f"获取文件在最新提交中的内容失败: {e}")
+                old_content = ""
+
+            return {
+                "success": True,
+                "path": file_path,
+                "old_content": old_content,
+                "new_content": new_content,
+            }
+
+        except GitCommandError as e:
+            logger.error(f"获取工作区差异失败: {e}")
+            return {
+                "success": False,
+                "message": f"获取工作区差异失败: {str(e)}",
             }
 
 

@@ -161,7 +161,7 @@ const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProp
               type="button"
               onClick={button.onClick}
               onFocus={() => setFocusedButtonIndex(index)}
-              className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm text-white hover:opacity-90 ${button.className || 'bg-gray-600'} ${focusedButtonIndex === index ? 'border-2 border-theme-white shadow-light' : ''}`}
+              className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm text-white hover:opacity-90 ${button.className || 'bg-theme-gray3'} ${focusedButtonIndex === index ? 'border-2 border-theme-white shadow-light' : ''}`}
               tabIndex={0}
             >
               {button.text}
