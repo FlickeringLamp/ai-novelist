@@ -190,6 +190,7 @@ function ChapterTreePanel() {
   const handleRootDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (draggedItemId) {
+      // 设置拖放效果为"移动"
       e.dataTransfer.dropEffect = 'move';
       setDropTargetId('');
     }
@@ -198,9 +199,9 @@ function ChapterTreePanel() {
   const handleRootDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     // 检查是否真的离开了容器
-    const rect = (e.currentTarget as Element).getBoundingClientRect();
+    const rect = (e.currentTarget as Element).getBoundingClientRect(); // 获取元素在屏幕上的位置/大小，返回上下左右距离屏幕边框的距离，元素本身的宽高
     const x = e.clientX;
-    const y = e.clientY;
+    const y = e.clientY; // .clientX/Y是获取鼠标在屏幕的位置。
 
     if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
       setDropTargetId(null);
@@ -209,7 +210,7 @@ function ChapterTreePanel() {
 
   const handleRootDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const sourcePath = e.dataTransfer.getData('text/plain');
+    const sourcePath = e.dataTransfer.getData('text/plain'); // 在TreeRender里面存的，现在取出来
     if (!sourcePath) return;
 
     setDropTargetId(null);

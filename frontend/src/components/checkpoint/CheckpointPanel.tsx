@@ -225,7 +225,7 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
           <button
             onClick={handleSaveCheckpoint}
             disabled={loading}
-            className="w-full bg-theme-green text-black rounded text-sm font-semibold hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors py-1"
+            className="w-full bg-theme-green text-black rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors py-1"
           >
             {loading ? '保存中...' : '保存'}
           </button>

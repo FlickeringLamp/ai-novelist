@@ -3,7 +3,7 @@
   "version": "0.2.0-beta.4",
   "private": true,
   "type": "module",
-  "main": "electron.cjs",
+  "main": "electron/main.js",
   "homepage": ".",
   "dependencies": {
     "@emotion/react": "^11.14.0",

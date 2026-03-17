@@ -238,7 +238,6 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
     const rect = (e.currentTarget as Element).getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
-
     if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
       setIsDragOver(false);
       if (dropTargetId === itemId) {

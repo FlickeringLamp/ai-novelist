@@ -333,6 +333,25 @@ const MessageInputPanel = () => {
   };
 
 
+  // 渲染带高亮的文本内容
+  const renderHighlightedContent = () => {
+    if (!message) return <br />;
+    
+    // 匹配 @路径 的模式
+    const parts = message.split(/(@[^\s\n]+)/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('@') && part.length > 1) {
+        return (
+          <span key={index} className="bg-theme-gray3 text-theme-green rounded-sm px-0.5">
+            {part}
+          </span>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   return (
     <>
       {/* 输入区域 */}
@@ -348,9 +367,17 @@ const MessageInputPanel = () => {
             onSelect={handleSelectPath}
             onClose={closeAutocomplete}
           />
+          {/* 高亮层 - 显示带背景色的文本 */}
+          <pre
+            className="absolute inset-0 m-0 p-0 bg-transparent text-transparent border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 pointer-events-none overflow-hidden whitespace-pre-wrap break-words leading-[normal]"
+            style={{ fontFamily: 'inherit' }}
+            aria-hidden="true"
+          >
+            {renderHighlightedContent()}
+          </pre>
           <textarea
             ref={textareaRef}
-            className="bg-theme-black text-theme-white border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 focus:outline-none"
+            className="bg-transparent text-theme-white border-none rounded-small resize-none font-inherit text-[14px] box-border flex-1 min-w-0 focus:outline-none"
             placeholder="输入@引用文件，同时按下shift+回车可换行"
             rows={3}
             value={message}

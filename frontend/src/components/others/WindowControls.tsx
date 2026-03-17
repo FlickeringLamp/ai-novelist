@@ -7,20 +7,20 @@ interface WindowControlsProps {
 
 function WindowControls({ className = '' }: WindowControlsProps) {
   const handleMinimize = () => {
-    if (window.electronAPI && window.electronAPI.windowMinimize) {
-      window.electronAPI.windowMinimize();
+    if (window.electron && window.electron.invoke) {
+      window.electron.invoke('window:minimize');
     }
   };
 
   const handleMaximize = () => {
-    if (window.electronAPI && window.electronAPI.windowMaximize) {
-      window.electronAPI.windowMaximize();
+    if (window.electron && window.electron.invoke) {
+      window.electron.invoke('window:maximize');
     }
   };
 
   const handleClose = () => {
-    if (window.electronAPI && window.electronAPI.windowClose) {
-      window.electronAPI.windowClose();
+    if (window.electron && window.electron.invoke) {
+      window.electron.invoke('window:close');
     }
   };
 
