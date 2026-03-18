@@ -17,10 +17,9 @@ from backend.config.config import settings
 
 
 class ExecuteCommandInput(BaseModel):
-    """执行命令行命令的输入参数"""
-    command: str = Field(description="要执行的命令字符串（例如 'ls -la' 或 'python script.py'）")
+    command: str = Field(description="要执行的命令字符串（例如 'ls -la'）")
     cwd: Optional[str] = Field(default=None, description="工作目录路径（可选），默认为当前工作目录")
-    timeout: Optional[int] = Field(default=30, description="超时时间（秒），默认为30秒")
+    timeout: Optional[int] = Field(default=30, description="超时时间（秒），默认为30")
 
 
 def is_skill_command(command: str) -> bool:
@@ -191,42 +190,9 @@ async def handle_skill_command(command: str) -> tuple[str, Dict[str, str]]:
 
 @tool(args_schema=ExecuteCommandInput)
 async def execute_command(command: str, cwd: Optional[str] = None, timeout: int = 30) -> str:
-    """执行任意命令行命令
-    
-    使用场景示例：
-    1. 列出当前目录文件
-    {
-        "command": "ls -la"
-    }
-    2. 查看 Python 版本
-    {
-        "command": "python --version"
-    }
-    3. 执行技能命令
-    {
-        "command": "python3 skills/baidu-search/scripts/search.py '{\"query\":\"人工智能\"}'"
-    }
-    4. 在指定目录执行命令
-    {
-        "command": "git status",
-        "cwd": "/home/user/projects"
-    }
-    5. 设置超时时间
-    {
-        "command": "sleep 10",
-        "timeout": 5
-    }
-    
-    重要说明：
-    1. 命令将在子进程中执行，继承当前环境变量。
-    2. 如果命令执行失败（非零退出码），将返回错误信息。
-    3. 超时时间默认为30秒，可根据需要调整。
-    4. 工作目录默认为当前工作目录（通常是项目根目录）。
-    
-    Args:
-        command: 命令字符串
-        cwd: 工作目录路径（可选）
-        timeout: 超时时间（秒）
+    """
+执行任意命令行命令，包括skills文件里的命令，
+例如：python3 skills/baidu-search/scripts/search.py '<JSON>'
     """
     try:
         # 检查是否是技能命令

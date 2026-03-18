@@ -1,11 +1,10 @@
 from backend.config.config import settings
-from backend.ai_agent.tool.embedding_tool.emb_search import search_embedding, list_base_files
+from backend.ai_agent.tool.rag_tool.rag_search import rag_search
+from backend.ai_agent.tool.rag_tool.rag_list_files import rag_list_files
 from backend.ai_agent.tool.file_tool.read_file import read_file
-from backend.ai_agent.tool.file_tool.write_file import write_file
+from backend.ai_agent.tool.file_tool.manage_file import manage_file
 from backend.ai_agent.tool.file_tool.apply_diff import apply_diff
-from backend.ai_agent.tool.file_tool.insert_content import insert_content
-from backend.ai_agent.tool.file_tool.search_file import search_file
-from backend.ai_agent.tool.file_tool.search_and_replace import search_and_replace
+from backend.ai_agent.tool.file_tool.search_text import search_text
 from backend.ai_agent.tool.operation_tool.ask_user import ask_user_question
 from backend.ai_agent.tool.operation_tool.execute_command import execute_command
 from backend.ai_agent.tool.skill_tool.load_skill import load_skill
@@ -19,14 +18,12 @@ async def import_tools(mode: str = None):
     """
     # 内置工具字典
     builtin_tools = {
-        "search_embedding": search_embedding,
-        "list_base_files": list_base_files,
+        "rag_search": rag_search,
+        "rag_list_files": rag_list_files,
         "read_file": read_file,
-        "write_file": write_file,
+        "manage_file": manage_file,
         "apply_diff": apply_diff,
-        "insert_content": insert_content,
-        "search_file": search_file,
-        "search_and_replace": search_and_replace,
+        "search_text": search_text,
         "ask_user_question": ask_user_question,
         "execute_command": execute_command,
         "load_skill": load_skill

@@ -256,7 +256,6 @@ const MessageInputPanel = () => {
                     });
                   }
                 }
-                console.log("ToolCalls:",toolCalls)
 
                 dispatch(updateAiMessage({
                   id: currentAiMessageId!,

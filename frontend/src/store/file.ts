@@ -32,7 +32,7 @@ export const fileSlice = createSlice({
     setChapters: (state: FileState, action: PayloadAction<ChapterItem[]>) => {
       state.chapters = action.payload;
     },
-    // 临时添加文件/文件夹（用于write_file工具调用时临时显示）
+    // 临时添加文件/文件夹（用于manage_file工具调用时临时显示）
     addTempFile: (state: FileState, action: PayloadAction<{ path: string }>) => {
       const { path } = action.payload;
       const parts = path.split('/');

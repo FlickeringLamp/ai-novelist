@@ -157,12 +157,22 @@ function ChapterTreePanel() {
   // 处理移动文件/文件夹
   const handleMoveItem = async (sourcePath: string, targetPath: string) => {
     try {
+      // 获取源路径的父路径
+      const sourceParentPath = sourcePath.includes('/')
+        ? sourcePath.substring(0, sourcePath.lastIndexOf('/'))
+        : '';
+      
+      // 如果拖到自己的父路径，无需移动
+      if (sourceParentPath === targetPath) {
+        return;
+      }
+      
       // 计算目标路径（如果是文件夹，则是 folder/sourceName；如果是根目录，则是 sourceName）
-      const sourceName = sourcePath.includes('/') 
-        ? sourcePath.substring(sourcePath.lastIndexOf('/') + 1) 
+      const sourceName = sourcePath.includes('/')
+        ? sourcePath.substring(sourcePath.lastIndexOf('/') + 1)
         : sourcePath;
-      const finalTargetPath = targetPath 
-        ? `${targetPath}/${sourceName}` 
+      const finalTargetPath = targetPath
+        ? `${targetPath}/${sourceName}`
         : sourceName;
       
       await httpClient.post('/api/file/move', {
@@ -226,10 +236,30 @@ function ChapterTreePanel() {
   return (
     <div className="bg-theme-black text-theme-gray2 flex flex-col h-full">
       <div className="flex justify-center gap-2.5 border-b border-theme-gray3 h-[5%] flex-shrink-0 items-center bg-theme-gray1 w-full">
-        <button className={commonBtnStyle} onClick={() => handleCreateItem(false)} title="新建文件">
+        <button
+          className={commonBtnStyle}
+          onClick={() => {
+            // 如果选中的是文件夹，在该文件夹下创建；否则在根目录创建
+            const parentPath = selectedItem.state === 'selected' && selectedItem.isFolder && selectedItem.id
+              ? selectedItem.id
+              : '';
+            handleCreateItem(false, parentPath);
+          }}
+          title="新建文件"
+        >
           <FontAwesomeIcon icon={faFile} />
         </button>
-        <button className={commonBtnStyle} onClick={() => handleCreateItem(true)} title="新建文件夹">
+        <button
+          className={commonBtnStyle}
+          onClick={() => {
+            // 如果选中的是文件夹，在该文件夹下创建；否则在根目录创建
+            const parentPath = selectedItem.state === 'selected' && selectedItem.isFolder && selectedItem.id
+              ? selectedItem.id
+              : '';
+            handleCreateItem(true, parentPath);
+          }}
+          title="新建文件夹"
+        >
           <FontAwesomeIcon icon={faFolder} />
         </button>
         <button className={commonBtnStyle} onClick={() => dispatch(collapseAll())} title="折叠所有">

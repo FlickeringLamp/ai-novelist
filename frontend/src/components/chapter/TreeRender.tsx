@@ -70,6 +70,7 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
   const displayName = itemTitle;
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [showInvalidCharWarning, setShowInvalidCharWarning] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -92,6 +93,15 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
       }, 0);
     }
   }, [selectedItem, itemId, displayName]);
+
+  // 清理展开定时器
+  useEffect(() => {
+    return () => {
+      if (expandTimerRef.current) {
+        clearTimeout(expandTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleSaveRename = async () => {
     if (editingValue && editingValue.trim() !== '') {
@@ -211,7 +221,7 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
   };
 
   // 拖拽经过
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -227,10 +237,18 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
     e.dataTransfer.dropEffect = 'move';
     setDropTargetId(itemId);
     setIsDragOver(true);
+
+    // 延迟展开文件夹：如果文件夹是关闭的（collapsedChapters[itemId]为false/undefined），800ms后自动展开
+    if (!collapsedChapters[itemId] && !expandTimerRef.current) {
+      expandTimerRef.current = setTimeout(() => {
+        dispatch(toggleCollapse(itemId));
+        expandTimerRef.current = null;
+      }, 800);
+    }
   };
 
   // 拖拽离开
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = (e: React.DragEvent<HTMLLIElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -243,16 +261,19 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
       if (dropTargetId === itemId) {
         setDropTargetId(null);
       }
+      // 不取消展开定时器，让文件夹保持展开
     }
   };
 
   // 放置
-  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLLIElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
     setIsDragOver(false);
     setDropTargetId(null);
+
+    // 不清除展开定时器，让文件夹保持展开状态
 
     const sourcePath = e.dataTransfer.getData('text/plain');
     if (!sourcePath) return;
@@ -262,6 +283,16 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
 
     // 如果不是文件夹，不能作为放置目标
     if (!isFolder) return;
+
+    // 获取源路径的父路径
+    const sourceParentPath = sourcePath.includes('/')
+      ? sourcePath.substring(0, sourcePath.lastIndexOf('/'))
+      : '';
+
+    // 如果拖到自己的父路径，无需移动（静默返回）
+    if (sourceParentPath === itemId) {
+      return;
+    }
 
     // 不能拖到自身的后代身上
     if (isDescendantOf(itemId, sourcePath)) {
@@ -283,7 +314,12 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
   return (
     <li
       key={itemId}
-      className={`chapter-list-item ${isFolder ? 'folder-item' : 'file-item'} level-${level} relative`}
+      className={`chapter-list-item ${isFolder ? 'folder-item' : 'file-item'} level-${level} relative
+        ${isDropTarget && isFolder ? 'ring-2 ring-theme-green ring-inset' : ''}
+        ${isDragOver && isFolder ? 'bg-theme-gray3' : ''}`}
+      onDragOver={isFolder ? handleDragOver : undefined}
+      onDragLeave={isFolder ? handleDragLeave : undefined}
+      onDrop={isFolder ? handleDrop : undefined}
     >
       {/* 垂直引导线 */}
       {level > 0 && (
@@ -293,18 +329,13 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
         />
       )}
       <div
-        className={`chapter-item-content flex ${isFolder && level > 0 ? 'nested-folder-content' : ''} cursor-pointer 
+        className={`chapter-item-content flex ${isFolder && level > 0 ? 'nested-folder-content' : ''} cursor-pointer
           ${(selectedItem.id === itemId || lastSelectedItem.id === itemId) ? 'bg-theme-gray2 text-theme-green' : 'text-theme-white hover:text-theme-green hover:bg-theme-gray2'}
-          ${draggedItemId === itemId ? 'opacity-50' : ''}
-          ${isDropTarget && isFolder ? 'ring-2 ring-theme-green ring-inset' : ''}
-          ${isDragOver && isFolder ? 'bg-theme-gray3' : ''}`}
+          ${draggedItemId === itemId ? 'opacity-50' : ''}`}
         style={{ paddingLeft: `${level * 20}px` }}
         draggable={true}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
         onClick={() => {
           // 如果正在编辑，不触发点击事件
           if (selectedItem.state === 'renaming' && selectedItem.id === itemId) {

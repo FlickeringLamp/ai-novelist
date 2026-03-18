@@ -6,47 +6,29 @@ from backend.ai_agent.utils.file_utils import split_paragraphs
 
 
 class ReadFileInput(BaseModel):
-    """读取文件的输入参数"""
     file_path: str = Field(description="文件路径")
-    start_paragraph: Optional[int] = Field(default=None, description="起始段落号")
-    end_paragraph: Optional[int] = Field(default=None, description="结束段落号")
+    start_paragraph: Optional[int] = Field(default=None, description="起始段落号，为null默认从第1个段落开始")
+    end_paragraph: Optional[int] = Field(default=None, description="结束段落号，为null默认到最后一个段落")
 
 
 @tool(args_schema=ReadFileInput)
 async def read_file(file_path: str, start_paragraph: Optional[int] = None,
                end_paragraph: Optional[int] = None) -> str:
-    """读取文件内容，支持指定段落范围。
-    使用场景示例：
-    1. 读取整个文件
-    {
-        "file_path": "第一章.md"
-    }
-    2. 读取指定段落范围
-    {
-        "file_path": "第一章.md",
-        "start_paragraph": 5,
-        "end_paragraph": 15
-    }
-    3. 从第10段读到文件末尾
-    {
-        "file_path": "第一章.md",
-        "start_paragraph": 10
-    }
-    4. 读取文件开头到第20段
-    {
-        "file_path": "第一章.md",
-        "end_paragraph": 20
-    }
-    
-    重要说明：
-    1. start_paragraph: 不指定时默认从第1个段落开始
-    2. end_paragraph: 不指定时默认到最后一个段落
-    3. 返回的内容会自动添加段落编号
-
-    Args:
-        file_path: 文件路径
-        start_paragraph: 起始段落
-        end_paragraph: 结束段落
+    """
+读取指定文件，返回的内容会自动添加段落编号，便于阅读
+使用示例：
+1. 读取完整文件
+{
+  "file_path": "第一章.md",
+  "start_paragraph": null,
+  "end_paragraph": null
+}
+2. 读取指定范围
+{
+  "file_path": "第一章.md",
+  "start_paragraph": 10,
+  "end_paragraph": 20
+}
     """
     try:
         content = await file_service_read_file(file_path)
