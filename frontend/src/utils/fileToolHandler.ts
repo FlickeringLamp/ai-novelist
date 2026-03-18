@@ -5,51 +5,55 @@ import type { RootState } from '../store/store';
 import httpClient from './httpClient';
 
 // 支持的文件工具列表
-export const FILE_TOOLS = ['write_file', 'insert_content', 'apply_diff', 'search_and_replace'];
+export const FILE_TOOLS = ['manage_file', 'apply_diff', 'search_text'];
 
 // 验证文件名是否以.md结尾
 const isValidMdFile = (path: string): boolean => {
   return path.endsWith('.md');
 };
 
-// 解析replacements内容，计算修改后的内容
-const applyDiff = (originalContent: string, replacements: any[]): string => {
+// 解析operations内容，计算修改后的内容（支持插入、替换、删除）
+const applyDiff = (originalContent: string, operations: any[]): string => {
   const paragraphs = originalContent.split('\n');
   const result = [...paragraphs];
   
-  // 按段落号排序，删除操作需要从后往前处理以避免段落号偏移
-  const sortedReplacements = [...replacements].sort((a, b) => b.paragraph - a.paragraph);
+  // 按段落号降序排序，避免索引偏移
+  const sortedOps = [...operations].sort((a, b) => b.paragraph - a.paragraph);
   
-  for (const replacement of sortedReplacements) {
-    const paragraphNum = replacement.paragraph;
-    const oldContent = replacement.old;
-    const newContent = replacement.new;
-    
-    // 转换为0-based索引
+  for (const op of sortedOps) {
+    const paragraphNum = op.paragraph;
+    const oldContent = op.old;
+    const newContent = op.new;
     const index = paragraphNum - 1;
     
-    // 检查段落号是否有效
+    // 插入操作：old为null/undefined
+    if (oldContent === null || oldContent === undefined) {
+      if (newContent === null || newContent === undefined) {
+        console.warn(`操作无效：old和new不能同时为null（段落${paragraphNum}）`);
+        continue;
+      }
+      // 1=开头，大于长度=末尾，其他=指定位置前
+      const insertPos = paragraphNum <= 1 ? 0 : Math.min(index, result.length);
+      result.splice(insertPos, 0, newContent);
+      continue;
+    }
+    
+    // 替换/删除操作：需要验证old内容
     if (index < 0 || index >= result.length) {
-      console.warn(`段落号 ${paragraphNum} 超出文件范围（文件共 ${result.length} 段）`);
+      console.warn(`段落${paragraphNum}超出范围（共${result.length}段）`);
       continue;
     }
     
-    // 获取文件中的实际内容
     const actualContent = result[index];
-    
-    // 验证内容是否匹配
     if (actualContent !== oldContent) {
-      console.warn(`段 ${paragraphNum} 的内容不匹配\n期望: ${oldContent}\n实际: ${actualContent}`);
+      console.warn(`段${paragraphNum}内容不匹配\n期望: ${oldContent}\n实际: ${actualContent}`);
       continue;
     }
     
-    // 执行替换或删除
-    if (newContent === null) {
-      // 删除该段
-      result.splice(index, 1);
+    if (newContent === null || newContent === undefined) {
+      result.splice(index, 1); // 删除
     } else {
-      // 替换该段
-      result[index] = newContent;
+      result[index] = newContent; // 替换
     }
   }
   
@@ -72,21 +76,6 @@ const searchAndReplace = (content: string, search: string, replace: string, useR
   }
 };
 
-// 在指定位置插入内容
-const insertContent = (content: string, paragraph: number, newContent: string): string => {
-  const paragraphs = content.split('\n');
-  
-  if (paragraph === 0) {
-    // 在文件末尾追加
-    paragraphs.push(newContent);
-  } else {
-    // 在指定段落插入
-    const insertIndex = Math.min(paragraph - 1, paragraphs.length);
-    paragraphs.splice(insertIndex, 0, newContent);
-  }
-  
-  return paragraphs.join('\n');
-};
 
 // 自定义 Hook：处理文件工具调用
 export const useFileToolHandler = () => {
@@ -140,7 +129,7 @@ export const useFileToolHandler = () => {
 
     // 根据工具类型计算修改后的内容
     switch (toolName) {
-      case 'write_file': {
+      case 'manage_file': {
         const content = parsedArgs.content;
         // content为null时表示删除文件
         if (content === null) {
@@ -151,33 +140,22 @@ export const useFileToolHandler = () => {
         break;
       }
       
-      case 'insert_content': {
-        const paragraph = parsedArgs.paragraph;
-        const content = parsedArgs.content;
-        
-        if (paragraph !== undefined && content !== undefined) {
-          modifiedContent = insertContent(originalContent, paragraph, content);
-        }
-        break;
-      }
-      
       case 'apply_diff': {
-        const replacements = parsedArgs.replacements;
+        const operations = parsedArgs.operations;
         
-        if (replacements && Array.isArray(replacements)) {
-          modifiedContent = applyDiff(originalContent, replacements);
+        if (operations && Array.isArray(operations)) {
+          modifiedContent = applyDiff(originalContent, operations);
         }
         break;
       }
       
-      case 'search_and_replace': {
-        const search = parsedArgs.search;
+      case 'search_text': {
+        const pattern = parsedArgs.pattern;
         const replace = parsedArgs.replace;
-        const useRegex = parsedArgs.use_regex || false;
-        const ignoreCase = parsedArgs.ignore_case || false;
         
-        if (search !== undefined && replace !== undefined) {
-          modifiedContent = searchAndReplace(originalContent, search, replace, useRegex, ignoreCase);
+        // 只有在有替换参数时才在前端预览
+        if (pattern !== undefined && replace !== undefined) {
+          modifiedContent = searchAndReplace(originalContent, pattern, replace, true, false);
         }
         break;
       }

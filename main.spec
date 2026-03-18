@@ -19,6 +19,8 @@ for package in data_packages:
 # 手动添加的静态文件
 datas += [
     (str(project_root / 'static'), 'static'),
+    # 添加本地嵌入模型目录
+    (str(project_root / 'models' / 'embedding'), 'models/embedding'),
 ]
 
 # 隐藏导入（自动收集所有子模块，确保百分百不缺依赖）
@@ -77,6 +79,8 @@ packages = [
     'idna',
     'urllib3',
     'sniffio',
+    # 本地嵌入模型支持
+    'llama_cpp',
 ]
 
 for package in packages:
@@ -91,6 +95,7 @@ hiddenimports += [
     'backend.ai_agent',
     'backend.ai_agent.core',
     'backend.ai_agent.embedding',
+    'backend.ai_agent.embedding.llama_cpp_embeddings',
     'backend.ai_agent.models',
     'backend.ai_agent.tool',
     'backend.ai_agent.tool.embedding_tool',

@@ -11,6 +11,17 @@ from backend.config.mode import DEFAULT_MODES
 
 logger = logging.getLogger(__name__)
 
+# 获取模型目录路径（支持开发环境和PyInstaller打包环境）
+def get_model_dir():
+    """获取模型目录路径（支持开发环境和PyInstaller打包环境）"""
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后的环境
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        # 开发环境 - 项目根目录（backend的父目录）
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    return os.path.join(base_dir, 'models', 'embedding')
+
 # 获取数据目录路径（支持开发环境和PyInstaller打包环境）
 def get_data_dir():
     if getattr(sys, 'frozen', False):

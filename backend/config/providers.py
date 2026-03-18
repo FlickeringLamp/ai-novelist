@@ -1,4 +1,23 @@
 PROVIDERS = {
+    "local": {
+        "name": "内置模型",
+        "builtin": True,
+        "enable": True,
+        "url": "",
+        "key": "",
+        "favoriteModels": {
+            "chat": {},
+            "embedding": {
+                "Qwen3-Embedding-0.6B-Q8_0": {
+                    "dimensions": 1024,
+                    "max-tokens": 32000,
+                    "per-max-tokens": False,
+                    "description": "通义千问3 0.6B嵌入模型(Q8_0量化)，中文效果好，约500MB"
+                }
+            },
+            "other": {}
+        }
+    },
     "deepseek": {
         "name": "deepseek",
         "builtin": True,

@@ -134,4 +134,6 @@ pnpm-lock.yaml
 .~lock.*
 
 # Executable files
-*.exe
+*.
+
+models/

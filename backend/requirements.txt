@@ -28,3 +28,6 @@ pyjwt==2.11.0
 litellm==1.81.15
 mcp==1.26.0
 langchain-mcp-adapters==0.2.1
+
+# 本地嵌入模型支持
+llama-cpp-python==0.3.16
