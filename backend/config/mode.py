@@ -30,7 +30,7 @@ DEFAULT_MODES = {
         "top_p": 0.7,
         "max_tokens": 4096,
         "additionalInfo": [],
-        "tools": ["read_file", "manage_file", "ask_user_question"],
+        "tools": ["load_unload_file", "manage_file", "ask_user_question"],
         "skills": []  # 新增：该模式可用的 Skills 列表
     },
     "writing": {
@@ -41,7 +41,7 @@ DEFAULT_MODES = {
         "top_p": 0.7,
         "max_tokens": 4096,
         "additionalInfo": [],
-        "tools": ["read_file", "manage_file", "ask_user_question"],
+        "tools": ["load_unload_file", "manage_file", "ask_user_question"],
         "skills": []  # 新增：该模式可用的 Skills 列表
     },
     "adjustment": {
@@ -52,7 +52,7 @@ DEFAULT_MODES = {
         "top_p": 0.7,
         "max_tokens": 4096,
         "additionalInfo": [],
-        "tools": ["read_file", "manage_file", "ask_user_question"],
+        "tools": ["load_unload_file", "manage_file", "ask_user_question"],
         "skills": []  # 新增：该模式可用的 Skills 列表
     }
 }

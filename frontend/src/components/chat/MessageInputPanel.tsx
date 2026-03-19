@@ -38,7 +38,7 @@ const MessageInputPanel = () => {
   
   // 文件路径补全功能
   const {
-    isOpen: isAutocompleteOpen,
+    isOpen: isAutocompleteOpen, // 重命名
     filteredPaths,
     selectedIndex,
     query,
@@ -59,7 +59,7 @@ const MessageInputPanel = () => {
         }
       }
     }, 0);
-  });
+  }); // 传给hook的回调函数，让hook能更新redux中的消息状态
   
   // 生成唯一消息ID
   const generateMessageId = () => {

@@ -13,12 +13,12 @@ from pydantic import BaseModel, Field
 from langchain.tools import tool
 
 from backend.ai_agent.skill.skill_manager import get_skill_loader
-from backend.config.config import settings
+from backend.config.config import settings, get_data_dir
 
 
 class ExecuteCommandInput(BaseModel):
     command: str = Field(description="要执行的命令字符串（例如 'ls -la'）")
-    cwd: Optional[str] = Field(default=None, description="工作目录路径（可选），默认为当前工作目录")
+    cwd: Optional[str] = Field(default=None, description="工作目录路径（可选），默认为 data 目录")
     timeout: Optional[int] = Field(default=30, description="超时时间（秒），默认为30")
 
 
@@ -69,7 +69,7 @@ def get_skill_env(skill_name: str) -> Dict[str, str]:
     Returns:
         环境变量字典
     """
-    skill_config = settings.get_config(skill_name, default={}, config_file="skills_config.json")
+    skill_config = settings.get_config(skill_name, default={}, config_file="skills_config.yaml")
     env = skill_config.get("env", {})
     return env.copy()
 
@@ -94,14 +94,15 @@ async def run_command(
     Raises:
         RuntimeError: 命令执行失败或超时
     """
-    # 设置工作目录
+    # 设置工作目录 - 默认为 data 目录
     if cwd:
         cwd_path = Path(cwd).expanduser().resolve()
         if not cwd_path.exists():
             raise RuntimeError(f"工作目录不存在: {cwd}")
         cwd_str = str(cwd_path)
     else:
-        cwd_str = None
+        # 默认使用 data 目录
+        cwd_str = str(get_data_dir())
     
     # 准备环境变量
     env = os.environ.copy()

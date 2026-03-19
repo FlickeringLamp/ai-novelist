@@ -11,8 +11,7 @@ PROVIDERS = {
                 "Qwen3-Embedding-0.6B-Q8_0": {
                     "dimensions": 1024,
                     "max-tokens": 32000,
-                    "per-max-tokens": False,
-                    "description": "通义千问3 0.6B嵌入模型(Q8_0量化)，中文效果好，约500MB"
+                    "per-max-tokens": False
                 }
             },
             "other": {}
