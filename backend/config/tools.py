@@ -1,7 +1,7 @@
 ALL_AVAILABLE_TOOLS = {
-    "read_file": {
-        "name": "读取文件",
-        "description": "读取指定文件的内容"
+    "load_unload_file": {
+        "name": "加载/卸载文件",
+        "description": "将文件加载到系统提示词中或从系统提示词中卸载。文件加载后会自动在每次对话时包含其内容；卸载后则不再包含"
     },
     "manage_file": {
         "name": "管理文件",

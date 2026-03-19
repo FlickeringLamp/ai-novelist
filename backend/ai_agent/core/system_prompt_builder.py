@@ -13,6 +13,7 @@ from backend.config.config import settings
 from backend.file.file_service import get_file_tree_for_ai, read_file
 from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb, get_two_step_rag_config
 from backend.ai_agent.skill import get_skill_loader
+from backend.ai_agent.utils.file_utils import split_paragraphs
 
 logger = logging.getLogger(__name__)
 
@@ -56,63 +57,76 @@ class SystemPromptBuilder:
         
         return unique_paths
     
-    async def _get_at_files_content(self, user_input: str) -> str:
-        """获取用户输入中 @路径 对应的文件内容
+    def _sync_at_paths_to_additional_info(self, at_paths: List[str], mode: str) -> None:
+        """将 @路径 同步到当前模式的 additionalInfo 中
+        
+        如果路径已存在于 additionalInfo 中则跳过，否则添加进去。
+        同时会验证文件是否存在，不存在的文件会被忽略。
+        这样用户通过 @ 引用的文件会在后续对话中持续加载。
         
         Args:
-            user_input: 用户输入文本
-            
-        Returns:
-            格式化的文件内容字符串
+            at_paths: 从用户输入中提取的 @路径 列表
+            mode: 当前模式名称
         """
         try:
-            # 提取 @路径
-            at_paths = self._extract_at_paths(user_input)
+            if not at_paths or not mode:
+                return
             
-            if not at_paths:
-                return ""
+            # 过滤出实际存在的文件路径
+            existing_paths = []
+            missing_paths = []
+            for path in at_paths:
+                file_path = self.data_dir / path
+                if file_path.exists() and file_path.is_file():
+                    existing_paths.append(path)
+                else:
+                    missing_paths.append(path)
             
-            logger.info(f"从用户输入中提取到 @路径: {at_paths}")
+            # 记录不存在的文件路径
+            if missing_paths:
+                logger.warning(f"以下 @路径 引用的文件不存在，已忽略: {missing_paths}")
             
-            # 构建格式化的文件内容
-            file_contents = []
+            # 如果没有存在的文件，直接返回
+            if not existing_paths:
+                logger.info(f"没有有效的 @路径 需要添加到 {mode} 模式")
+                return
             
-            for file_path in at_paths:
-                try:
-                    # 使用 file_service 的 read_file 读取文件内容
-                    content = await read_file(file_path)
-                    
-                    if content:
-                        file_contents.append(f"[@引用文件 - {file_path}]:\n{content}")
-                    else:
-                        logger.warning(f"@引用文件内容为空或文件不存在: {file_path}")
-                except Exception as e:
-                    logger.error(f"读取@引用文件失败 {file_path}: {e}")
+            # 获取当前模式的 additionalInfo
+            additional_files = settings.get_config("mode", mode, "additionalInfo", default=[])
             
-            if file_contents:
-                return "\n\n".join(file_contents)
+            if not isinstance(additional_files, list):
+                additional_files = []
+            
+            # 过滤出不在 additionalInfo 中的新路径
+            new_paths = [p for p in existing_paths if p not in additional_files]
+            
+            if new_paths:
+                # 将新路径添加到 additionalInfo
+                updated_list = additional_files + new_paths
+                settings.update_config(updated_list, "mode", mode, "additionalInfo")
+                logger.info(f"已将 @路径 添加到 {mode} 模式的 additionalInfo: {new_paths}")
             else:
-                return ""
+                logger.info(f"所有 @路径 已存在于 {mode} 模式的 additionalInfo 中")
                 
         except Exception as e:
-            logger.error(f"获取 @路径 文件内容失败: {e}")
-            return ""
+            logger.error(f"同步 @路径 到 additionalInfo 失败: {e}")
     
     async def _get_additional_files_content(self, mode: str) -> str:
-        """获取指定模式的 additionalInfo 文件列表内容
+        """获取指定模式的 additionalInfo 文件列表内容，自动添加段落编号
         
         Args:
             mode: 模式名称
             
         Returns:
-            格式化的文件内容字符串
+            格式化的文件内容字符串（带段落编号）
         """
         try:
             # 从配置中获取当前模式的 additionalInfo 文件列表
             additional_files = settings.get_config("mode", mode, "additionalInfo", default=[])
             
+            # 如果没有额外文件，返回提示文本
             if not additional_files or not isinstance(additional_files, list):
-                return ""
+                return "[额外文件内容]:\n暂未加载文件"
             
             # 构建格式化的文件内容
             file_contents = []
@@ -126,20 +140,25 @@ class SystemPromptBuilder:
                     content = await read_file(file_path)
                     
                     if content:
-                        file_contents.append(f"[额外文件 - {file_path}]:\n{content}")
+                        # 为文件内容添加段落编号
+                        paragraphs, paragraph_ending = split_paragraphs(content)
+                        numbered_paragraphs = [f"{i+1} | {p}" for i, p in enumerate(paragraphs)]
+                        numbered_content = paragraph_ending.join(numbered_paragraphs)
+                        
+                        file_contents.append(f"[额外文件 - {file_path}]:\n{numbered_content}")
                     else:
                         logger.warning(f"文件内容为空或文件不存在: {file_path}")
                 except Exception as e:
                     logger.error(f"读取文件失败 {file_path}: {e}")
             
             if file_contents:
-                return "\n\n".join(file_contents)
+                return f"[额外文件内容]:\n\n{'\n\n'.join(file_contents)}"
             else:
-                return ""
+                return "[额外文件内容]:\n暂未加载文件"
                 
         except Exception as e:
             logger.error(f"获取 additionalInfo 文件内容失败: {e}")
-            return ""
+            return "[额外文件内容]:\n暂未加载文件"
     
     def _get_skills_info(self, mode: str) -> str:
         """获取指定模式的 Skills 信息
@@ -370,23 +389,17 @@ class SystemPromptBuilder:
             
             # 添加额外文件内容（包括 @路径 引用的文件和模式配置中的 additionalInfo）
             if include_persistent_memory:
-                # 添加 @路径 引用的文件内容（用户输入中的 @文件路径）
-                at_files_content = ""
-                if user_input:
-                    at_files_content = await self._get_at_files_content(user_input)
+                # 如果用户输入中包含 @路径，同步到 additionalInfo 中（去重添加）
+                if user_input and mode:
+                    at_paths = self._extract_at_paths(user_input)
+                    if at_paths:
+                        self._sync_at_paths_to_additional_info(at_paths, mode)
                 
-                # 添加模式配置中的 additionalInfo 文件内容
+                # 添加模式配置中的 additionalInfo 文件内容（现在包含之前通过 @ 引用的文件）
                 additional_files_content = await self._get_additional_files_content(mode or "")
                 
-                # 合并所有额外文件内容
-                all_extra_content = []
-                if at_files_content:
-                    all_extra_content.append(at_files_content)
                 if additional_files_content:
-                    all_extra_content.append(additional_files_content)
-                
-                if all_extra_content:
-                    prompt_parts.append(f"[额外文件内容]:\n\n{'\n\n'.join(all_extra_content)}")
+                    prompt_parts.append(additional_files_content)
             
             # 执行RAG检索并添加结果
             if enable_rag and user_input:

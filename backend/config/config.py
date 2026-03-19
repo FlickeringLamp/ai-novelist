@@ -6,6 +6,9 @@ import logging
 import sqlite3
 from pathlib import Path
 from typing import Dict, Any, TypedDict
+
+import yaml
+
 from backend.config.providers import PROVIDERS
 from backend.config.mode import DEFAULT_MODES
 
@@ -52,8 +55,8 @@ def initialize_directories_and_files():
     uploads_dir = base_dir / "uploads"
     temp_dir = base_dir / "temp"
     skills_dir = base_dir / "skills"
-    config_file = config_dir / "store.json"
-    skills_config_file = config_dir / "skills_config.json"
+    config_file = config_dir / "store.yaml"
+    skills_config_file = config_dir / "skills_config.yaml"
     
     # 确保所有目录存在
     directories = [base_dir, config_dir, chromadb_dir, db_dir, uploads_dir, temp_dir, skills_dir]
@@ -76,10 +79,9 @@ def initialize_directories_and_files():
             "thread_id": thread_id,
             "knowledgeBase":{},
             "two-step-rag": None,
-            "mcpServers": {} # MCP服务器配置
+            "mcpServers": {}  # MCP服务器配置
         }
-        with open(config_file, 'w', encoding='utf-8') as f:
-            json.dump(default_config, f, ensure_ascii=False, indent=2)
+        _save_config(default_config, config_file)
         logger.info(f"创建配置文件: {config_file}")
     
     # 确保skills配置文件存在
@@ -89,26 +91,11 @@ def initialize_directories_and_files():
                 "name": "百度搜索",
                 "description": "使用百度搜索API进行网络搜索",
                 "env": {
-                    "BAIDU_API_KEY": "",
-                    "BAIDU_SECRET_KEY": ""
-                },
-                "enabled": true
-            },
-            "text-polish": {
-                "name": "文本润色",
-                "description": "对文本进行润色和优化",
-                "env": {},
-                "enabled": true
-            },
-            "code-review": {
-                "name": "代码审查",
-                "description": "对代码进行审查和优化",
-                "env": {},
-                "enabled": true
+                    "BAIDU_API_KEY": ""
+                }
             }
         }
-        with open(skills_config_file, 'w', encoding='utf-8') as f:
-            json.dump(default_skills_config, f, ensure_ascii=False, indent=2)
+        _save_config(default_skills_config, skills_config_file)
         logger.info(f"创建skills配置文件: {skills_config_file}")
     
     # 初始化Git仓库和相关配置文件
@@ -181,6 +168,42 @@ def _create_ignore_file(file_path: Path, patterns: list, file_type: str):
         logger.info(f"创建.{file_type}: {file_path}")
 
 
+def _load_config_file(file_path: Path) -> Dict[str, Any]:
+    """加载 YAML 配置文件
+    
+    Args:
+        file_path: 配置文件路径
+    
+    Returns:
+        Dict[str, Any]: 配置字典
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f) or {}
+    except Exception as e:
+        logger.error(f"加载配置文件失败 {file_path}: {e}")
+        return {}
+
+
+def _save_config(config: Dict[str, Any], file_path: Path) -> bool:
+    """保存配置到 YAML 文件
+    
+    Args:
+        config: 配置字典
+        file_path: 文件路径
+    
+    Returns:
+        bool: 保存成功返回 True
+    """
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, allow_unicode=True, sort_keys=False, default_flow_style=False)
+        return True
+    except Exception as e:
+        logger.error(f"保存配置文件失败 {file_path}: {e}")
+        return False
+
+
 class Settings:
     """
     统一配置系统
@@ -239,26 +262,25 @@ class Settings:
         logger.info(f"使用系统 {cmd_name}")
         return cmd_name
         
-    def _load_config(self, config_file: str = "store.json") -> Dict[str, Any]:
+    def _load_config(self, config_file: str = "store.yaml") -> Dict[str, Any]:
         """加载配置，每次都会创建全新的字典对象
         
         Args:
-            config_file: 配置文件名，如 'store.json' 或 'skills_config.json'
+            config_file: 配置文件名，如 'store.yaml' 或 'skills_config.yaml'
         """
         try:
             config_path = Path(self.CONFIG_DIR) / config_file
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, Exception):
+            return _load_config_file(config_path)
+        except Exception:
             return {}
     
-    def get_config(self, *keys: str, default: Any = None, config_file: str = "store.json") -> Any:
+    def get_config(self, *keys: str, default: Any = None, config_file: str = "store.yaml") -> Any:
         """获取指定配置值，支持多层嵌套。返回临时字典的引用，必须使用update_config更新，才能保存到磁盘
         
         Args:
             *keys: 嵌套的键路径，如 get_config('level1', 'level2', 'level3')
             default: 默认值
-            config_file: 配置文件名，如 'store.json' 或 'skills_config.json'
+            config_file: 配置文件名，如 'store.yaml' 或 'skills_config.yaml'
         """
         config = self._load_config(config_file)
         current = config
@@ -271,13 +293,13 @@ class Settings:
         except (KeyError, TypeError):
             return default
     
-    def update_config(self, value: Any, *keys: str, config_file: str = "store.json") -> bool:
+    def update_config(self, value: Any, *keys: str, config_file: str = "store.yaml") -> bool:
         """更新配置，支持多层嵌套
         
         Args:
             value: 要设置的值
             *keys: 嵌套的键路径，如 update_config(new_value, 'level1', 'level2', 'level3')
-            config_file: 配置文件名，如 'store.json' 或 'skills_config.json'
+            config_file: 配置文件名，如 'store.yaml' 或 'skills_config.yaml'
         """
         try:
             config = self._load_config(config_file)
@@ -294,19 +316,17 @@ class Settings:
             
             # 保存配置
             config_path = Path(self.CONFIG_DIR) / config_file
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(config, f, ensure_ascii=False, indent=2)
-            return True
+            return _save_config(config, config_path)
         except (KeyError, TypeError, IndexError) as e:
             logger.error(f"更新配置失败: {e}")
             return False
     
-    def delete_config(self, *keys: str, config_file: str = "store.json") -> bool:
+    def delete_config(self, *keys: str, config_file: str = "store.yaml") -> bool:
         """删除配置，支持多层嵌套
         
         Args:
             *keys: 嵌套的键路径，如 delete_config('level1', 'level2', 'level3')
-            config_file: 配置文件名，如 'store.json' 或 'skills_config.json'
+            config_file: 配置文件名，如 'store.yaml' 或 'skills_config.yaml'
         
         Returns:
             bool: 删除成功返回True，失败返回False
@@ -327,9 +347,7 @@ class Settings:
                 
                 # 保存配置
                 config_path = Path(self.CONFIG_DIR) / config_file
-                with open(config_path, 'w', encoding='utf-8') as f:
-                    json.dump(config, f, ensure_ascii=False, indent=2)
-                return True
+                return _save_config(config, config_path)
             return False
         except (KeyError, TypeError, IndexError) as e:
             logger.error(f"删除配置失败: {e}")
