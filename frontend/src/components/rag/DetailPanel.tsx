@@ -10,7 +10,7 @@ const DetailPanel = () => {
   return (
     <div className="w-[85%] h-full flex flex-col relative">
       <HeaderBar />
-      <div className="flex-1 flex flex-col">
+      <div className="h-[95%] flex-1 flex flex-col">
         <FilesManager
           uploadProgressRef={uploadProgressRef}
         />

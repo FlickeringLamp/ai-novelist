@@ -13,6 +13,45 @@ from backend.file.ripgrep_service import ripgrep_service
 from backend.file.ignore_parser import IgnoreParser
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_file_path(file_path: str) -> Path:
+    """解析文件路径，支持相对路径和绝对路径
+    
+    规则：
+    - 绝对路径：直接使用（如 /home/user/file.txt）
+    - 相对路径：基于 DATA_DIR 解析（如 file.txt -> {DATA_DIR}/file.txt）
+    
+    Args:
+        file_path: 输入的文件路径（相对或绝对）
+        
+    Returns:
+        Path: 解析后的完整路径
+    """
+    path = Path(file_path)
+    
+    # 如果是绝对路径，直接使用
+    if path.is_absolute():
+        return path
+    
+    # 相对路径，基于 DATA_DIR 解析
+    return Path(settings.DATA_DIR) / path
+
+
+def normalize_to_absolute(file_path: str) -> str:
+    """将路径规范化为绝对路径字符串
+    
+    用于存储到 additionalInfo 等配置中，确保始终保存绝对路径
+    
+    Args:
+        file_path: 输入的文件路径
+        
+    Returns:
+        str: 标准化后的绝对路径字符串
+    """
+    resolved = resolve_file_path(file_path)
+    # 解析并规范化路径（去除 .. 等）
+    return str(resolved.resolve())
 def sort_items(items: List[Dict]) -> List[Dict]:
     """对项目列表进行自动排序"""
     # 按名称自然顺序排序
@@ -161,8 +200,9 @@ async def create_item(name: str, is_folder: bool = False, parent_path: str = "")
 
 
 async def read_file(file_path: str) -> str:
-    """读取文件内容"""
-    full_path = Path(settings.DATA_DIR) / file_path
+    """读取文件内容
+    """
+    full_path = resolve_file_path(file_path)
     # 如果文件不存在，返回空字符串（用于AI创建新文件的场景）
     if not full_path.exists():
         return ''
@@ -172,8 +212,9 @@ async def read_file(file_path: str) -> str:
 
 
 async def update_file(file_path: str, content: str):
-    """更新文件内容"""
-    full_path = Path(settings.DATA_DIR) / file_path
+    """更新文件内容
+    """
+    full_path = resolve_file_path(file_path)
     # 自动创建父文件夹（如果不存在）
     full_path.parent.mkdir(parents=True, exist_ok=True)
     # 将 \r\n 转换为 \n，避免Windows换行符问题
@@ -183,8 +224,9 @@ async def update_file(file_path: str, content: str):
 
 
 async def delete_file(file_path: str):
-    """删除文件或文件夹"""
-    full_path = Path(settings.DATA_DIR) / file_path
+    """删除文件或文件夹
+    """
+    full_path = resolve_file_path(file_path)
     if os.path.isdir(full_path):
         shutil.rmtree(full_path)
     else:
@@ -192,7 +234,7 @@ async def delete_file(file_path: str):
 
 async def rename_file(old_path: str, new_name: str):
     """重命名文件或文件夹"""
-    full_old_path = Path(settings.DATA_DIR) / old_path
+    full_old_path = resolve_file_path(old_path)
     parent_dir = os.path.dirname(full_old_path)
     new_path = os.path.join(parent_dir, new_name)
     # 检查目标路径是否已存在
@@ -209,8 +251,8 @@ async def rename_file(old_path: str, new_name: str):
 
 async def move_file(source_path: str, target_path: str):
     """移动文件或文件夹"""
-    full_source = Path(settings.DATA_DIR) / source_path
-    full_target_dir = Path(settings.DATA_DIR) / target_path
+    full_source = resolve_file_path(source_path)
+    full_target_dir = resolve_file_path(target_path)
     source_name = os.path.basename(full_source)
     full_target_path = os.path.join(full_target_dir, source_name)
     print("完整来源路径:",full_source,"完整目标路径：",full_target_dir)
@@ -226,8 +268,8 @@ async def move_file(source_path: str, target_path: str):
 
 async def copy_file(source_path: str, target_path: str):
     """复制文件或文件夹，如果目标已存在则失败"""
-    full_source = Path(settings.DATA_DIR) / source_path # 原路径
-    full_target_dir = Path(settings.DATA_DIR) / target_path # 目标目录
+    full_source = resolve_file_path(source_path) # 原路径
+    full_target_dir = resolve_file_path(target_path) # 目标目录
     source_name = os.path.basename(full_source)
     full_target_path = os.path.join(full_target_dir, source_name) # 最终形成的新路径（目标目录+文件名/文件夹名）
     print("完整来源路径:",full_source,"完整目标路径：",full_target_dir)
@@ -247,22 +289,33 @@ async def copy_file(source_path: str, target_path: str):
 def _normalize_search_path(file_path: str) -> str:
     r"""规范化搜索结果中的文件路径
     
-    去除 backend\data\ 或 backend/data/ 前缀，统一路径分隔符为 /
+    将路径转换为相对于 DATA_DIR 的相对路径，统一路径分隔符为 /
     
     Args:
-        file_path: 原始文件路径
+        file_path: 原始文件路径（可能是绝对路径或相对路径）
     
     Returns:
-        规范化后的文件路径
+        规范化后的文件路径（相对于 DATA_DIR）
     """
-    # 去除 backend\data\ 或 backend/data/ 前缀，只保留相对路径
-    if file_path.startswith('backend\\data\\'):
-        file_path = file_path[len('backend\\data\\'):]
-    elif file_path.startswith('backend/data/'):
-        file_path = file_path[len('backend/data/'):]
+    path = Path(file_path)
+    data_dir = Path(settings.DATA_DIR).resolve()
+    
+    # 如果是绝对路径，尝试转换为相对于 DATA_DIR 的路径
+    if path.is_absolute():
+        try:
+            # 计算相对于 DATA_DIR 的路径
+            relative_path = path.relative_to(data_dir)
+            return str(relative_path).replace('\\', '/')
+        except ValueError:
+            # 路径不在 DATA_DIR 下，保留原路径但统一分隔符
+            pass
     
     # 统一路径分隔符为 /
     file_path = file_path.replace('\\', '/')
+    
+    # 去除 backend/data/ 前缀（ripgrep 返回的是相对于项目根目录的路径）
+    if file_path.startswith('backend/data/'):
+        file_path = file_path[len('backend/data/'):]
     
     return file_path
 
@@ -357,18 +410,20 @@ async def search_files_for_ai(query: str) -> str:
         if not line.strip() or line == '--':
             continue
         
-        # 匹配格式：文件路径:行号:内容
-        match = re.match(r'^(.+?):(\d+):(.*)$', line)
+        # 匹配格式：文件路径:行号:内容（匹配行）
+        # 或 文件路径-行号-内容（上下文行）
+        match = re.match(r'^(.+?)(:|\-)(\d+)\2(.*)$', line)
         if match:
             file_path = match.group(1)
-            line_number = match.group(2)
-            line_content = match.group(3)
+            separator = match.group(2)
+            line_number = match.group(3)
+            line_content = match.group(4)
             
             # 使用辅助函数规范化路径
             file_path = _normalize_search_path(file_path)
             
             # 重新组装行
-            filtered_lines.append(f"{file_path}:{line_number}:{line_content}")
+            filtered_lines.append(f"{file_path}{separator}{line_number}{separator}{line_content}")
         else:
             # 不匹配的行直接添加
             filtered_lines.append(line)

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 interface Button {
   text: string;
   onClick: () => void;
   className?: string;
+  loading?: boolean;
 }
 
 interface SelectOption {
@@ -161,10 +164,15 @@ const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProp
               type="button"
               onClick={button.onClick}
               onFocus={() => setFocusedButtonIndex(index)}
-              className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm text-white hover:opacity-90 ${button.className || 'bg-theme-gray3'} ${focusedButtonIndex === index ? 'border-2 border-theme-white shadow-light' : ''}`}
+              disabled={button.loading}
+              className={`px-4 py-2 border-none rounded-small cursor-pointer text-sm text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed ${button.className || 'bg-theme-gray3'} ${focusedButtonIndex === index ? 'border-2 border-theme-white shadow-light' : ''}`}
               tabIndex={0}
             >
-              {button.text}
+              {button.loading ? (
+                <FontAwesomeIcon icon={faSpinner} spin />
+              ) : (
+                button.text
+              )}
             </button>
           ))}
         </div>

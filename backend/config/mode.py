@@ -31,7 +31,8 @@ DEFAULT_MODES = {
         "max_tokens": 4096,
         "additionalInfo": [],
         "tools": ["load_unload_file", "manage_file", "ask_user_question"],
-        "skills": []  # 新增：该模式可用的 Skills 列表
+        "skills": [],
+        "skillPaths": []
     },
     "writing": {
         "name": "写作模式",
@@ -42,7 +43,8 @@ DEFAULT_MODES = {
         "max_tokens": 4096,
         "additionalInfo": [],
         "tools": ["load_unload_file", "manage_file", "ask_user_question"],
-        "skills": []  # 新增：该模式可用的 Skills 列表
+        "skills": [],
+        "skillPaths": []
     },
     "adjustment": {
         "name": "调整模式",
@@ -53,6 +55,7 @@ DEFAULT_MODES = {
         "max_tokens": 4096,
         "additionalInfo": [],
         "tools": ["load_unload_file", "manage_file", "ask_user_question"],
-        "skills": []  # 新增：该模式可用的 Skills 列表
+        "skills": [],
+        "skillPaths": []
     }
 }

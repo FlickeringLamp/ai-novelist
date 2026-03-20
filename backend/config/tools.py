@@ -27,9 +27,9 @@ ALL_AVAILABLE_TOOLS = {
         "name": "列出知识库文件",
         "description": "列出指定知识库中的所有文件信息"
     },
-    "load_skill": {
-        "name": "加载 Skill",
-        "description": "加载指定 Skill 的详细内容"
+    "load_unload_skill": {
+        "name": "加载/卸载 Skill",
+        "description": "将 Skill 加载到系统提示词中或从系统提示词中卸载。Skill 加载后会自动在每次对话时包含其详细内容；卸载后则不再包含"
     },
     "execute_command": {
         "name": "执行命令",

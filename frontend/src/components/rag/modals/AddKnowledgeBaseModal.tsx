@@ -24,6 +24,7 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
   );
 
   const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     embeddingModel: '',
@@ -135,6 +136,7 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
       buttons={[
         {
           text: "取消",
+          loading: isLoading,
           onClick: () => {
             setFormData({
               name: '',
@@ -150,12 +152,17 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
         },
         {
           text: "确认",
+          loading: isLoading,
           onClick: async () => {
+            if (isLoading) return;
+
             try {
               if (!formData.name.trim()) {
                 setErrorMessage('请输入知识库名称');
                 return;
               }
+
+              setIsLoading(true);
 
               const chunkSize = parseInt(formData.chunkSize);
               const overlapSize = parseInt(formData.overlapSize);
@@ -195,6 +202,8 @@ const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) 
               }
             } catch (error) {
               setErrorMessage(`添加失败: ${(error as Error).message}`);
+            } finally {
+              setIsLoading(false);
             }
           },
           className: "bg-theme-green",
