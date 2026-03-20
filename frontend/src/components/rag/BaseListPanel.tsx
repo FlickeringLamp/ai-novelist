@@ -148,7 +148,7 @@ const BaseListPanel = () => {
 
   return (
     <div className="w-[15%] h-full flex flex-col border-r border-theme-gray3">
-      <div className="p-1 border-b border-theme-gray3">
+      <div className="flex h-[5%] p-1 border-b border-theme-gray3 items-center">
         <button
           onClick={() => setShowAddModal(true)}
           className="w-full px-4 py-2 rounded hover:bg-theme-gray2 hover:text-theme-green"
@@ -156,7 +156,7 @@ const BaseListPanel = () => {
           添加知识库
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="h-[95%] flex-1 overflow-y-auto">
         {Object.entries(knowledgeBases).map(([id, kb]) => (
           <div
             key={id}

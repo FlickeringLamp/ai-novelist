@@ -106,8 +106,12 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             # 获取过往消息总结
             summary = state.get("summary", "")
             
-            # 异步获取系统提示词，传入用户输入用于RAG检索和过往消息总结
-            system_prompt = await prompt_builder.build_system_prompt(mode=mode, user_input=user_input, summary=summary)
+            # 异步获取系统提示词和上下文消息
+            system_prompt, context_message = await prompt_builder.build_prompts(
+                mode=mode,
+                user_input=user_input,
+                summary=summary
+            )
             
             # 如果有store可用，检索长期记忆
             memory_context = ""
@@ -129,10 +133,9 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                 except Exception as e:
                     print(f"[MEMORY] 检索记忆时出错: {e}")
             
-            # 将记忆上下文添加到系统提示词
-            enhanced_system_prompt = system_prompt
+            # 将记忆上下文添加到上下文消息中
             if memory_context:
-                enhanced_system_prompt = f"{system_prompt}\n\n【长期记忆】\n{memory_context}"
+                context_message = f"{context_message}\n\n【长期记忆】\n{memory_context}" if context_message else f"【长期记忆】\n{memory_context}"
             
             # 修剪消息历史，避免超出上下文限制，include_system不填，默认去除提示词
             current_messages = trim_messages(
@@ -145,12 +148,20 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             )
             print("max_tokens:",max_tokens)
             
+            # 构建发送给AI的消息列表：
+            # SystemMessage(系统提示词) + 历史消息 + HumanMessage(系统环境信息)
+            messages_for_ai = [SystemMessage(content=system_prompt)] + current_messages
+            
+            # 如果有上下文消息，作为末尾HumanMessage附加（明确标记为系统生成）
+            if context_message:
+                messages_for_ai.append(HumanMessage(content=f"【系统环境信息 - 此消息由系统自动生成，并非用户发送】\n\n{context_message}\n\n[注意：以上内容由系统自动附加，非用户输入]"))
+            
             # 调用模型生成响应
-            print("发送给ai的信息：",[SystemMessage(content=enhanced_system_prompt)] + current_messages)
+            print("发送给ai的信息：", messages_for_ai)
             
             # 统一调用方式，传入stream_id用于中断控制
             response = await llm_with_tools.ainvoke(
-                [SystemMessage(content=enhanced_system_prompt)] + current_messages,
+                messages_for_ai,
                 config={"configurable": {"stream_id": stream_id}} if stream_id else {}
             )
             

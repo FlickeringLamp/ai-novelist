@@ -29,35 +29,62 @@ def is_skill_command(command: str) -> bool:
         command: 命令字符串
         
     Returns:
-        如果是 skills/ 开头的命令则返回 True
+        如果命令包含 scripts/ 路径则返回 True
     """
-    # 检查命令是否包含 skills/ 路径
-    pattern = r'skills/[^/\s]+'
+    # 检查命令是否包含 scripts/ 路径（官方标准：相对于 SKILL.md 的路径）
+    pattern = r'scripts/[^\s]+'
     return bool(re.search(pattern, command))
 
 
-def parse_skill_command(command: str) -> tuple[str, str, str]:
-    """解析技能命令，提取技能名称和剩余路径
+def parse_skill_command(command: str, cwd: Optional[str] = None) -> tuple[str, str, str]:
+    """解析技能命令，提取技能名称和脚本路径
     
     Args:
-        command: 技能命令字符串，如 "python3 skills/baidu-search/scripts/search.py '{}'"
+        command: 技能命令字符串，如 "python3 scripts/search.py '{}'"
+        cwd: 当前工作目录，用于确定 skill
         
     Returns:
-        (skill_name, skill_path, remaining_command)
+        (skill_name, script_path, remaining_command)
         skill_name: 技能名称，如 "baidu-search"
-        skill_path: 技能路径部分，如 "skills/baidu-search"
-        remaining_command: 替换后的命令
+        script_path: 脚本路径部分，如 "scripts/search.py"
+        remaining_command: 原始命令
     """
-    # 匹配 skills/[skill_name] 模式
-    pattern = r'skills/([^/\s]+)'
+    # 匹配 scripts/[script_name] 模式
+    pattern = r'scripts/([^\s]+)'
     match = re.search(pattern, command)
     if not match:
         raise ValueError(f"无法解析技能命令: {command}")
     
-    skill_name = match.group(1)
-    skill_path = match.group(0)  # "skills/baidu-search"
+    script_path = match.group(0)  # "scripts/search.py"
+    script_name = match.group(1)  # "search.py"
     
-    return skill_name, skill_path, command
+    # 确定 skill 名称
+    # 策略1: 如果提供了 cwd，从 cwd 向上查找 SKILL.md
+    skill_name = None
+    if cwd:
+        cwd_path = Path(cwd).resolve()
+        current = cwd_path
+        while current != current.parent:
+            skill_md = current / "SKILL.md"
+            if skill_md.exists():
+                # 从目录结构推断 skill 名称
+                skill_name = current.name
+                break
+            current = current.parent
+    
+    # 策略2: 如果无法从 cwd 确定，尝试从所有 skills 中查找包含该脚本的 skill
+    if not skill_name:
+        skill_loader = get_skill_loader()
+        all_skills = skill_loader.load_all_skills()
+        for name, skill in all_skills.items():
+            if skill.script_path and skill.script_path.name == script_name:
+                skill_name = name
+                break
+    
+    if not skill_name:
+        raise ValueError(f"无法确定技能名称，命令: {command}")
+    
+    return skill_name, script_path, command
 
 
 def get_skill_env(skill_name: str) -> Dict[str, str]:
@@ -192,8 +219,12 @@ async def handle_skill_command(command: str) -> tuple[str, Dict[str, str]]:
 @tool(args_schema=ExecuteCommandInput)
 async def execute_command(command: str, cwd: Optional[str] = None, timeout: int = 30) -> str:
     """
-执行任意命令行命令，包括skills文件里的命令，
-例如：python3 skills/baidu-search/scripts/search.py '<JSON>'
+执行任意命令行命令，包括执行 skills 脚本
+注意，各个SKILL.md文件，一般会介绍skill脚本的位置和用法（一般是相对于SKILL.md的相对路径），但我们最终的格式应该如下：
+格式：<interpreter> skills/<skill_name>/scripts/<script_name> [args...]
+示例：
+  - python3 skills/baidu-search/scripts/search.py '<JSON>'
+  - node skills/my-tool/scripts/index.js --flag value
     """
     try:
         # 检查是否是技能命令

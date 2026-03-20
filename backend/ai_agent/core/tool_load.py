@@ -7,7 +7,7 @@ from backend.ai_agent.tool.file_tool.apply_diff import apply_diff
 from backend.ai_agent.tool.file_tool.search_text import search_text
 from backend.ai_agent.tool.operation_tool.ask_user import ask_user_question
 from backend.ai_agent.tool.operation_tool.execute_command import execute_command
-from backend.ai_agent.tool.skill_tool.load_skill import load_skill
+from backend.ai_agent.tool.skill_tool.load_unload_skill import load_unload_skill
 from backend.ai_agent.mcp.mcp_manager import get_mcp_tools_as_objects
 
 async def import_tools(mode: str = None):
@@ -26,7 +26,7 @@ async def import_tools(mode: str = None):
         "search_text": search_text,
         "ask_user_question": ask_user_question,
         "execute_command": execute_command,
-        "load_skill": load_skill
+        "load_unload_skill": load_unload_skill
     }
     
     # 获取所有MCP工具对象（包括uvx和npx）

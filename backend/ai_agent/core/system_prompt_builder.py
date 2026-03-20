@@ -1,16 +1,20 @@
 """
 系统提示词构建器
 负责构建包含文件树结构和持久记忆的完整系统提示词
+
+架构说明：
+- 系统提示词 (SystemMessage): 静态核心指令，变化极少
+- 上下文消息 (HumanMessage): 动态环境信息，拼接到消息列表末尾
 """
 
 import os
 import re
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import logging
 
 from backend.config.config import settings
-from backend.file.file_service import get_file_tree_for_ai, read_file
+from backend.file.file_service import get_file_tree_for_ai, read_file, resolve_file_path, normalize_to_absolute
 from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb, get_two_step_rag_config
 from backend.ai_agent.skill import get_skill_loader
 from backend.ai_agent.utils.file_utils import split_paragraphs
@@ -62,23 +66,25 @@ class SystemPromptBuilder:
         
         如果路径已存在于 additionalInfo 中则跳过，否则添加进去。
         同时会验证文件是否存在，不存在的文件会被忽略。
-        这样用户通过 @ 引用的文件会在后续对话中持续加载。
+        所有路径会转换为绝对路径存储。
         
         Args:
-            at_paths: 从用户输入中提取的 @路径 列表
+            at_paths: 从用户输入中提取的 @路径 列表（支持相对和绝对路径）
             mode: 当前模式名称
         """
         try:
             if not at_paths or not mode:
                 return
             
-            # 过滤出实际存在的文件路径
-            existing_paths = []
+            # 过滤出实际存在的文件路径，并转换为绝对路径
+            existing_abs_paths = []
             missing_paths = []
             for path in at_paths:
-                file_path = self.data_dir / path
+                file_path = resolve_file_path(path)
                 if file_path.exists() and file_path.is_file():
-                    existing_paths.append(path)
+                    # 转换为绝对路径存储
+                    abs_path = normalize_to_absolute(path)
+                    existing_abs_paths.append(abs_path)
                 else:
                     missing_paths.append(path)
             
@@ -87,7 +93,7 @@ class SystemPromptBuilder:
                 logger.warning(f"以下 @路径 引用的文件不存在，已忽略: {missing_paths}")
             
             # 如果没有存在的文件，直接返回
-            if not existing_paths:
+            if not existing_abs_paths:
                 logger.info(f"没有有效的 @路径 需要添加到 {mode} 模式")
                 return
             
@@ -98,7 +104,7 @@ class SystemPromptBuilder:
                 additional_files = []
             
             # 过滤出不在 additionalInfo 中的新路径
-            new_paths = [p for p in existing_paths if p not in additional_files]
+            new_paths = [p for p in existing_abs_paths if p not in additional_files]
             
             if new_paths:
                 # 将新路径添加到 additionalInfo
@@ -111,8 +117,8 @@ class SystemPromptBuilder:
         except Exception as e:
             logger.error(f"同步 @路径 到 additionalInfo 失败: {e}")
     
-    async def _get_additional_files_content(self, mode: str) -> str:
-        """获取指定模式的 additionalInfo 文件列表内容，自动添加段落编号
+    async def _get_loaded_files_content(self, mode: str) -> str:
+        """获取已加载文件的内容（用于末尾附加消息）
         
         Args:
             mode: 模式名称
@@ -122,16 +128,16 @@ class SystemPromptBuilder:
         """
         try:
             # 从配置中获取当前模式的 additionalInfo 文件列表
-            additional_files = settings.get_config("mode", mode, "additionalInfo", default=[])
+            loaded_files = settings.get_config("mode", mode, "additionalInfo", default=[])
             
-            # 如果没有额外文件，返回提示文本
-            if not additional_files or not isinstance(additional_files, list):
+            # 如果没有加载的文件，返回空字符串
+            if not loaded_files or not isinstance(loaded_files, list):
                 return "[额外文件内容]:\n暂未加载文件"
             
             # 构建格式化的文件内容
             file_contents = []
             
-            for file_path in additional_files:
+            for file_path in loaded_files:
                 if not isinstance(file_path, str):
                     continue
                 
@@ -161,13 +167,13 @@ class SystemPromptBuilder:
             return "[额外文件内容]:\n暂未加载文件"
     
     def _get_skills_info(self, mode: str) -> str:
-        """获取指定模式的 Skills 信息
+        """获取指定模式的 Skills 简要信息（仅名称和描述）
         
         Args:
             mode: 模式名称
             
         Returns:
-            格式化的 Skills 信息字符串
+            格式化的 Skills 简要信息字符串
         """
         try:
             # 从配置中获取当前模式的 skills 列表
@@ -183,11 +189,70 @@ class SystemPromptBuilder:
             if not skills:
                 return ""
             
-            # 格式化 Skills 信息
+            # 格式化 Skills 简要信息（只显示名称和描述）
             return skill_loader.format_skills_for_prompt(skills)
             
         except Exception as e:
             logger.error(f"获取 Skills 信息失败: {e}")
+            return ""
+    
+    async def _get_loaded_skills_content(self, mode: str) -> str:
+        """获取已加载 Skill 的内容（用于末尾附加消息）
+        
+        Args:
+            mode: 模式名称
+            
+        Returns:
+            格式化的 Skill 内容字符串（格式：[Skill directory: path/] + content）
+        """
+        try:
+            # 从配置中获取当前模式的 skillPaths 列表
+            skill_paths = settings.get_config("mode", mode, "skillPaths", default=[])
+            
+            # 如果没有加载的 Skill，返回空字符串
+            if not skill_paths or not isinstance(skill_paths, list):
+                return ""
+            
+            # 加载所有可用的 skills
+            skill_loader = get_skill_loader()
+            all_skills = skill_loader.load_all_skills()
+            
+            # 构建 skill_path 到 skill 对象的映射（通过 file_path 匹配）
+            skill_by_path = {}
+            for skill in all_skills.values():
+                skill_file_path = str(skill.file_path.resolve())
+                skill_by_path[skill_file_path] = skill
+            
+            # 构建格式化的 Skill 内容
+            skill_contents = []
+            
+            for skill_path in skill_paths:
+                if not isinstance(skill_path, str):
+                    continue
+                
+                try:
+                    # 通过路径查找对应的 skill 对象
+                    skill = skill_by_path.get(skill_path)
+                    
+                    if skill:
+                        # 使用 skill 对象的 content（已过滤 frontmatter，不含 name 和 description）
+                        skill_dir = str(skill.base_dir.resolve())
+                        content = skill.content
+                        
+                        # 格式：[Skill directory: path/] + content
+                        skill_contents.append(f"[Skill directory: {skill_dir}/]\n\n{content}")
+                    else:
+                        logger.warning(f"未找到 Skill 对象: {skill_path}")
+                except Exception as e:
+                    logger.error(f"读取 Skill 失败 {skill_path}: {e}")
+            
+            if skill_contents:
+                return f"[额外 Skill 内容]:\n\n{'\n\n'.join(skill_contents)}"
+            else:
+                return ""
+                
+        except Exception as e:
+            logger.error(f"获取已加载 Skill 内容失败: {e}")
             return ""
     
     def _get_knowledge_bases_info(self) -> str:
@@ -340,103 +405,140 @@ class SystemPromptBuilder:
     
     async def build_system_prompt(
         self,
+        mode: Optional[str] = None
+    ) -> str:
+        """构建静态系统提示词（SystemMessage）
+        
+        这部分内容变化极少，是真正的"系统级"指令
+        
+        Args:
+            mode: 对话模式 (outline/writing/adjustment)
+            
+        Returns:
+            静态系统提示词
+        """
+        try:
+            # 基础系统提示词
+            prompt_configs = settings.get_config("mode", mode, "prompt", default="你是一个AI助手，负责为用户解决各种需求。")
+            
+            logger.info(f"系统提示词构建完成，模式: {mode}")
+            return prompt_configs
+            
+        except Exception as e:
+            logger.error(f"构建系统提示词时出错: {e}")
+            return settings.get_config("mode", mode, "prompt", default="你是一个AI助手，负责为用户解决各种需求。")
+    
+    async def build_context_message(
+        self,
         mode: Optional[str] = None,
         include_file_tree: bool = True,
-        include_persistent_memory: bool = True,
         include_knowledge_bases: bool = True,
+        include_loaded_files: bool = True,
+        include_skills: bool = True,
         user_input: Optional[str] = None,
         enable_rag: bool = True,
         summary: Optional[str] = None
     ) -> str:
-        """构建完整的系统提示词
+        """构建上下文消息内容（将作为末尾HumanMessage附加）
+        
+        这部分内容变化频繁，包含动态环境信息
         
         Args:
-            mode: 对话模式 (outline/writing/adjustment)
+            mode: 对话模式
             include_file_tree: 是否包含文件树结构
-            include_persistent_memory: 是否包含额外文件内容
             include_knowledge_bases: 是否包含知识库列表信息
+            include_loaded_files: 是否包含已加载文件内容
+            include_skills: 是否包含 Skills 信息
             user_input: 用户输入文本，用于RAG检索
             enable_rag: 是否启用RAG检索
             summary: 过往消息总结
             
         Returns:
-            完整的系统提示词
+            上下文消息内容字符串
         """
         try:
-            prompt_configs = settings.get_config("mode", mode, "prompt", default="你是一个AI助手，负责为用户解决各种需求。")
-            # 构建完整提示词
-            prompt_parts = [prompt_configs]
-
+            context_parts = []
+            
             # 添加过往消息总结
             if summary:
-                prompt_parts.append(f"[过往消息总结]:\n{summary}")
-
+                context_parts.append(f"【过往消息总结】\n{summary}")
+            
             # 添加 Skills 信息
-            skills_info = self._get_skills_info(mode or "")
-            if skills_info:
-                prompt_parts.append(skills_info)
+            if include_skills:
+                skills_info = self._get_skills_info(mode or "")
+                if skills_info:
+                    context_parts.append(skills_info)
             
             # 添加知识库列表信息
             if include_knowledge_bases:
                 knowledge_bases_info = self._get_knowledge_bases_info()
                 if knowledge_bases_info:
-                    prompt_parts.append(f"[可用知识库]:\n{knowledge_bases_info}")
-
+                    context_parts.append(f"【可用知识库】\n{knowledge_bases_info}")
+            
             # 添加文件树结构
             if include_file_tree:
                 file_tree_content = await self.get_file_tree_content()
-                prompt_parts.append(file_tree_content)
+                if file_tree_content:
+                    context_parts.append(f"【当前工作区文件结构】\n{file_tree_content}")
             
-            # 添加额外文件内容（包括 @路径 引用的文件和模式配置中的 additionalInfo）
-            if include_persistent_memory:
-                # 如果用户输入中包含 @路径，同步到 additionalInfo 中（去重添加）
-                if user_input and mode:
-                    at_paths = self._extract_at_paths(user_input)
-                    if at_paths:
-                        self._sync_at_paths_to_additional_info(at_paths, mode)
-                
-                # 添加模式配置中的 additionalInfo 文件内容（现在包含之前通过 @ 引用的文件）
-                additional_files_content = await self._get_additional_files_content(mode or "")
-                
-                if additional_files_content:
-                    prompt_parts.append(additional_files_content)
+            # 处理 @路径 同步（如果用户输入中包含 @路径）
+            if user_input and mode:
+                at_paths = self._extract_at_paths(user_input)
+                if at_paths:
+                    self._sync_at_paths_to_additional_info(at_paths, mode)
+            
+            # 添加已加载文件内容
+            if include_loaded_files:
+                loaded_files_content = await self._get_loaded_files_content(mode or "")
+                if loaded_files_content:
+                    context_parts.append(loaded_files_content)
+            
+            # 添加已加载 Skill 内容
+            loaded_skills_content = await self._get_loaded_skills_content(mode or "")
+            if loaded_skills_content:
+                context_parts.append(loaded_skills_content)
             
             # 执行RAG检索并添加结果
             if enable_rag and user_input:
                 rag_content = await self._perform_rag_search(user_input)
                 if rag_content:
-                    prompt_parts.append(f"[RAG检索结果]:\n{rag_content}")
+                    context_parts.append(f"【RAG检索结果】\n{rag_content}")
             
             # 合并所有部分
-            full_prompt = "\n\n".join(prompt_parts)
-            
-            logger.info(f"系统提示词构建完成，模式: {mode}，包含文件树: {include_file_tree}，包含额外文件: {include_persistent_memory}，包含知识库: {include_knowledge_bases}，启用RAG: {enable_rag}，包含总结: {summary is not None}")
-            logger.info(f"构建的完整系统提示词:\n{full_prompt}")
-            return full_prompt
-            
-        except Exception as e:
-            logger.error(f"构建系统提示词时出错: {e}")
-            prompt_configs = settings.get_config("mode", mode, "prompt", default="你是一个AI助手，负责为用户解决各种需求。")
-            return prompt_configs
-    
-    async def refresh_file_tree_cache(self):
-        """刷新文件树缓存"""
-        try:
-            # 获取data目录路径
-            data_path = self.data_dir
-            
-            # 重新获取文件树
-            file_tree_result = {"success": True, "tree": await get_file_tree_for_ai(data_path, data_path)}
-            
-            if file_tree_result.get("success", False):
-                self.file_tree_cache = file_tree_result.get("tree", [])
-                self.last_cache_time = os.path.getmtime(data_path) if os.path.exists(data_path) else None
-                logger.info("文件树缓存已刷新")
+            if context_parts:
+                context_message = "\n\n".join(context_parts)
+                logger.info(f"上下文消息构建完成，包含部分: {len(context_parts)}")
+                return context_message
             else:
-                logger.error(f"刷新文件树缓存失败: {file_tree_result.get('error', '未知错误')}")
+                return ""
                 
         except Exception as e:
-            logger.error(f"刷新文件树缓存时出错: {e}")
+            logger.error(f"构建上下文消息时出错: {e}")
+            return ""
+    
+    async def build_prompts(
+        self,
+        mode: Optional[str] = None,
+        user_input: Optional[str] = None,
+        summary: Optional[str] = None
+    ) -> Tuple[str, str]:
+        """同时构建系统提示词和上下文消息（便捷方法）
+        
+        Args:
+            mode: 对话模式
+            user_input: 用户输入文本
+            summary: 过往消息总结
+            
+        Returns:
+            (system_prompt, context_message) 元组
+        """
+        system_prompt = await self.build_system_prompt(mode=mode)
+        context_message = await self.build_context_message(
+            mode=mode,
+            user_input=user_input,
+            summary=summary
+        )
+        return system_prompt, context_message
 
 
 # 创建全局实例

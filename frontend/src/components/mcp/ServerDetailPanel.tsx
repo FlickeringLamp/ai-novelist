@@ -336,7 +336,7 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
                         onBlur={(e) => handleSaveEnv(e.target.value)}
                         className="w-full bg-theme-gray2 text-white px-3 py-2 rounded border border-theme-gray3 focus:border-theme-green outline-none min-h-[120px] resize-y"
                         rows={4}
-                        placeholder="KEY1=value1&#10;KEY2=value2"
+                        placeholder="KEY1=value1&#10;KEY2=value2&#10;请不要输入多余的空格"
                       />
                     </div>
                   </div>
