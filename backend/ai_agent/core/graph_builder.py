@@ -154,7 +154,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             
             # 如果有上下文消息，作为末尾HumanMessage附加（明确标记为系统生成）
             if context_message:
-                messages_for_ai.append(HumanMessage(content=f"【系统环境信息 - 此消息由系统自动生成，并非用户发送】\n\n{context_message}\n\n[注意：以上内容由系统自动附加，非用户输入]"))
+                messages_for_ai.append(HumanMessage(content=f"【系统环境信息 - 此消息由系统自动生成，并非用户发送】\n\n{context_message}\n\n"))
             
             # 调用模型生成响应
             print("发送给ai的信息：", messages_for_ai)

@@ -13,7 +13,7 @@ ALL_AVAILABLE_TOOLS = {
     },
     "search_text": {
         "name": "搜索文本",
-        "description": "搜索文本内容，支持只搜索或搜索并替换（replace为null时只搜索，不为null时替换）"
+        "description": "搜索文本内容，支持只搜索或搜索并替换"
     },
     "ask_user_question": {
         "name": "询问用户",
@@ -29,7 +29,7 @@ ALL_AVAILABLE_TOOLS = {
     },
     "load_unload_skill": {
         "name": "加载/卸载 Skill",
-        "description": "将 Skill 加载到系统提示词中或从系统提示词中卸载。Skill 加载后会自动在每次对话时包含其详细内容；卸载后则不再包含"
+        "description": "Skill 加载后会自动在每次对话时包含其详细内容；卸载后则不再包含"
     },
     "execute_command": {
         "name": "执行命令",

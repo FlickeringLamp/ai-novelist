@@ -211,7 +211,7 @@ class SystemPromptBuilder:
             
             # 如果没有加载的 Skill，返回空字符串
             if not skill_paths or not isinstance(skill_paths, list):
-                return ""
+                return "未加载任何skill"
             
             # 加载所有可用的 skills
             skill_loader = get_skill_loader()
@@ -235,7 +235,6 @@ class SystemPromptBuilder:
                     skill = skill_by_path.get(skill_path)
                     
                     if skill:
-                        # 使用 skill 对象的 content（已过滤 frontmatter，不含 name 和 description）
                         skill_dir = str(skill.base_dir.resolve())
                         content = skill.content
                         
