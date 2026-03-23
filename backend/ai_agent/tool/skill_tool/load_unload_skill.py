@@ -33,7 +33,7 @@ async def load_unload_skill(skill_name: str) -> str:
     """
     try:
         # 获取当前模式
-        current_mode = settings.get_config("currentMode", default="outline")
+        current_mode = settings.get_config("currentMode", default="管家agent")
         
         # 获取当前模式的 skillPaths 列表（存储 SKILL.md 文件的绝对路径）
         skill_paths = settings.get_config("mode", current_mode, "skillPaths", default=[])

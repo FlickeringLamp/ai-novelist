@@ -11,6 +11,13 @@ import yaml
 
 from backend.config.providers import PROVIDERS
 from backend.config.mode import DEFAULT_MODES
+from backend.config.env_manager import (
+    get_api_key_from_env,
+    set_api_key_to_env,
+    remove_api_key_from_env,
+    initialize_env_file,
+    load_env_file
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +70,9 @@ def initialize_directories_and_files():
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
     
+    # 初始化 .env 文件
+    initialize_env_file()
+    
     # 确保配置文件存在，不存在则创建包含默认值的配置文件
     if not config_file.exists():
         thread_id = f"thread_{int(time.time() * 1000)}"
@@ -70,7 +80,7 @@ def initialize_directories_and_files():
             "log_level": "INFO",
             "host": "127.0.0.1",
             "port": 8000,
-            "currentMode": "outline",
+            "currentMode": "管家agent",
             "mode": DEFAULT_MODES,
             "autoApproveSettings": False,
             "selectedProvider": "",
@@ -273,6 +283,44 @@ class Settings:
             return _load_config_file(config_path)
         except Exception:
             return {}
+    
+    def get_provider_key(self, provider_id: str) -> str:
+        """
+        从 .env 文件获取提供商的 API KEY
+        
+        Args:
+            provider_id: 提供商 ID (如 'deepseek', 'openai')
+        
+        Returns:
+            str: API KEY，如果没有则返回空字符串
+        """
+        key = get_api_key_from_env(provider_id)
+        return key if key else ""
+    
+    def set_provider_key(self, provider_id: str, api_key: str) -> bool:
+        """
+        设置提供商的 API KEY 到 .env 文件
+        
+        Args:
+            provider_id: 提供商 ID
+            api_key: API KEY
+        
+        Returns:
+            bool: 设置成功返回 True
+        """
+        return set_api_key_to_env(provider_id, api_key)
+    
+    def remove_provider_key(self, provider_id: str) -> bool:
+        """
+        从 .env 文件移除提供商的 API KEY
+        
+        Args:
+            provider_id: 提供商 ID
+        
+        Returns:
+            bool: 移除成功返回 True
+        """
+        return remove_api_key_from_env(provider_id)
     
     def get_config(self, *keys: str, default: Any = None, config_file: str = "store.yaml") -> Any:
         """获取指定配置值，支持多层嵌套。返回临时字典的引用，必须使用update_config更新，才能保存到磁盘

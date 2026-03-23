@@ -1,61 +1,47 @@
-# "细纲模式"的提示词
-OUTLINE_PROMPT = """你是一位小说创作顾问，负责与用户深度沟通本章核心需求。
-先通过多轮对话收集以下信息：
-1. 核心情节冲突。
-2. 人物行为与动机。
-3. 场景与氛围要求。
-4. 本章需要注意的伏笔或者暗线。
-5. 后一章的大致走向，便于本章结尾的铺垫。
+# 管家agent的提示词 - 唯一的内置模式
+BUTLER_PROMPT = """你是"青烛"项目的管家AI
 
-随后生成完整的结构化细纲（含场景序列、关键对话、情绪转折点等等），向用户展示细纲并询问：『是否需调整？请指出修改方向』。
+你的核心任务是为用户服务，提供基本的使用指导
 
-注意，请保持和用户沟通时的礼貌。"""
+以及解答可能的相关问题
 
-# "写作模式"的提示词
-WRITING_PROMPT = """你是一位专业小说代笔，需严格基于用户提供的【最终版细纲】进行创作。核心任务：解析细纲中的场景节点，扩展为2000字左右的正文。文风模仿知识库中的句式结构、高频词汇、描写偏好。重点在于补充各种描写，非必要时禁止添加细纲外新情节。"""
+你将拥有所有的工具，专属的知识库，以及skills
 
-# "调整模式"的提示词
-ADJUSTMENT_PROMPT = """你是一位资深编辑和小说精修师。你的任务是：
-1.  **诊断问题**：根据用户提供的草稿，从剧情逻辑、语言问题（如"AI味"）、风格一致性等方面进行检查。
-2.  **提供报告**：输出一份检查报告，每个问题都需提供修改案例，格式为：【原句】、【建议】、【理由】。
-3.  **执行修改**：根据用户批准的修改建议，对草稿进行精修，确保修改后的内容逻辑清晰、文风与原文保持一致，并且不得变更用户已确认的核心情节。"""
+具备访问配置文件，修改文件内容等高级权限
 
+请好好利用它，解决用户的需求，或者解答用户的问题"""
 
+# 默认模式配置 - 只有管家agent
 DEFAULT_MODES = {
-    "outline": {
-        "name": "细纲模式",
+    "管家agent": {
+        "name": "管家agent",
         "builtin": True,
-        "prompt": OUTLINE_PROMPT,
+        "prompt": BUTLER_PROMPT,
         "temperature": 0.7,
         "top_p": 0.7,
-        "max_tokens": 4096,
+        "max_tokens": 40960,
         "additionalInfo": [],
-        "tools": ["load_unload_file", "manage_file", "ask_user_question"],
-        "skills": [],
-        "skillPaths": []
-    },
-    "writing": {
-        "name": "写作模式",
-        "builtin": True,
-        "prompt": WRITING_PROMPT,
-        "temperature": 0.7,
-        "top_p": 0.7,
-        "max_tokens": 4096,
-        "additionalInfo": [],
-        "tools": ["load_unload_file", "manage_file", "ask_user_question"],
-        "skills": [],
-        "skillPaths": []
-    },
-    "adjustment": {
-        "name": "调整模式",
-        "builtin": True,
-        "prompt": ADJUSTMENT_PROMPT,
-        "temperature": 0.7,
-        "top_p": 0.7,
-        "max_tokens": 4096,
-        "additionalInfo": [],
-        "tools": ["load_unload_file", "manage_file", "ask_user_question"],
+        "tools": [
+            "load_unload_file",
+            "manage_file",
+            "apply_diff",
+            "search_text",
+            "ask_user_question",
+            "rag_search",
+            "rag_list_files",
+            "load_unload_skill",
+            "execute_command"
+        ],
         "skills": [],
         "skillPaths": []
     }
 }
+
+
+def get_default_mode_id() -> str:
+    """获取默认模式ID
+    
+    Returns:
+        str: 默认模式ID（管家agent）
+    """
+    return "管家agent"

@@ -159,7 +159,7 @@ def create_collection(collection_name):
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=provider_config.get('key', '')
+        embedding_api_key=settings.get_provider_key(provider)
     )
     
     # 使用 Chroma 创建新的集合
@@ -201,7 +201,7 @@ async def add_file_to_collection(file_path, collection_name, progress_callback: 
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=provider_config.get('key', '')
+        embedding_api_key=settings.get_provider_key(provider)
     )
     
     # 准备文档
@@ -322,7 +322,7 @@ def search_emb(collection_name: str, search_input: str, filename_filter: Optiona
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=provider_config.get('key', '')
+        embedding_api_key=settings.get_provider_key(provider)
     )
     
     # 加载向量数据库
@@ -372,7 +372,7 @@ async def asearch_emb(collection_name: str, search_input: str, filename_filter: 
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=provider_config.get('key', '')
+        embedding_api_key=settings.get_provider_key(provider)
     )
     
     # 加载向量数据库

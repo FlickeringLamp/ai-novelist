@@ -62,7 +62,7 @@ class MultiModelAdapter:
         """
         # 获取API密钥
         if api_key is None:
-            api_key = settings.get_config("provider", provider, "key", default="")
+            api_key = settings.get_provider_key(provider)
         
         # 获取base_url
         if base_url is None:

@@ -41,7 +41,7 @@ const MessageDisplayPanel = () => {
   
   // 从Redux获取thread_id和mode
   const threadId = useSelector((state: RootState) => state.chatSlice.selectedThreadId) || 'default';
-  const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId) || 'outline';
+  const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId) || '管家agent';
   
   // 从Redux获取中断状态
   const interrupts = useSelector((state: RootState) => state.chatSlice.state?.interrupts || emptyInterrupts);

@@ -28,7 +28,7 @@ async def load_unload_file(file_path: str) -> str:
         abs_path = normalize_to_absolute(file_path)
         
         # 获取当前模式
-        current_mode = settings.get_config("currentMode", default="outline")
+        current_mode = settings.get_config("currentMode", default="管家agent")
         
         # 获取当前模式的 additionalInfo 列表
         additional_info = settings.get_config("mode", current_mode, "additionalInfo", default=[])

@@ -35,7 +35,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
     """
     async def wrapper(*args, **kwargs):
         # 从配置文件获取当前模式
-        mode = settings.get_config("currentMode", default="outline")
+        mode = settings.get_config("currentMode", default="管家agent")
 
         # 导入所有工具（包括MCP工具和内置工具）
         tool_dict = await import_tools(mode=mode)
