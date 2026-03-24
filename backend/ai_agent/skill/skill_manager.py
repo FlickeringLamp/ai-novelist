@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple, Any
 
-from backend.config.config import settings
+from backend.settings.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,6 @@ class Skill:
     base_dir: Path  # Skill 基础目录，即data/skills/下一层的目录
     file_path: Path  # SKILL.md 文件路径
     content: str  # SKILL.md 的完整内容（不含 frontmatter）
-    script_path: Optional[Path] = None  # 脚本文件路径（如果有）
     
     def to_prompt_format(self) -> str:
         """将 Skill 转换为提示词格式
@@ -102,68 +101,18 @@ class SkillLoader:
         name = frontmatter_dict.get('name', '')
         description = frontmatter_dict.get('description', '')
         
-        # 查找脚本文件（scripts/ 文件夹）
-        script_path = self._find_script_path(skill_dir)
-        
         # 创建 Skill 对象
         skill = Skill(
             name=name,
             description=description,
             base_dir=skill_dir,
             file_path=skill_md,
-            content=body_content,
-            script_path=script_path
+            content=body_content
         )
         
-        if script_path:
-            logger.info(f"成功加载 Skill: {skill.name} from {skill_dir} (包含脚本: {script_path})")
-        else:
-            logger.info(f"成功加载 Skill: {skill.name} from {skill_dir}")
+        logger.info(f"成功加载 Skill: {skill.name} from {skill_dir}")
         
         return skill
-    
-    def _find_script_path(self, skill_dir: Path) -> Optional[Path]:
-        """查找 Skill 脚本文件
-        
-        查找 scripts/ 文件夹中的脚本文件（官方标准）
-        
-        Args:
-            skill_dir: Skill 目录路径
-            
-        Returns:
-            脚本文件路径，如果没有找到则返回 None
-        """
-        # 支持的脚本扩展名
-        supported_extensions = {'.py', '.js', '.sh'}
-        
-        # 查找 scripts/ 文件夹（官方标准）
-        scripts_dir = skill_dir / "scripts"
-        if scripts_dir.exists() and scripts_dir.is_dir():
-            script_files = []
-            for file in scripts_dir.iterdir():
-                if file.is_file() and file.suffix.lower() in supported_extensions:
-                    script_files.append(file)
-            
-            if script_files:
-                # 如果只有一个脚本，直接使用
-                if len(script_files) == 1:
-                    return script_files[0]
-                
-                # 如果有多个脚本，按以下优先级选择：
-                # 1. script.py/script.js/script.sh（通用命名）
-                # 2. 否则使用第一个找到的脚本
-                generic_names = ['script.py', 'script.js', 'script.sh']
-                for generic_name in generic_names:
-                    generic_path = scripts_dir / generic_name
-                    if generic_path in script_files:
-                        return generic_path
-                
-                # 使用第一个找到的脚本
-                logger.warning(f"Skill {skill_dir.name} 的 scripts/ 文件夹中有多个脚本，选择: {script_files[0].name}")
-                return script_files[0]
-        
-        # 没有找到脚本
-        return None
     
     def load_all_skills(self) -> Dict[str, Skill]:
         """加载所有 Skills

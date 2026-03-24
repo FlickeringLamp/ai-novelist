@@ -1,0 +1,164 @@
+import { app, BrowserWindow, ipcMain } from 'electron';
+import path from 'path';
+import { spawn, exec } from 'child_process';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+// ESM 模块中需要手动定义 __dirname 和 __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+let mainWindow;
+let backendProcess = null;
+let backendPort = 8000;
+
+// 开发环境配置
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+// 获取后端可执行文件路径
+function getBackendPath() {
+  if (isDev) {
+    // 开发环境：使用 Python 直接运行
+    return {
+      type: 'python',
+      path: path.join(__dirname, '..', 'main.py')
+    };
+  } else {
+    // 生产环境：使用打包后的 exe
+    if (process.platform === 'win32') {
+      return {
+        type: 'exe',
+        path: path.join(process.resourcesPath, 'backend', 'ai-novelist.exe')
+      };
+    } else if (process.platform === 'darwin') {
+      return {
+        type: 'exe',
+        path: path.join(process.resourcesPath, 'backend', 'ai-novelist')
+      };
+    } else {
+      return {
+        type: 'exe',
+        path: path.join(process.resourcesPath, 'backend', 'ai-novelist')
+      };
+    }
+  }
+}
+
+// 启动后端服务
+function startBackend() {
+  const backend = getBackendPath();
+  
+  if (backend.type === 'python') {
+    // 开发环境：使用 Python 运行
+    backendProcess = spawn('python', [backend.path], {
+      cwd: path.dirname(backend.path),
+      shell: true
+    });
+  } else {
+    // 生产环境：运行 exe
+    if (!fs.existsSync(backend.path)) {
+      console.error('后端可执行文件不存在:', backend.path);
+      return;
+    }
+    backendProcess = spawn(backend.path, [], {
+      cwd: path.dirname(backend.path),
+      shell: true
+    });
+  }
+
+  backendProcess.stdout.on('data', (data) => {
+    console.log(`后端输出: ${data}`);
+  });
+
+  backendProcess.stderr.on('data', (data) => {
+    console.error(`后端错误: ${data}`);
+  });
+
+  backendProcess.on('close', (code) => {
+    console.log(`后端进程退出，代码: ${code}`);
+    backendProcess = null;
+  });
+
+  console.log('后端服务已启动');
+}
+
+// 停止后端服务
+function stopBackend() {
+  if (backendProcess) {
+    backendProcess.kill();
+    backendProcess = null;
+    console.log('后端服务已停止');
+  }
+}
+
+// 创建主窗口
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 800,
+    minHeight: 600,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs')
+    },
+    icon: path.join(__dirname, 'assets', 'icon.png')
+  });
+
+  // 开发环境加载开发服务器，生产环境加载打包后的文件
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+  }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+// 应用启动
+app.whenReady().then(() => {
+  // 先启动后端
+  startBackend();
+  
+  // 等待一下让后端启动完成
+  setTimeout(() => {
+    createWindow();
+  }, 2000);
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+// 应用退出时清理
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    stopBackend();
+    app.quit();
+  }
+});
+
+app.on('before-quit', () => {
+  stopBackend();
+});
+
+// IPC 通信：获取后端状态
+ipcMain.handle('get-backend-status', () => {
+  return {
+    running: backendProcess !== null,
+    port: backendPort
+  };
+});
+
+// IPC 通信：重启后端
+ipcMain.handle('restart-backend', () => {
+  stopBackend();
+  startBackend();
+  return { success: true };
+});

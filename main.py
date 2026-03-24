@@ -6,7 +6,13 @@ os.environ["LITELLM_LOG"] = "ERROR"
 import sys
 import logging
 from pathlib import Path
-from backend import settings, initialize_directories_and_files
+
+# 先初始化数据目录和文件（必须在导入 settings 之前）
+from backend.settings.initializer import initialize_directories_and_files
+initialize_directories_and_files()
+
+# 初始化完成后再导入 settings
+from backend import settings
 
 # 获取静态文件目录路径（支持开发环境和PyInstaller打包环境）
 def get_static_dir():
@@ -18,9 +24,6 @@ def get_static_dir():
         return Path('static')
 
 static_dir = get_static_dir()
-
-# 初始化数据目录和文件
-initialize_directories_and_files()
 
 # 配置日志（在导入其他模块之前，确保所有日志都能被正确捕获）
 log_level_map = {

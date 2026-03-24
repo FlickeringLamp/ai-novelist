@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 import logging
 import re
-from backend.config.config import settings
+from backend.settings.settings import settings
 
 logger = logging.getLogger(__name__)
 

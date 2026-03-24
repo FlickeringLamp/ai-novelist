@@ -1,7 +1,7 @@
 import os
 from typing import List, Optional
 from langchain_core.embeddings import Embeddings
-from backend.config.config import get_model_dir
+from backend.settings.settings import settings
 from llama_cpp import Llama
 
 class LlamaCppEmbeddings(Embeddings):
@@ -32,7 +32,7 @@ class LlamaCppEmbeddings(Embeddings):
         """
         
         # 自动拼接模型目录路径
-        model_dir = get_model_dir()
+        model_dir = settings.MODEL_DIR
         # 确保模型文件名有 .gguf 扩展名
         if not model_name.endswith('.gguf'):
             model_name = model_name + '.gguf'

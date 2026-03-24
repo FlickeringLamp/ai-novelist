@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Set
 from fastapi import HTTPException, UploadFile
 from natsort import natsorted
-from backend.config.config import settings
+from backend.settings.settings import settings
 from backend.file.ripgrep_service import ripgrep_service
 from backend.file.ignore_parser import IgnoreParser
 

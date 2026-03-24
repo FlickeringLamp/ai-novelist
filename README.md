@@ -55,14 +55,15 @@ Total : 168 files,  13797 codes, 2811 comments, 2433 blanks, all 19041 lines
 以下是目前已知但暂未修复的问题：
 
 - **工具调用功能不完善**: 部分工具功能与其他功能（章节栏，标签页等）不协调
-- **聊天栏功能不完善**：文件路径补全暂未实现
 
 ## 后续发展规划
 
 ### 短期目标（v0.2.0）
 - 消息回档————类似cherrystudio的左右翻页还没做（暂时跳过）
 - 重构，统一类型声明位置
-- review新的skill工具相关的一切代码变更
+- 确保管家agent所有功能可用，增加一些特殊工具,功能案例等。 
+- 还要处理一下子模块问题
+- 内容编辑器，无法实时显示最新的内容（websocket）
 - write_file工具 ———— 标签栏多了怎么处理，先看看两个栏的情况会创到哪里吧（）
 - 文件操作工具，需要支持用户介入（）
 - 系统提示词构建，需要将editor里面的标签也写进去（）
@@ -73,36 +74,20 @@ Total : 168 files,  13797 codes, 2811 comments, 2433 blanks, all 19041 lines
 - 限制检索工具的结果数，避免上下文爆炸
 - 临时添加工具结果/及时获取工具结果并渲染/中断返回结果时先返回state，让工具结果消息先渲染，再流式渲染中断消息（）
 - 总结对话历史()————存在点小问题，比如，保留了倒数第二条消息，但是却显示没有发给ai
+- 检查一下CRLF和LF？windows和ubuntu混着写的，好像在不同平台会出bug来着。
 
 ### 中期目标（v0.3.0）
 - subagent，多agent系统
-- git存档功能开始支持分支
+- git存档功能支持分支
 - 部分功能自动化测试
 - 多模态，上传图片
 - 可视化工作流编辑器（类dify）
+- comfyUI相关功能
 - 更灵活的AI聊天功能（类酒馆？？？）
 - 工具加强
     - bug————当ai先前使用过工具（假如write_file），后续关闭使用该工具的权限与使用说明。一旦ai试图调用这个关闭的工具，就会报错。但是可控，渲染崩溃后，打开消息，删掉最后一个调用就好。
 - 中断时通知提供商停止生成？这个需要参考别人的项目看看怎么实现的
-- skills：对模板，示例，规则的支持
-~/.claude/skills/react-component-review/
-  ├── SKILL.md                  # 核心指令 + 元数据（建议控制在 400 行内）
-  │
-  ├── templates/                # 常用模板（Claude 按需读取）
-  │   ├── functional.tsx.md
-  │   └── class-component.md
-  │
-  ├── examples/                 # 优秀/反例（给 Claude 看标准）
-  │   ├── good.md
-  │   └── anti-pattern.md
-  │
-  ├── references/               # 规范、规则、禁用词表
-  │   ├── hooks-rules.md
-  │   └── naming-convention.md
-  │
-  └── scripts/                  # 可执行脚本（需开启 code execution）
-      ├── validate-props.py
-      └── check-cycle-deps.sh
+- 没有API key，不允许在chromadb具体创建内容
 
 - 允许用户打开文件夹作为工作目录
 - apply_diff，暂时不需要模仿roo code等AI IDE的逻辑了，当前的逻辑应该够用。

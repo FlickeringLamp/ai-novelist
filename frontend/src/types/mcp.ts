@@ -6,7 +6,10 @@ export interface MCPServerConfig {
   transport: 'stdio' | 'sse' | 'http';
   command?: string;
   args?: string[];
-  env?: Record<string, string>;
+  /** 环境变量名列表 */
+  env?: string[];
+  /** 环境变量值（从 .env 文件读取） */
+  envValues?: Record<string, string>;
   headers?: Record<string, string>;
 }
 

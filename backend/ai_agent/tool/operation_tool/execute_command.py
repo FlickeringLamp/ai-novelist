@@ -1,19 +1,16 @@
 """
 execute_command 工具
 让 AI 能够执行任意命令行命令
-支持 skills/ 开头的技能命令
 """
 
 import os
 import asyncio
-import re
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 
-from backend.ai_agent.skill.skill_manager import get_skill_loader
-from backend.config.config import settings, get_data_dir
+from backend.settings.settings import settings
 
 
 class ExecuteCommandInput(BaseModel):
@@ -22,90 +19,10 @@ class ExecuteCommandInput(BaseModel):
     timeout: Optional[int] = Field(default=30, description="超时时间（秒），默认为30")
 
 
-def is_skill_command(command: str) -> bool:
-    """检查命令是否是技能命令
-    
-    Args:
-        command: 命令字符串
-        
-    Returns:
-        如果命令包含 scripts/ 路径则返回 True
-    """
-    # 检查命令是否包含 scripts/ 路径（官方标准：相对于 SKILL.md 的路径）
-    pattern = r'scripts/[^\s]+'
-    return bool(re.search(pattern, command))
-
-
-def parse_skill_command(command: str, cwd: Optional[str] = None) -> tuple[str, str, str]:
-    """解析技能命令，提取技能名称和脚本路径
-    
-    Args:
-        command: 技能命令字符串，如 "python3 scripts/search.py '{}'"
-        cwd: 当前工作目录，用于确定 skill
-        
-    Returns:
-        (skill_name, script_path, remaining_command)
-        skill_name: 技能名称，如 "baidu-search"
-        script_path: 脚本路径部分，如 "scripts/search.py"
-        remaining_command: 原始命令
-    """
-    # 匹配 scripts/[script_name] 模式
-    pattern = r'scripts/([^\s]+)'
-    match = re.search(pattern, command)
-    if not match:
-        raise ValueError(f"无法解析技能命令: {command}")
-    
-    script_path = match.group(0)  # "scripts/search.py"
-    script_name = match.group(1)  # "search.py"
-    
-    # 确定 skill 名称
-    # 策略1: 如果提供了 cwd，从 cwd 向上查找 SKILL.md
-    skill_name = None
-    if cwd:
-        cwd_path = Path(cwd).resolve()
-        current = cwd_path
-        while current != current.parent:
-            skill_md = current / "SKILL.md"
-            if skill_md.exists():
-                # 从目录结构推断 skill 名称
-                skill_name = current.name
-                break
-            current = current.parent
-    
-    # 策略2: 如果无法从 cwd 确定，尝试从所有 skills 中查找包含该脚本的 skill
-    if not skill_name:
-        skill_loader = get_skill_loader()
-        all_skills = skill_loader.load_all_skills()
-        for name, skill in all_skills.items():
-            if skill.script_path and skill.script_path.name == script_name:
-                skill_name = name
-                break
-    
-    if not skill_name:
-        raise ValueError(f"无法确定技能名称，命令: {command}")
-    
-    return skill_name, script_path, command
-
-
-def get_skill_env(skill_name: str) -> Dict[str, str]:
-    """获取技能的环境变量配置
-    
-    Args:
-        skill_name: 技能名称
-        
-    Returns:
-        环境变量字典
-    """
-    skill_config = settings.get_config(skill_name, default={}, config_file="skills_config.yaml")
-    env = skill_config.get("env", {})
-    return env.copy()
-
-
 async def run_command(
     command: str,
     cwd: Optional[str] = None,
     timeout: int = 30,
-    env_overrides: Optional[Dict[str, str]] = None
 ) -> str:
     """执行命令行命令并返回输出
     
@@ -129,12 +46,10 @@ async def run_command(
         cwd_str = str(cwd_path)
     else:
         # 默认使用 data 目录
-        cwd_str = str(get_data_dir())
+        cwd_str = settings.DATA_DIR
     
     # 准备环境变量
     env = os.environ.copy()
-    if env_overrides:
-        env.update(env_overrides)
     
     # 执行命令（使用 shell 以支持管道、重定向等）
     try:
@@ -180,62 +95,18 @@ async def run_command(
         raise RuntimeError(f"命令执行出错: {str(e)}")
 
 
-async def handle_skill_command(command: str) -> tuple[str, Dict[str, str]]:
-    """处理技能命令，返回处理后的命令和环境变量
-    
-    Args:
-        command: 原始命令
-        
-    Returns:
-        (processed_command, env_overrides)
-    """
-    # 解析技能命令
-    skill_name, skill_path, original_command = parse_skill_command(command)
-    
-    # 获取技能加载器
-    skill_loader = get_skill_loader()
-    all_skills = skill_loader.load_all_skills()
-    
-    # 查找技能对象
-    skill = all_skills.get(skill_name)    
-    if not skill:
-        raise ValueError(f"技能 '{skill_name}' 不存在")
-    
-    # 获取技能的基础目录
-    base_dir = skill.base_dir
-    if not base_dir.exists():
-        raise ValueError(f"技能目录不存在: {base_dir}")
-    
-    # 替换命令中的技能路径
-    # 将 "skills/baidu-search" 替换为实际的技能目录路径
-    processed_command = original_command.replace(skill_path, str(base_dir))
-    
-    # 获取技能的环境变量
-    env_overrides = get_skill_env(skill_name)
-    
-    return processed_command, env_overrides
-
-
 @tool(args_schema=ExecuteCommandInput)
 async def execute_command(command: str, cwd: Optional[str] = None, timeout: int = 30) -> str:
     """
-执行任意命令行命令，包括执行 skills 脚本
-注意，各个SKILL.md文件，一般会介绍skill脚本的位置和用法（一般是相对于SKILL.md的相对路径），但我们最终的格式应该如下：
-格式：<interpreter> skills/<skill_name>/scripts/<script_name> [args...]
+执行任意命令行命令
+
 示例：
-  - python3 skills/baidu-search/scripts/search.py '<JSON>'
-  - node skills/my-tool/scripts/index.js --flag value
+    - ls -la
+    - python3 script.py
+    - node index.js
     """
     try:
-        # 检查是否是技能命令
-        if is_skill_command(command):
-            # 处理技能命令
-            processed_command, env_overrides = await handle_skill_command(command)
-            result = await run_command(processed_command, cwd, timeout, env_overrides)
-            return f"【工具结果】：技能命令执行成功\n{result}"
-        else:
-            # 普通命令
-            result = await run_command(command, cwd, timeout)
-            return f"【工具结果】：执行成功\n{result}"
+        result = await run_command(command, cwd, timeout)
+        return f"【工具结果】：执行成功\n{result}"
     except Exception as e:
         return f"【工具结果】：执行失败 - {str(e)}"

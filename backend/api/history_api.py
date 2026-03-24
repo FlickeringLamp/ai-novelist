@@ -12,10 +12,9 @@ from langchain_core.runnables.config import RunnableConfig
 from langchain_core.messages import RemoveMessage, HumanMessage, AIMessage
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
 
-from backend.config.config import settings
+from backend.settings.settings import settings, get_db_connection
 from backend.ai_agent.models.stream_interrupt_manager import stream_interrupt_manager
 from backend.ai_agent.core.graph_builder import with_graph_builder
-from backend.config.config import get_db_connection
 import time
 
 logger = logging.getLogger(__name__)
