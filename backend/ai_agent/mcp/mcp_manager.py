@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from backend.config.config import settings, get_bin_dir
+from backend.settings.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,8 @@ def convert_to_langchain_config(mcp_servers: dict) -> dict:
                     logger.info(f"使用 uvx 命令 (阿里镜像源): {command} {' '.join(args)}")
                 elif command == "npx":
                     # 使用项目自带的 node.exe 执行 npx-cli.js
-                    bin_dir = Path(get_bin_dir())
-                    node_exe = bin_dir / "node.exe"
-                    npx_cli_js = bin_dir / "npm" / "package" / "bin" / "npx-cli.js"
+                    node_exe = Path(settings.NODE_EXECUTABLE)
+                    npx_cli_js = node_exe.parent / "npm" / "package" / "bin" / "npx-cli.js"
                     
                     # 如果项目自带的 node.exe 和 npx-cli.js 都存在
                     if node_exe.exists() and npx_cli_js.exists():
@@ -61,8 +60,14 @@ def convert_to_langchain_config(mcp_servers: dict) -> dict:
                 config["command"] = command
                 config["args"] = args
             
-            # 处理环境变量
-            env = server_config.get("env", {}).copy() if server_config.get("env") else {}
+            # 处理环境变量 - 从环境变量中读取实际的值
+            env = {}
+            env_key_list = server_config.get("env", [])
+            # env 是环境变量名列表，从环境变量中读取值
+            for env_key in env_key_list:
+                value = settings.env_manager.get_api_key(env_key)
+                if value is not None:
+                    env[env_key] = value
             config["env"] = env
         elif config["transport"] in ["http", "sse"]:
             # 对于HTTP、SSE传输，都需要url参数
@@ -134,7 +139,7 @@ def update_mcp_server(server_id: str, server_config: dict):
 
 async def delete_mcp_server(server_id: str):
     """
-   删除指定的MCP服务器配置
+    删除指定的MCP服务器配置
     
     Args:
         server_id: MCP服务器ID

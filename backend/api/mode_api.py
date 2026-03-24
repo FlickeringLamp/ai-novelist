@@ -3,8 +3,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from backend.config.config import settings
-from backend.config.tools import ALL_AVAILABLE_TOOLS
+from backend.settings.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ async def update_mode_tool_config(mode_id: str, request: UpdateModeToolConfigReq
 @router.get("/tool/available-tools", summary="获取所有可用的工具", response_model=Dict[str, Any])
 async def get_available_tools():
     """获取所有可用的工具"""
-    return ALL_AVAILABLE_TOOLS
+    return settings.ALL_AVAILABLE_TOOLS
 
 @router.get("/modes", summary="获取所有模式", response_model=Dict[str, Dict])
 async def get_modes():

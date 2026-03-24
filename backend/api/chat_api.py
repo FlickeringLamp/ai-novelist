@@ -4,7 +4,7 @@ import asyncio
 from pydantic import BaseModel, Field
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from backend.config.config import settings
+from backend.settings.settings import settings
 from backend.ai_agent.core.graph_builder import with_graph_builder
 # 小写的时全局实例，导入实例能确保唯一，导入类名则每个文件都不同
 from backend.ai_agent.models.stream_interrupt_manager import stream_interrupt_manager
@@ -234,7 +234,7 @@ async def get_current_state():
     获取当前对话的完整状态
     
     返回:
-    - 完整的state对象，包含values、next、config、metadata等
+    - 完整的state对象，包含values、next、settings、metadata等
     """
     thread_id = settings.get_config("thread_id")
     user_id = settings.get_config("user_id", default="default_user")
@@ -257,7 +257,7 @@ async def get_current_state():
         state_dict = {
             "values": values,
             "next": final_state.next if hasattr(final_state, 'next') else None,
-            "config": final_state.config if hasattr(final_state, 'config') else {},
+            "settings": final_state.config if hasattr(final_state, 'settings') else {},
             "metadata": final_state.metadata if hasattr(final_state, 'metadata') else {},
             "created_at": final_state.created_at if hasattr(final_state, 'created_at') else None,
             "parent_config": final_state.parent_config if hasattr(final_state, 'parent_config') else None,

@@ -3,7 +3,7 @@ import os
 import shutil
 from typing import Dict, List
 from pydantic import BaseModel, Field
-from backend.config.config import settings
+from backend.settings.settings import settings
 from fastapi import APIRouter, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect, BackgroundTasks
 from backend.ai_agent.embedding import (
     get_files_in_collection,

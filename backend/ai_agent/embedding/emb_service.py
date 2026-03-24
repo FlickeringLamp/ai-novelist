@@ -6,7 +6,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from backend.config.config import settings
+from backend.settings.settings import settings
 from typing import Callable, Optional
 import chromadb
 from uuid import uuid4
@@ -22,6 +22,10 @@ DB_PATH = settings.CHROMADB_PERSIST_DIR
 由于litellm的嵌入板块,文档不详尽,只有少量提供商提及embedding模型
 故大部分嵌入使用langchain集成包
 """
+
+
+def _get_env_key(provider_config: dict) -> str:
+    return provider_config.get("env_key")
 
 def prepare_doc(orgfile_path, chunk_size, chunk_overlap):
     # 初始化documents列表
@@ -153,13 +157,14 @@ def create_collection(collection_name):
     model = kb_config.get('model', '')
     
     provider_config = settings.get_config('provider', provider)
+    env_key = _get_env_key(provider_config)
     
     # 准备嵌入模型
     embeddings = prepare_emb(
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=settings.get_provider_key(provider)
+        embedding_api_key=settings.get_api_key_from_env(env_key)
     )
     
     # 使用 Chroma 创建新的集合
@@ -195,13 +200,14 @@ async def add_file_to_collection(file_path, collection_name, progress_callback: 
     model = kb_config.get('model', '')
     
     provider_config = settings.get_config('provider', provider)
+    env_key = _get_env_key(provider_config)
     
     # 准备嵌入模型
     embeddings = prepare_emb(
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=settings.get_provider_key(provider)
+        embedding_api_key=settings.get_api_key_from_env(env_key)
     )
     
     # 准备文档
@@ -316,13 +322,14 @@ def search_emb(collection_name: str, search_input: str, filename_filter: Optiona
     score_threshold = kb_config.get('similarity')
     provider = kb_config.get('provider', '')
     provider_config = settings.get_config('provider', provider)
+    env_key = _get_env_key(provider_config)
     
     # 准备嵌入模型
     embeddings = prepare_emb(
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=settings.get_provider_key(provider)
+        embedding_api_key=settings.get_api_key_from_env(env_key)
     )
     
     # 加载向量数据库
@@ -366,13 +373,14 @@ async def asearch_emb(collection_name: str, search_input: str, filename_filter: 
     provider = kb_config.get('provider', '')
     model = kb_config.get('model', '')
     provider_config = settings.get_config('provider', provider)
+    env_key = _get_env_key(provider_config)
     
     # 准备嵌入模型
     embeddings = prepare_emb(
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=settings.get_provider_key(provider)
+        embedding_api_key=settings.get_api_key_from_env(env_key)
     )
     
     # 加载向量数据库

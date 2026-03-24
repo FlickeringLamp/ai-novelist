@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faRotate, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faRotate, faChevronDown, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
 import {
   setSingleServerTools,
@@ -15,28 +15,6 @@ import httpClient from '../../utils/httpClient';
 import NotificationModal from './modals/NotificationModal';
 
 type TabType = 'params' | 'tools';
-
-// 解析环境变量字符串为对象（支持换行）
-const parseEnvString = (str: string): Record<string, string> => {
-  const result: Record<string, string> = {};
-  // 只按换行符分割，因为环境变量的值可能包含空格
-  const pairs = str.trim().split('\n');
-  for (const pair of pairs) {
-    const [key, ...valueParts] = pair.split('=');
-    if (key) {
-      result[key] = valueParts.join('=') || '';
-    }
-  }
-  return result;
-};
-
-// 将对象转换为环境变量字符串
-const envToString = (env: Record<string, string> | undefined): string => {
-  if (!env) return '';
-  return Object.entries(env)
-    .map(([key, value]) => `${key}=${value}`)
-    .join('\n');
-};
 
 // 解析请求头字符串为对象（支持换行）
 const parseHeadersString = (str: string): Record<string, string> => {
@@ -80,6 +58,10 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
   // 编辑状态
   const [showTransportDropdown, setShowTransportDropdown] = useState(false);
   const [showCommandDropdown, setShowCommandDropdown] = useState(false);
+
+  // 环境变量添加状态
+  const [newEnvKey, setNewEnvKey] = useState('');
+  const [newEnvValue, setNewEnvValue] = useState('');
 
   // 通知弹窗状态
   const [showNotification, setShowNotification] = useState(false);
@@ -179,16 +161,71 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     setShowCommandDropdown(false);
   };
 
-  // 保存环境变量
-  const handleSaveEnv = async (envString: string) => {
-    const newEnv = parseEnvString(envString);
-    await updateServerConfig({ env: newEnv });
-  };
-
   // 保存请求头
   const handleSaveHeaders = async (headersString: string) => {
     const newHeaders = parseHeadersString(headersString);
     await updateServerConfig({ headers: newHeaders });
+  };
+
+  // 添加环境变量
+  const handleAddEnv = async () => {
+    if (!selectedServerId || !newEnvKey.trim()) return;
+
+    const key = newEnvKey.trim();
+    const value = newEnvValue.trim();
+
+    try {
+      // 合并更新 env 列表和 envValues（通过 backend 保存到配置文件和 .env 文件）
+      const currentEnv = selectedServer?.env || [];
+      const newEnvList = currentEnv.includes(key) ? currentEnv : [...currentEnv, key];
+      
+      await updateServerConfig({
+        env: newEnvList,
+        envValues: {
+          ...(selectedServer?.envValues || {}),
+          [key]: value
+        }
+      });
+
+      // 清空输入框
+      setNewEnvKey('');
+      setNewEnvValue('');
+    } catch (error) {
+      setNotificationMessage(`添加环境变量失败: ${(error as Error).message}`);
+      setShowNotification(true);
+    }
+  };
+
+  // 删除环境变量
+  const handleDeleteEnv = async (key: string) => {
+    if (!selectedServerId) return;
+
+    try {
+      // 更新 env 列表（移除 key）
+      const currentEnv = selectedServer?.env || [];
+      const newEnvList = currentEnv.filter((k: string) => k !== key);
+      await updateServerConfig({ env: newEnvList });
+    } catch (error) {
+      setNotificationMessage(`删除环境变量失败: ${(error as Error).message}`);
+      setShowNotification(true);
+    }
+  };
+
+  // 更新环境变量值
+  const handleUpdateEnvValue = async (key: string, value: string) => {
+    if (!selectedServerId) return;
+
+    try {
+      await updateServerConfig({
+        envValues: {
+          ...(selectedServer?.envValues || {}),
+          [key]: value
+        }
+      });
+    } catch (error) {
+      setNotificationMessage(`更新环境变量失败: ${(error as Error).message}`);
+      setShowNotification(true);
+    }
   };
 
   return (
@@ -329,15 +366,70 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
                         placeholder="每行一个参数"
                       />
                     </div>
-                    <div className="space-y-2">
+
+                    {/* 环境变量配置 */}
+                    <div className="space-y-3">
                       <label className="block text-theme-gray4 text-sm">环境变量</label>
-                      <textarea
-                        defaultValue={envToString(selectedServer.env)}
-                        onBlur={(e) => handleSaveEnv(e.target.value)}
-                        className="w-full bg-theme-gray2 text-white px-3 py-2 rounded border border-theme-gray3 focus:border-theme-green outline-none min-h-[120px] resize-y"
-                        rows={4}
-                        placeholder="KEY1=value1&#10;KEY2=value2&#10;请不要输入多余的空格"
-                      />
+                      
+                      {/* 已添加的环境变量列表 */}
+                      <div className="space-y-2">
+                        {(selectedServer.env || []).map((key: string) => (
+                          <div key={key} className="flex items-center gap-2">
+                            <div className="flex-1 bg-theme-gray2 px-3 py-2 rounded border border-theme-gray3">
+                              <span className="text-white text-sm">{key}</span>
+                            </div>
+                            <input
+                              type="text"
+                              value={selectedServer.envValues?.[key] || ''}
+                              onChange={(e) => {
+                                // 本地状态更新，不立即保存
+                                if (!selectedServerId) return;
+                                const newEnvValues = { ...(selectedServer.envValues || {}), [key]: e.target.value };
+                                dispatch(setAllServersData({
+                                  ...serversData,
+                                  [selectedServerId]: { ...selectedServer, envValues: newEnvValues }
+                                }));
+                              }}
+                              onBlur={(e) => handleUpdateEnvValue(key, e.target.value)}
+                              placeholder="值"
+                              className="flex-[2] bg-theme-gray2 text-white px-3 py-2 rounded border border-theme-gray3 focus:border-theme-green outline-none text-sm"
+                            />
+                            <button
+                              onClick={() => handleDeleteEnv(key)}
+                              className="p-2 text-theme-gray4 hover:text-red-400 transition-colors"
+                              title="删除"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 添加新环境变量 */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-theme-gray3">
+                        <input
+                          type="text"
+                          value={newEnvKey}
+                          onChange={(e) => setNewEnvKey(e.target.value)}
+                          placeholder="变量名"
+                          className="flex-1 bg-theme-gray2 text-white px-3 py-2 rounded border border-theme-gray3 focus:border-theme-green outline-none text-sm"
+                        />
+                        <input
+                          type="text"
+                          value={newEnvValue}
+                          onChange={(e) => setNewEnvValue(e.target.value)}
+                          placeholder="值"
+                          className="flex-[2] bg-theme-gray2 text-white px-3 py-2 rounded border border-theme-gray3 focus:border-theme-green outline-none text-sm"
+                        />
+                        <button
+                          onClick={handleAddEnv}
+                          disabled={!newEnvKey.trim()}
+                          className="p-2 bg-theme-green text-white rounded hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="添加"
+                        >
+                          <FontAwesomeIcon icon={faPlus} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

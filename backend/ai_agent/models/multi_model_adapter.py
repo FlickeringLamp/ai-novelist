@@ -1,7 +1,7 @@
 from typing import Optional, List
 import requests
 import logging
-from backend.config.config import settings
+from backend.settings.settings import settings
 from backend.ai_agent.models.litellm_adapter import LiteLLMAdapter
 
 logger = logging.getLogger(__name__)

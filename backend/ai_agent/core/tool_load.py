@@ -1,4 +1,4 @@
-from backend.config.config import settings
+from backend.settings.settings import settings
 from backend.ai_agent.tool.rag_tool.rag_search import rag_search
 from backend.ai_agent.tool.rag_tool.rag_list_files import rag_list_files
 from backend.ai_agent.tool.file_tool.load_unload_file import load_unload_file

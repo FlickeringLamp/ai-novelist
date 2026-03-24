@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional, List, Tuple
 import logging
 
-from backend.config.config import settings
+from backend.settings.settings import settings
 from backend.file.file_service import get_file_tree_for_ai, read_file, resolve_file_path, normalize_to_absolute
 from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb, get_two_step_rag_config
 from backend.ai_agent.skill import get_skill_loader

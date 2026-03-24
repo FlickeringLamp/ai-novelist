@@ -11,11 +11,12 @@ description: 直接调用后端 API，直接控制项目配置、文件管理、
 - **MCP 服务器**：管理 MCP 服务器配置
 - **对话历史**：管理对话记录和检查点
 
-## API 文档
+## API文档 以及 配置文件
 
-- [`api/history_api_docs.md`](./api/history_api_docs.md) - 历史记录 API
-- [`api/knowledge_api_docs.md`](./api/knowledge_api_docs.md) - 知识库 API
-- [`api/mcp_api_docs.md`](./api/mcp_api_docs.md) - MCP 服务器 API
+请勿使用curl功能直接向后端8000端口获取API文档，而是阅读这些文件
+- [`history_api_docs.md`](./api/history_api_docs.md) - 历史记录 API
+- [`knowledge_api_docs.md`](./api/knowledge_api_docs.md) - 知识库 API
+- [`mcp_api_docs.md`](./api/mcp_api_docs.md) - MCP 服务器 API
 
 配置示例：[`config/store_template.yaml`](./config/store_template.yaml)
 

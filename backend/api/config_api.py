@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from backend.config.config import settings
+from backend.settings.settings import settings
 
 logger = logging.getLogger(__name__)
 

@@ -76,7 +76,7 @@ async def get_state_history():
             state_dict = {
                 "values": values,
                 "next": state.next if hasattr(state, 'next') else None,
-                "config": state.config if hasattr(state, 'config') else {},
+                "settings": state.config if hasattr(state, 'settings') else {},
                 "metadata": state.metadata if hasattr(state, 'metadata') else {},
                 "created_at": state.created_at if hasattr(state, 'created_at') else None,
                 "parent_config": state.parent_config if hasattr(state, 'parent_config') else None,

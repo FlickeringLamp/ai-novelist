@@ -1,7 +1,8 @@
 import logging
+import uuid
 from typing import List, Dict, Any
 from pydantic import BaseModel, Field
-from backend.config.config import settings
+from backend.settings.settings import settings
 from fastapi import APIRouter, HTTPException
 from backend.ai_agent.models import MultiModelAdapter
 
@@ -47,6 +48,30 @@ class GetApiKeyResponse(BaseModel):
 # 创建API路由器
 router = APIRouter(prefix="/api/provider", tags=["Provider"])
 
+
+def _get_env_key(provider_config: dict) -> str:
+    """
+    统一获取 env_key 的辅助函数
+    配置中必须存在 env_key
+    """
+    return provider_config.get("env_key")
+
+
+def _get_provider_config(provider_id: str) -> tuple[dict, str]:
+    """
+    获取提供商配置和 env_key 的辅助函数
+    
+    Returns:
+        (provider_config, env_key)
+    """
+    provider_config = settings.get_config("provider", provider_id, default={})
+    if not provider_config:
+        raise HTTPException(status_code=404, detail=f"提供商 {provider_id} 不存在")
+    
+    env_key = _get_env_key(provider_config)
+    return provider_config, env_key
+
+
 # API端点
 
 # 所有提供商列表
@@ -61,7 +86,8 @@ def providers_list():
         # 深拷贝配置，避免修改原始数据
         config_copy = dict(config)
         # 从 .env 读取 key
-        api_key = settings.get_provider_key(provider_id)
+        env_key = _get_env_key(config)
+        api_key = settings.get_api_key_from_env(env_key) or ""
         config_copy["key"] = api_key
         result[provider_id] = config_copy
     
@@ -81,15 +107,19 @@ def model_list(provider_id: str):
         所有模型列表
     """
     try:
+        provider_config, env_key = _get_provider_config(provider_id)
+        
         # 获取provider的API配置
-        api_key = settings.get_provider_key(provider_id)
-        base_url = settings.get_config("provider", provider_id, "url", default="")
+        api_key = settings.get_api_key_from_env(env_key) or ""
+        base_url = provider_config.get("url", "")
         
         # 调用get_available_models方法获取在线模型列表
         models = MultiModelAdapter.get_available_models(provider_id, api_key, base_url)
         
         # 将模型列表转换为字典格式返回
         return models
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取 {provider_id} 模型列表失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -149,31 +179,43 @@ async def remove_favorite_model(request: RemoveFavoriteModelRequest):
         settings.update_config(model_dict, "provider", request.provider, "favoriteModels", request.modelType)
     return settings.get_config("provider", default={})
 
-@router.post("/custom-providers", summary="添加自定义提供商", response_model=Dict[str, Dict])
+@router.post("/custom-providers", summary="添加自定义提供商", response_model=Dict[str, Any])
 async def add_custom_provider(request: AddProviderRequest):
     """
-    添加自定义提供商，默认第一次name设置为id，后续可以更改用于显示的name，id保持不变
+    添加自定义提供商，自动生成唯一的英文ID作为provider_id，name仅用于显示
     
-    - **name**: 提供商名称
+    - **name**: 提供商显示名称
     """
     provider_config = settings.get_config("provider", default={})
-    # 检查名称是否已存在
-    if request.name in provider_config:
-        return {"error": "名称已被使用"}
-    # 添加新的提供商
+    
+    # 检查显示名称是否已存在
+    for config in provider_config.values():
+        if config.get("name") == request.name:
+            return {"error": "提供商名称已被使用"}
+    
+    # 生成唯一的英文ID（8位UUID）
+    provider_id = str(uuid.uuid4())[:8]
+    # 生成环境变量键名（大写的provider_id）
+    env_key = f"{provider_id.upper()}_API_KEY"
+    
+    # 添加新的提供商配置
     settings.update_config({
         "name": request.name,
         "builtin": False,
         "enable": False,
         "url": "",
+        "env_key": env_key,
         "favoriteModels": {
             "chat": {},
             "embedding": {},
             "other": {}
         },
-    }, "provider", request.name)
+    }, "provider", provider_id)
     
-    return settings.get_config("provider", default={})
+    return {
+        "id": provider_id,
+        "providers": settings.get_config("provider", default={})
+    }
 
 @router.put("/custom-providers/{provider_id}", summary="更新自定义提供商", response_model=Dict[str, Dict])
 async def update_custom_provider(provider_id: str, request: UpdateProviderRequest):
@@ -187,45 +229,45 @@ async def update_custom_provider(provider_id: str, request: UpdateProviderReques
     - **key**: API密钥（可选，保存到 .env 文件）
     - **favoriteModels**: 常用模型列表（可选）
     """
-    provider_config = settings.get_config("provider", default={})
-    # 获取当前提供商的配置
-    current_config = provider_config[provider_id]
+    provider_config, env_key = _get_provider_config(provider_id)
     
     updated_config = {}
     
     # 更新name
     if request.name is not None:
         updated_config["name"] = request.name
-    elif "name" in current_config:
-        updated_config["name"] = current_config["name"]
+    elif "name" in provider_config:
+        updated_config["name"] = provider_config["name"]
 
     # 更新enable
     if request.enable is not None:
         updated_config["enable"] = request.enable
-    elif "enable" in current_config:
-        updated_config["enable"] = current_config["enable"]
+    elif "enable" in provider_config:
+        updated_config["enable"] = provider_config["enable"]
     
     # 更新URL
     if request.url is not None:
         updated_config["url"] = request.url
-    elif "url" in current_config:
-        updated_config["url"] = current_config["url"]
+    elif "url" in provider_config:
+        updated_config["url"] = provider_config["url"]
     
     # 更新favoriteModels
     if request.favoriteModels is not None:
         updated_config["favoriteModels"] = request.favoriteModels
-    elif "favoriteModels" in current_config:
-        updated_config["favoriteModels"] = current_config["favoriteModels"]
+    elif "favoriteModels" in provider_config:
+        updated_config["favoriteModels"] = provider_config["favoriteModels"]
     
     # 保留builtin字段
-    if "builtin" in current_config:
-        updated_config["builtin"] = current_config["builtin"]
+    if "builtin" in provider_config:
+        updated_config["builtin"] = provider_config["builtin"]
+    
+    # 保留env_key字段
+    if "env_key" in provider_config:
+        updated_config["env_key"] = provider_config["env_key"]
     
     # 更新 key 到 .env 文件（如果提供了）
     if request.key is not None:
-        settings.set_provider_key(provider_id, request.key)
-        # key 不保存到 store.yaml，只保存到 .env
-        updated_config["key"] = ""  # store.yaml 中的 key 始终为空
+        settings.set_api_key_to_env(env_key, request.key)
         
     # 更新提供商配置（保存到 store.yaml）
     settings.update_config(updated_config, "provider", provider_id)
@@ -246,8 +288,6 @@ async def delete_custom_provider(provider_id: str):
     return settings.get_config("provider", default={})
 
 
-# ========== API KEY 管理 API（基于 .env 文件）==========
-
 @router.get("/{provider_id}/api-key", summary="获取提供商API KEY信息", response_model=GetApiKeyResponse)
 async def get_api_key_info(provider_id: str):
     """
@@ -256,7 +296,9 @@ async def get_api_key_info(provider_id: str):
     
     - **provider_id**: 提供商ID（路径参数）
     """
-    api_key = settings.get_provider_key(provider_id)
+    provider_config, env_key = _get_provider_config(provider_id)
+    
+    api_key = settings.get_api_key_from_env(env_key) or ""
     
     # 生成 KEY 的提示信息（如 sk-...xxxx）
     key_hint = ""
@@ -280,7 +322,9 @@ async def set_api_key(provider_id: str, request: SetApiKeyRequest):
     - **provider_id**: 提供商ID（路径参数）
     - **key**: API密钥（请求体）
     """
-    success = settings.set_provider_key(provider_id, request.key)
+    provider_config, env_key = _get_provider_config(provider_id)
+    
+    success = settings.set_api_key_to_env(env_key, request.key)
     
     if not success:
         raise HTTPException(status_code=500, detail="保存API KEY失败")
@@ -298,7 +342,9 @@ async def delete_api_key(provider_id: str):
     
     - **provider_id**: 提供商ID（路径参数）
     """
-    success = settings.remove_provider_key(provider_id)
+    provider_config, env_key = _get_provider_config(provider_id)
+    
+    success = settings.remove_api_key_from_env(env_key)
     
     if not success:
         raise HTTPException(status_code=500, detail="删除API KEY失败")
@@ -308,4 +354,3 @@ async def delete_api_key(provider_id: str):
         "provider": provider_id,
         "message": "API KEY 已从 .env 文件删除"
     }
-

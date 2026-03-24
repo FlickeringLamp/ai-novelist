@@ -1,5 +1,5 @@
 # 此文件展示所有可用配置项及其说明
-# 实际使用的配置文件位于: 相对工作区的路径data/config/store.yaml
+# 实际使用的配置文件位于: 相对工作区的路径data/settings/store.yaml
 
 # ============================================
 # 服务器基础配置
@@ -36,8 +36,8 @@ mode:
     top_p: 0.7                        # 核采样参数: 0-1，控制输出多样性
     max_tokens: 4096                  # 最大上下文，超出的内容会被自动裁剪丢弃
     additionalInfo:                   # 额外信息，用于填写文件路径列表，内容会自动添加到AI上下文
-    - config/skills_config.yaml       # AI技能配置文件
-    - config/store.yaml               # 项目核心配置文件
+    - settings/skills_config.yaml       # AI技能配置文件
+    - settings/store.yaml               # 项目核心配置文件
     tools:                            # 该模式可用的工具列表
       - load_unload_file              # 加载/卸载文件到上下文
       - manage_file                   # 文件操作（创建、修改、删除）

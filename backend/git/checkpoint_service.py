@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from git import Repo, GitCommandError
 
-from backend.config.config import settings
+from backend.settings.settings import settings
 
 logger = logging.getLogger(__name__)
 

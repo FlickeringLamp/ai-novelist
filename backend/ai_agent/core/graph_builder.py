@@ -9,13 +9,12 @@ from langchain_core.messages.utils import (
     count_tokens_approximately
 )
 from typing import Callable, Any
-from backend.config.config import settings
+from backend.settings.settings import settings
 from backend.ai_agent.models.multi_model_adapter import MultiModelAdapter
 from backend.ai_agent.core.tool_load import import_tools
 from backend.ai_agent.core.system_prompt_builder import SystemPromptBuilder
 import uuid
 import re
-from backend.config.config import settings
 
 class State(MessagesState):
     """包含消息的状态,不包括系统提示词"""

@@ -1,4 +1,5 @@
-from backend.config.config import settings, initialize_directories_and_files
+from backend.settings.settings import settings
+from backend.settings.initializer import initialize_directories_and_files
 from backend.api.chat_api import router as chat_router
 from backend.api.history_api import router as history_router
 from backend.api.file_api import router as file_router

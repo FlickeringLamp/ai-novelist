@@ -17,7 +17,7 @@ from backend.file.file_service import (
     search_files_for_user,
     get_all_file_paths,
 )
-from backend.config.config import settings
+from backend.settings.settings import settings
 from typing import List
 
 logger = logging.getLogger(__name__)

@@ -19,7 +19,7 @@ import sys
 import numpy as np
 
 # 导入本项目模块 - 必须使用绝对路径
-from backend.config.config import settings
+from backend.settings.settings import settings
 from backend.ai_agent.core.graph_builder import GraphBuilder
 from backend.api.chat_api import router
 ```
@@ -45,13 +45,13 @@ PyCharm 可能会自动将导入重构为通过 `__init__.py` 简化导入，这
 
 **规则：原则上，config.py外的任何文件不允许直接访问store.json配置文件，只能通过config.py提供的settings类方法间接操作**
 
-所有配置读取和修改操作必须通过 [`backend/config.py`](backend/config/config.py) 中提供的 `settings` 类方法进行。
+所有配置读取和修改操作必须通过 [`backend/config.py`](backend/settings/config.py) 中提供的 `settings` 类方法进行。
 
 **示例：**
 
 ```python
 # ✅ 正确 - 通过settings类访问配置
-from backend.config.config import settings
+from backend.settings.settings import settings
 
 # 读取配置
 api_key = settings.get_config('mode')

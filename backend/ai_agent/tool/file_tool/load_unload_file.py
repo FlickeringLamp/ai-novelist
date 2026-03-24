@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from langchain.tools import tool
-from backend.config.config import settings
+from backend.settings.settings import settings
 from backend.file.file_service import normalize_to_absolute
 
 
