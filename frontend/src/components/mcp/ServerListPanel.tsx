@@ -5,9 +5,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
 import {
-  setAllServersData,
+  setAllServersConfig,
   setSelectedServerId,
-  setSingleServerTools,
+  setServerTools,
 } from '../../store/mcp';
 import ServerContextMenu from './modals/ServerContextMenu';
 import DeleteConfirmModal from './modals/DeleteConfirmModal';
@@ -20,8 +20,8 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
   const dispatch = useDispatch();
 
   // 从 Redux 获取数据
-  const serversData = useSelector((state: RootState) => state.mcpSlice.allServersData);
-  const selectedServerId = useSelector((state: RootState) => state.mcpSlice.selectedServerId);
+  const serversData = useSelector((state: RootState) => state.mcpSlice.mcpData.config);
+  const selectedServerId = useSelector((state: RootState) => state.mcpSlice.mcpData.selectedId);
   const loadingServers = useSelector((state: RootState) => state.mcpSlice.loadingServers);
 
   // 删除确认模态框相关状态
@@ -72,7 +72,7 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
       
       // 刷新服务器列表
       const result = await httpClient.get('/api/mcp/servers');
-      dispatch(setAllServersData(result));
+      dispatch(setAllServersConfig(result));
       
       if (selectedServerId === serverId) {
         dispatch(setSelectedServerId(null));
@@ -103,7 +103,7 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
         transport: "stdio",
         command: "uvx",
         args: [],
-        env: {}
+        env: []
       };
       
       // 调用后端API添加配置
@@ -111,11 +111,11 @@ const ServerListPanel = ({}: ServerListPanelProps) => {
 
       // 刷新服务器列表
       const result = await httpClient.get('/api/mcp/servers');
-      dispatch(setAllServersData(result));
+      dispatch(setAllServersConfig(result));
       
       // 选中新添加的服务器
       dispatch(setSelectedServerId(serverId));
-      dispatch(setSingleServerTools({ serverId, tools: {} }));
+      dispatch(setServerTools({ serverId, tools: [] }));
     } catch (error) {
       setNotificationMessage(`添加失败: ${(error as Error).message}`);
       setShowNotification(true);

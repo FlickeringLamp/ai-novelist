@@ -21,11 +21,13 @@ mode:
     top_p: 0.7
     max_tokens: 40960
     additionalInfo:
-    - skills/backend-api-skill/SKILL.md
-    - settings/store.yaml
+    - config/store.yaml
     - .aiignore
     - .gitignore
     - .userignore
+    - skills/backend-api-skill/SKILL.md
+    - skills/backend-api-skill/config/store_template.yaml
+    - skills/backend-api-skill/api/mcp_api_docs.md
     tools:
     - load_unload_file
     - manage_file
@@ -226,24 +228,15 @@ provider:
         gpt-5-mini: 400000
       embedding: {}
       other: {}
-thread_id: thread_1774280427718
-knowledgeBase:
-  db_1234567890:
-    name: 测试知识库
-    provider: dashscope
-    model: text-embedding-v3
-    dimensions: 1024
-    chunkSize: 1000
-    overlapSize: 200
-    similarity: 0.7
-    returnDocs: 5
+thread_id: thread_1774456744230
+knowledgeBase: {}
 two-step-rag: null
 mcpServers:
   '1774280893023':
     name: fetch
     description: 爬虫
     url: ''
-    isActive: true
+    isActive: false
     transport: stdio
     command: uvx
     args:

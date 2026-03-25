@@ -1,4 +1,16 @@
-export interface MCPServerConfig {
+/**
+ * MCP工具定义
+ */
+export interface MCPTool {
+  name: string;
+  description: string;
+  inputSchema?: any;
+}
+
+/**
+ * MCP服务器配置（从后端获取的静态配置）
+ */
+export interface mcpServers {
   name: string;
   description: string;
   url: string;
@@ -13,16 +25,18 @@ export interface MCPServerConfig {
   headers?: Record<string, string>;
 }
 
-export interface MCPServerData {
-  [serverId: string]: MCPServerConfig;
-}
-
-export interface MCPTool {
-  name: string;
-  description: string;
-  inputSchema?: any;
-}
-
-export interface MCPToolsData {
-  [toolName: string]: MCPTool;
+/**
+ * MCP数据 - 包含选中的服务器ID、配置和工具列表
+ */
+export interface MCPData {
+  selectedId: string | null;
+  config: {
+    [serverId: string]: mcpServers;
+  };
+  tools: {
+    [serverId: string]: MCPTool[];
+  };
+  toolsError: {
+    [serverId: string]: string | null;
+  };
 }

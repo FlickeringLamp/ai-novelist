@@ -49,14 +49,6 @@ class GetApiKeyResponse(BaseModel):
 router = APIRouter(prefix="/api/provider", tags=["Provider"])
 
 
-def _get_env_key(provider_config: dict) -> str:
-    """
-    统一获取 env_key 的辅助函数
-    配置中必须存在 env_key
-    """
-    return provider_config.get("env_key")
-
-
 def _get_provider_config(provider_id: str) -> tuple[dict, str]:
     """
     获取提供商配置和 env_key 的辅助函数
@@ -68,7 +60,7 @@ def _get_provider_config(provider_id: str) -> tuple[dict, str]:
     if not provider_config:
         raise HTTPException(status_code=404, detail=f"提供商 {provider_id} 不存在")
     
-    env_key = _get_env_key(provider_config)
+    env_key = provider_config.get("env_key")
     return provider_config, env_key
 
 
@@ -86,8 +78,7 @@ def providers_list():
         # 深拷贝配置，避免修改原始数据
         config_copy = dict(config)
         # 从 .env 读取 key
-        env_key = _get_env_key(config)
-        api_key = settings.get_api_key_from_env(env_key) or ""
+        api_key = settings.get_provider_key(provider_id) or ""
         config_copy["key"] = api_key
         result[provider_id] = config_copy
     
@@ -110,7 +101,7 @@ def model_list(provider_id: str):
         provider_config, env_key = _get_provider_config(provider_id)
         
         # 获取provider的API配置
-        api_key = settings.get_api_key_from_env(env_key) or ""
+        api_key = settings.get_provider_key(provider_id) or ""
         base_url = provider_config.get("url", "")
         
         # 调用get_available_models方法获取在线模型列表
@@ -298,7 +289,7 @@ async def get_api_key_info(provider_id: str):
     """
     provider_config, env_key = _get_provider_config(provider_id)
     
-    api_key = settings.get_api_key_from_env(env_key) or ""
+    api_key = settings.get_provider_key(provider_id) or ""
     
     # 生成 KEY 的提示信息（如 sk-...xxxx）
     key_hint = ""
