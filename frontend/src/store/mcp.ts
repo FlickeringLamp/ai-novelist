@@ -1,19 +1,18 @@
 import { createSlice, type Draft, type PayloadAction } from '@reduxjs/toolkit';
-import type { MCPServerConfig, MCPToolsData } from '../types/mcp';
+import type { MCPData, mcpServers, MCPTool } from '../types/mcp';
 
 export interface MCPState {
-  allServersData: { [serverId: string]: MCPServerConfig };
-  selectedServerId: string | null;
-  serverTools: { [serverId: string]: MCPToolsData };
-  isLoading: boolean;
+  mcpData: MCPData;
   loadingServers: string[]; // 正在加载工具的服务器ID列表
 }
 
 const initialState: MCPState = {
-  allServersData: {},
-  selectedServerId: null,
-  serverTools: {},
-  isLoading: false,
+  mcpData: {
+    selectedId: null,
+    config: {},
+    tools: {},
+    toolsError: {},
+  },
   loadingServers: [],
 };
 
@@ -21,67 +20,74 @@ export const mcpSlice = createSlice({
   name: 'mcpSlice',
   initialState,
   reducers: {
-    setAllServersData: (
-      state: Draft<MCPState>,
-      action: PayloadAction<{ [serverId: string]: MCPServerConfig }>
-    ) => {
-      state.allServersData = action.payload;
-    },
+    // 设置选中的服务器ID
     setSelectedServerId: (
       state: Draft<MCPState>,
       action: PayloadAction<string | null>
     ) => {
-      state.selectedServerId = action.payload;
+      state.mcpData.selectedId = action.payload;
     },
+    // 设置所有服务器配置
+    setAllServersConfig: (
+      state: Draft<MCPState>,
+      action: PayloadAction<{ [serverId: string]: mcpServers }>
+    ) => {
+      state.mcpData.config = action.payload;
+    },
+    // 设置单个服务器的工具列表
     setServerTools: (
       state: Draft<MCPState>,
-      action: PayloadAction<{ [serverId: string]: MCPToolsData }>
+      action: PayloadAction<{ serverId: string; tools: MCPTool[]; error?: string | null }>
     ) => {
-      state.serverTools = action.payload;
+      const { serverId, tools, error } = action.payload;
+      state.mcpData.tools[serverId] = tools;
+      state.mcpData.toolsError[serverId] = error ?? null;
     },
-    setSingleServerTools: (
+    // 添加或更新服务器
+    saveServer: (
       state: Draft<MCPState>,
-      action: PayloadAction<{ serverId: string; tools: MCPToolsData }>
+      action: PayloadAction<{ serverId: string; config: mcpServers }>
     ) => {
-      state.serverTools[action.payload.serverId] = action.payload.tools;
+      state.mcpData.config[action.payload.serverId] = action.payload.config;
     },
-    setLoading: (
-      state: Draft<MCPState>,
-      action: PayloadAction<boolean>
-    ) => {
-      state.isLoading = action.payload;
-    },
-    addLoadingServer: (
+    // 删除服务器
+    deleteServer: (
       state: Draft<MCPState>,
       action: PayloadAction<string>
     ) => {
-      if (!state.loadingServers.includes(action.payload)) {
-        state.loadingServers.push(action.payload);
+      const serverId = action.payload;
+      delete state.mcpData.config[serverId];
+      // 同时清理对应的 tools 和 toolsError
+      delete state.mcpData.tools[serverId];
+      delete state.mcpData.toolsError[serverId];
+      // 如果删除的是当前选中的服务器，清空选中状态
+      if (state.mcpData.selectedId === serverId) {
+        state.mcpData.selectedId = null;
       }
     },
-    removeLoadingServer: (
+    // 设置服务器加载状态
+    setServerLoading: (
       state: Draft<MCPState>,
-      action: PayloadAction<string>
+      action: PayloadAction<{ serverId: string; loading: boolean }>
     ) => {
-      state.loadingServers = state.loadingServers.filter(id => id !== action.payload);
-    },
-    clearLoadingServers: (
-      state: Draft<MCPState>
-    ) => {
-      state.loadingServers = [];
+      const { serverId, loading } = action.payload;
+      const exists = state.loadingServers.includes(serverId);
+      if (loading && !exists) {
+        state.loadingServers.push(serverId);
+      } else if (!loading && exists) {
+        state.loadingServers = state.loadingServers.filter(id => id !== serverId);
+      }
     },
   },
 });
 
 export const {
-  setAllServersData,
   setSelectedServerId,
+  setAllServersConfig,
   setServerTools,
-  setSingleServerTools,
-  setLoading,
-  addLoadingServer,
-  removeLoadingServer,
-  clearLoadingServers,
+  saveServer,
+  deleteServer,
+  setServerLoading,
 } = mcpSlice.actions;
 
 export default mcpSlice.reducer;

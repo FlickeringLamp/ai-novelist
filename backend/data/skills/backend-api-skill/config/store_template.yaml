@@ -19,25 +19,37 @@ port: 8000
 # agent 模式配置 (Mode)
 # ============================================
 
-currentMode: outline  # 当前激活的模式: outline / writing / adjustment / 其他自定义模式
+currentMode: 管家agent  # 当前激活的模式
 
 # 其实这三个内置的模式是可以删除的
 mode:
   # --------------------
-  # 细纲模式
+  # 管家agent
   # --------------------
-  outline:
-    name: 细纲模式                    # 模式显示名称
-    builtin: true                     # 是否为内置模式
+  管家agent:
+    name: 管家agent
+    builtin: true
     prompt: |                         # 系统提示词，定义 AI 的行为
-      你是一位小说创作顾问，负责与用户深度沟通本章核心需求。
-      ...
+      你是"青烛"项目的管家AI
+
+      你的核心任务是为用户服务，提供基本的使用指导
+
+      以及解答可能的相关问题
+
+      你将拥有所有的工具，专属的知识库，以及用于操作后端的skill
+
+      具备访问配置文件，修改文件内容等高级权限
+
+      请好好利用它们，解决用户的需求，或者解答用户的问题
     temperature: 0.7                  # 温度参数: 0-2，越高回答越随机
     top_p: 0.7                        # 核采样参数: 0-1，控制输出多样性
-    max_tokens: 4096                  # 最大上下文，超出的内容会被自动裁剪丢弃
+    max_tokens: 40960                 # 最大上下文，超出的内容会被自动裁剪丢弃
     additionalInfo:                   # 额外信息，用于填写文件路径列表，内容会自动添加到AI上下文
-    - settings/skills_config.yaml       # AI技能配置文件
-    - settings/store.yaml               # 项目核心配置文件
+    - skills/backend-api-skill/SKILL.md
+    - settings/store.yaml
+    - .aiignore
+    - .gitignore
+    - .userignore
     tools:                            # 该模式可用的工具列表
       - load_unload_file              # 加载/卸载文件到上下文
       - manage_file                   # 文件操作（创建、修改、删除）
@@ -46,43 +58,26 @@ mode:
       - ask_user_question             # 向用户提问
       - rag_search                    # 向量搜索
       - rag_list_files                # 列出知识库文件
-      - load_skill                    # 加载 Skill
+      - load_unload_skill             # 加载/卸载 Skill
       - execute_command               # 执行命令行命令
     skills:                           # 该模式可用的 Skill 列表
       - baidu-search                  # 百度搜索skill
       - backend-api                   # 后端 API 调用 skill
 
-  # --------------------
-  # 写作模式
-  # --------------------
-  writing:
-    name: 写作模式
-    builtin: true
-    prompt: |
-      你是一位专业小说代笔，需严格基于用户提供的【最终版细纲】进行创作...
-    temperature: 0.7
-    top_p: 0.7
-    max_tokens: 4096
-    additionalInfo: []
-    tools:
-      - load_unload_file
-    skills: []
+# ============================================
+# 自动批准设置
+# ============================================
+# 启用后无需用户手动批准
 
-  # --------------------
-  # 调整模式
-  # --------------------
-  adjustment:
-    name: 调整模式
-    builtin: true
-    prompt: |
-      你是一位资深编辑和小说精修师...
-    temperature: 0.7
-    top_p: 0.7
-    max_tokens: 4096
-    additionalInfo: []
-    tools:
-      - ask_user_question
-    skills: []
+autoApproveSettings: false
+
+# ============================================
+# 当前选择的模型
+# ============================================
+# 记录用户当前选择的提供商和模型
+
+selectedProvider: ""      # 当前选择的提供商 ID，如 "deepseek", "openai"
+selectedModel: ""         # 当前选择的模型名称，如 "deepseek-chat"
 
 # ============================================
 # 模型提供商配置
@@ -97,7 +92,7 @@ provider:
     builtin: true                   # 是否内置（区分自定义提供商）
     enable: true                    # 是否启用（只有启用才能对话，或者在嵌入面板中发现它的可用嵌入模型）
     url: ""                         # API 地址（本地运行时可为空）
-    key: ""                         # API 密钥（本地运行时可为空）
+    env_key: ""                     # 环境变量名（本地运行时可为空）
     favoriteModels:                 # 收藏的模型列表
       chat: {}                      # 对话模型
       embedding:                    # 嵌入模型
@@ -115,7 +110,7 @@ provider:
     builtin: true
     enable: true
     url: https://api.deepseek.com/v1
-    key: your-api-key-here          # 替换为你的 API 密钥
+    env_key: DEEPSEEK_API_KEY       # 环境变量名，用于读取 API 密钥
     favoriteModels:
       chat:
         deepseek-chat: 128000       # 模型名 + 最大上下文长度
@@ -131,7 +126,7 @@ provider:
     builtin: true
     enable: false
     url: https://dashscope.aliyuncs.com/compatible-mode/v1
-    key: your-api-key-here
+    env_key: DASHSCOPE_API_KEY
     favoriteModels:
       chat:
         qwen3-max: 256000
@@ -152,7 +147,7 @@ provider:
     builtin: true
     enable: false
     url: https://api.siliconflow.cn/v1
-    key: your-api-key-here
+    env_key: SILICONFLOW_API_KEY
     favoriteModels:
       chat:
         deepseek-ai/DeepSeek-V3.2: 160000
@@ -172,7 +167,7 @@ provider:
     builtin: true
     enable: false
     url: http://127.0.0.1:11434
-    key: ""
+    env_key: OLLAMA_API_KEY
     favoriteModels:
       chat: {}
       embedding: {}
@@ -186,7 +181,7 @@ provider:
     builtin: true
     enable: false
     url: https://generativelanguage.googleapis.com
-    key: your-api-key-here
+    env_key: GEMINI_API_KEY
     favoriteModels:
       chat:
         gemini-2.5-flash: 1048576
@@ -196,21 +191,6 @@ provider:
   # --------------------
   # 其他提供商省略
   # --------------------
-
-# ============================================
-# 当前选择的模型
-# ============================================
-# 记录用户当前选择的提供商和模型
-
-selectedProvider: ""      # 当前选择的提供商 ID，如 "deepseek", "openai"
-selectedModel: ""         # 当前选择的模型名称，如 "deepseek-chat"
-
-# ============================================
-# 自动批准设置
-# ============================================
-# 启用后无需用户手动批准
-
-autoApproveSettings: false
 
 # ============================================
 # 对话线程 ID
@@ -250,7 +230,7 @@ mcpServers:
     command: uvx    # 使用stdio的mcp可填uvx,npx。非本地的mcp，默认uvx（虽然也用不到）
     args:
     - mcp-server-fetch    # 主要是在pypi上的包名
-    env: {}    # 一般用于填写API_KEY
+    env: []    # 环境变量名列表，如 ["API_KEY"]
     headers: {}    # 认证头，个人自用应该很少用到
   '1773936044270':
     name: 文件系统
@@ -263,7 +243,7 @@ mcpServers:
     - -y    # 下载时自动同意
     - '@modelcontextprotocol/server-filesystem'    # 包名
     - /home/denghuo/文档/ai-novelist/backend/data    # mcp服务器要求的其他args
-    env: {}
+    env: []
     headers: {}
   '1773936944115':
     name: 魔搭http爬虫
@@ -273,7 +253,7 @@ mcpServers:
     transport: http
     command: uvx
     args: []
-    env: {}
+    env: []
     headers: {}
   '1773937179320':
     name: 魔搭sse高德
@@ -283,7 +263,7 @@ mcpServers:
     transport: sse
     command: uvx
     args: []
-    env: {}
+    env: []
     headers: {}
   '1773937582695':
     name: 高德本地
@@ -296,5 +276,5 @@ mcpServers:
     - -y
     - '@amap/amap-maps-mcp-server'
     env:
-      AMAP_MAPS_API_KEY: 123456    # 用户自己的api key
+    - AMAP_MAPS_API_KEY    # 环境变量名
     headers: {}

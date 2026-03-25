@@ -180,6 +180,15 @@ class Settings:
     def remove_api_key_from_env(self, env_key: str) -> bool:
         return self.env_manager.remove_api_key(env_key)
 
+    def get_provider_key(self, provider: str) -> Optional[str]:
+        # 从配置中获取 env_key
+        env_key = self.get_config("provider", provider, "env_key", default=None)
+        if not env_key:
+            # 如果没有配置 env_key，使用默认格式
+            env_key = f"{provider.upper()}_API_KEY"
+        
+        return self.get_api_key_from_env(env_key)
+
 
 # 创建全局设置实例
 settings = Settings()

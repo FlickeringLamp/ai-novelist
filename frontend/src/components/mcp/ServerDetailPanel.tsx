@@ -5,11 +5,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faRotate, faChevronDown, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../store/store';
 import {
-  setSingleServerTools,
-  setLoading,
-  setAllServersData,
-  addLoadingServer,
-  removeLoadingServer,
+  setServerLoading,
+  setAllServersConfig,
+  setServerTools,
 } from '../../store/mcp';
 import httpClient from '../../utils/httpClient';
 import NotificationModal from './modals/NotificationModal';
@@ -44,13 +42,14 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
   const dispatch = useDispatch();
 
   // 从 Redux 获取数据
-  const selectedServerId = useSelector((state: RootState) => state.mcpSlice.selectedServerId);
-  const serversData = useSelector((state: RootState) => state.mcpSlice.allServersData);
-  const serverTools = useSelector((state: RootState) => state.mcpSlice.serverTools);
-  const isLoading = useSelector((state: RootState) => state.mcpSlice.isLoading);
+  const selectedServerId = useSelector((state: RootState) => state.mcpSlice.mcpData.selectedId);
+  const serversData = useSelector((state: RootState) => state.mcpSlice.mcpData.config);
+  const toolsData = useSelector((state: RootState) => state.mcpSlice.mcpData.tools);
+  const isLoading = useSelector((state: RootState) => state.mcpSlice.loadingServers.length > 0);
   
-  // 获取当前选中服务器的工具列表
-  const tools = selectedServerId ? (serverTools[selectedServerId] || {}) : {};
+  // 获取当前选中服务器及其工具列表
+  const selectedServer = selectedServerId ? serversData[selectedServerId] : null;
+  const tools = selectedServerId ? (toolsData[selectedServerId] || []) : [];
 
   // 标签页状态
   const [activeTab, setActiveTab] = useState<TabType>('params');
@@ -66,38 +65,35 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
   // 通知弹窗状态
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
-  // 获取当前选中的服务器
-  const selectedServer = selectedServerId ? serversData[selectedServerId] : null;
 
   // 加载MCP工具列表（刷新按钮使用）
   const loadMCPTools = async () => {
     if (!selectedServerId) return;
 
     try {
-      dispatch(setLoading(true));
-      dispatch(addLoadingServer(selectedServerId));
+      dispatch(setServerLoading({ serverId: selectedServerId, loading: true }));
       
-      // 调用后端子进程的 API 获取 MCP 工具
-      const result = await httpClient.get(`/api/mcp/tools?server_id=${selectedServerId}`);
-      dispatch(setSingleServerTools({ serverId: selectedServerId, tools: result }));
+      // 调用后端 API 获取该服务器的工具列表
+      const result = await httpClient.get(`/api/mcp/servers/${selectedServerId}/tools`);
+      if (result) {
+        // 使用 setServerTools
+        dispatch(setServerTools({
+          serverId: selectedServerId,
+          tools: result.tools || [],
+          error: result.error || null
+        }));
+      }
     } catch (error) {
       setNotificationMessage(`加载MCP工具失败: ${(error as Error).message}`);
       setShowNotification(true);
-      // 获取失败时，将服务器状态设置为 false
-      try {
-        await httpClient.put(`/api/mcp/servers/${selectedServerId}`, {
-          server_id: selectedServerId,
-          config: { isActive: false }
-        });
-        // 刷新服务器列表
-        const serversResult = await httpClient.get('/api/mcp/servers');
-        dispatch(setAllServersData(serversResult));
-      } catch (updateError) {
-        console.error(`更新服务器 ${selectedServerId} 状态失败:`, updateError);
-      }
+      // 更新错误状态到 store
+      dispatch(setServerTools({
+        serverId: selectedServerId,
+        tools: [],
+        error: (error as Error).message
+      }));
     } finally {
-      dispatch(setLoading(false));
-      dispatch(removeLoadingServer(selectedServerId));
+      dispatch(setServerLoading({ serverId: selectedServerId, loading: false }));
     }
   };
 
@@ -108,22 +104,20 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     const newActiveState = !selectedServer?.isActive;
 
     try {
+      // 获取当前服务器配置
+      const currentConfig = serversData[selectedServerId];
+      if (!currentConfig) return;
+
       // 更新服务器状态
-      await httpClient.put(`/api/mcp/servers/${selectedServerId}`, {
+      const serversResult = await httpClient.post('/api/mcp/servers', {
         server_id: selectedServerId,
         config: {
+          ...currentConfig,
           isActive: newActiveState
         }
       });
 
-      // 刷新服务器列表
-      const serversResult = await httpClient.get('/api/mcp/servers');
-      dispatch(setAllServersData(serversResult));
-
-      // 如果是启用状态，获取工具
-      if (newActiveState) {
-        await loadMCPTools();
-      }
+      dispatch(setAllServersConfig(serversResult));
     } catch (error) {
       setNotificationMessage(`更新服务器状态失败: ${(error as Error).message}`);
       setShowNotification(true);
@@ -135,14 +129,18 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     if (!selectedServerId) return;
 
     try {
-      await httpClient.put(`/api/mcp/servers/${selectedServerId}`, {
+      // 获取当前服务器配置并合并更新
+      const currentConfig = serversData[selectedServerId];
+      if (!currentConfig) return;
+      const serversResult = await httpClient.post('/api/mcp/servers', {
         server_id: selectedServerId,
-        config
+        config: {
+          ...currentConfig,
+          ...config
+        }
       });
 
-      // 刷新服务器列表
-      const serversResult = await httpClient.get('/api/mcp/servers');
-      dispatch(setAllServersData(serversResult));
+      dispatch(setAllServersConfig(serversResult));
     } catch (error) {
       setNotificationMessage(`更新服务器配置失败: ${(error as Error).message}`);
       setShowNotification(true);
@@ -175,7 +173,6 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
     const value = newEnvValue.trim();
 
     try {
-      // 合并更新 env 列表和 envValues（通过 backend 保存到配置文件和 .env 文件）
       const currentEnv = selectedServer?.env || [];
       const newEnvList = currentEnv.includes(key) ? currentEnv : [...currentEnv, key];
       
@@ -383,11 +380,13 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
                               value={selectedServer.envValues?.[key] || ''}
                               onChange={(e) => {
                                 // 本地状态更新，不立即保存
-                                if (!selectedServerId) return;
+                                if (!selectedServerId || !selectedServer) return;
                                 const newEnvValues = { ...(selectedServer.envValues || {}), [key]: e.target.value };
-                                dispatch(setAllServersData({
+                                // 直接更新本地状态，不触发API调用
+                                const updatedServer = { ...selectedServer, envValues: newEnvValues };
+                                dispatch(setAllServersConfig({
                                   ...serversData,
-                                  [selectedServerId]: { ...selectedServer, envValues: newEnvValues }
+                                  [selectedServerId]: updatedServer
                                 }));
                               }}
                               onBlur={(e) => handleUpdateEnvValue(key, e.target.value)}
@@ -482,24 +481,21 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
                     )}
                   </button>
                 </div>
-                {Object.keys(tools).length === 0 ? (
+                {tools.length === 0 ? (
                   <p className="text-theme-gray4">暂无MCP工具</p>
                 ) : (
                   <ul className="list-none p-0 m-0 space-y-2">
-                    {Object.entries(tools).map(([name, tool]) => {
-                      const toolData = tool as { name: string; description: string; inputSchema?: any };
-                      return (
-                        <li
-                          key={name}
-                          className="p-2 border border-theme-gray3 rounded hover:bg-theme-gray2 transition-colors"
-                        >
-                          <strong className="text-white block">{name}</strong>
-                          <div className="text-xs text-theme-gray4 mt-1">
-                            {toolData.description || '无描述'}
-                          </div>
-                        </li>
-                      );
-                    })}
+                    {tools.map((tool) => (
+                      <li
+                        key={tool.name}
+                        className="p-2 border border-theme-gray3 rounded hover:bg-theme-gray2 transition-colors"
+                      >
+                        <strong className="text-white block">{tool.name}</strong>
+                        <div className="text-xs text-theme-gray4 mt-1">
+                          {tool.description || '无描述'}
+                        </div>
+                      </li>
+                    ))}
                   </ul>
                 )}
               </div>

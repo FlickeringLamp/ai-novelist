@@ -24,9 +24,6 @@ DB_PATH = settings.CHROMADB_PERSIST_DIR
 """
 
 
-def _get_env_key(provider_config: dict) -> str:
-    return provider_config.get("env_key")
-
 def prepare_doc(orgfile_path, chunk_size, chunk_overlap):
     # 初始化documents列表
     documents = []
@@ -157,14 +154,13 @@ def create_collection(collection_name):
     model = kb_config.get('model', '')
     
     provider_config = settings.get_config('provider', provider)
-    env_key = _get_env_key(provider_config)
     
     # 准备嵌入模型
     embeddings = prepare_emb(
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=settings.get_api_key_from_env(env_key)
+        embedding_api_key=settings.get_provider_key(provider)
     )
     
     # 使用 Chroma 创建新的集合
@@ -200,14 +196,13 @@ async def add_file_to_collection(file_path, collection_name, progress_callback: 
     model = kb_config.get('model', '')
     
     provider_config = settings.get_config('provider', provider)
-    env_key = _get_env_key(provider_config)
     
     # 准备嵌入模型
     embeddings = prepare_emb(
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=settings.get_api_key_from_env(env_key)
+        embedding_api_key=settings.get_provider_key(provider)
     )
     
     # 准备文档
@@ -322,14 +317,13 @@ def search_emb(collection_name: str, search_input: str, filename_filter: Optiona
     score_threshold = kb_config.get('similarity')
     provider = kb_config.get('provider', '')
     provider_config = settings.get_config('provider', provider)
-    env_key = _get_env_key(provider_config)
     
     # 准备嵌入模型
     embeddings = prepare_emb(
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=settings.get_api_key_from_env(env_key)
+        embedding_api_key=settings.get_provider_key(provider)
     )
     
     # 加载向量数据库
@@ -367,20 +361,19 @@ async def asearch_emb(collection_name: str, search_input: str, filename_filter: 
         list[tuple[Document, float]]: 搜索结果列表，每个元素是 (文档, 相似度分数) 的元组
     """
     # 从配置获取知识库参数
-    kb_config = settings.get_config('knowledgeBase', collection_name)    
+    kb_config = settings.get_config('knowledgeBase', collection_name)
     k = kb_config.get('returnDocs')
     score_threshold = kb_config.get('similarity')
     provider = kb_config.get('provider', '')
     model = kb_config.get('model', '')
     provider_config = settings.get_config('provider', provider)
-    env_key = _get_env_key(provider_config)
     
     # 准备嵌入模型
     embeddings = prepare_emb(
         provider=provider,
         model_id=model,
         embedding_url=provider_config.get('url', ''),
-        embedding_api_key=settings.get_api_key_from_env(env_key)
+        embedding_api_key=settings.get_provider_key(provider)
     )
     
     # 加载向量数据库

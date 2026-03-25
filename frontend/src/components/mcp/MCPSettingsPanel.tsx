@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { setAllServersData, setSingleServerTools, setAllServersData as updateAllServersData, addLoadingServer, removeLoadingServer } from '../../store/mcp';
+import { setAllServersConfig, setServerLoading, setSelectedServerId, setServerTools } from '../../store/mcp';
 import ServerListPanel from './ServerListPanel';
 import ServerDetailPanel from './ServerDetailPanel';
 import httpClient from '../../utils/httpClient';
@@ -19,7 +19,7 @@ const MCPSettingsPanel = () => {
         // 获取所有服务器配置
         const serversResult = await httpClient.get('/api/mcp/servers');
         if (serversResult) {
-          dispatch(setAllServersData(serversResult));
+          dispatch(setAllServersConfig(serversResult));
           
           // 将所有活跃的服务器添加到加载列表
           const activeServerIds = Object.entries(serversResult)
@@ -27,31 +27,41 @@ const MCPSettingsPanel = () => {
             .map(([serverId]) => serverId);
           
           for (const serverId of activeServerIds) {
-            dispatch(addLoadingServer(serverId));
+            dispatch(setServerLoading({ serverId, loading: true }));
           }
           
-          // 获取所有活跃服务器的工具列表
-          const toolsResult = await httpClient.get('/api/mcp/tools/all');
-          
-          // 处理每个服务器的工具和错误
+          // 循环获取每个活跃服务器的工具列表
           const failedServers: string[] = [];
-          for (const [serverId, serverData] of Object.entries(toolsResult)) {
-            const data = serverData as { tools: any; error: string | null; server_name?: string };
-            dispatch(setSingleServerTools({ serverId, tools: data.tools }));
-            dispatch(removeLoadingServer(serverId));
-            
-            // 如果有错误，记录失败的服务器
-            if (data.error) {
-              failedServers.push(`获取 ${data.server_name || serverId} 的工具失败: ${data.error}`);
-              // 将服务器状态设置为 false
+          for (const serverId of activeServerIds) {
+            try {
+              // 调用新API获取单个服务器的工具列表
+              const toolsResult = await httpClient.get(`/api/mcp/servers/${serverId}/tools`);
+              dispatch(setServerTools({
+                serverId,
+                tools: toolsResult.tools || [],
+                error: null
+              }));
+            } catch (error: any) {
+              const errorMsg = error?.message || String(error);
+              failedServers.push(`获取 ${serverId} 的工具失败: ${errorMsg}`);
+              dispatch(setServerTools({
+                serverId,
+                tools: [],
+                error: errorMsg
+              }));
+              
+              // 尝试禁用失败的服务器
               try {
-                await httpClient.put(`/api/mcp/servers/${serverId}`, {
+                const currentConfig = serversResult[serverId];
+                await httpClient.post('/api/mcp/servers', {
                   server_id: serverId,
-                  config: { isActive: false }
+                  config: { ...currentConfig, isActive: false }
                 });
               } catch (updateError) {
                 console.error(`更新服务器 ${serverId} 状态失败:`, updateError);
               }
+            } finally {
+              dispatch(setServerLoading({ serverId, loading: false }));
             }
           }
           
@@ -61,9 +71,9 @@ const MCPSettingsPanel = () => {
             setShowNotification(true);
           }
           
-          // 重新获取服务器列表以更新状态
+          // 重新获取服务器列表以更新状态（禁用操作后的状态同步）
           const updatedServersResult = await httpClient.get('/api/mcp/servers');
-          dispatch(updateAllServersData(updatedServersResult));
+          dispatch(setAllServersConfig(updatedServersResult));
         }
       } catch (error) {
         console.error('加载MCP服务器失败:', error);

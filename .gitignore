@@ -125,3 +125,8 @@ pnpm-lock.yaml
 
 models/
 skills-main/
+
+frontend/node_modules/
+frontend/package-lock.json
+test-results/
+playwright-report/
