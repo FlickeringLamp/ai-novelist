@@ -3,7 +3,7 @@ import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faRotate, faChevronDown, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
-import type { RootState } from '../../store/store';
+import type { RootState, ServerDetailPanelProps, McpTabType } from '@/types';
 import {
   setServerLoading,
   setAllServersConfig,
@@ -11,8 +11,6 @@ import {
 } from '../../store/mcp';
 import httpClient from '../../utils/httpClient';
 import NotificationModal from './modals/NotificationModal';
-
-type TabType = 'params' | 'tools';
 
 // 解析请求头字符串为对象（支持换行）
 const parseHeadersString = (str: string): Record<string, string> => {
@@ -36,8 +34,6 @@ const headersToString = (headers: Record<string, string> | undefined): string =>
     .join('\n');
 };
 
-interface ServerDetailPanelProps {}
-
 const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
   const dispatch = useDispatch();
 
@@ -52,7 +48,7 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
   const tools = selectedServerId ? (toolsData[selectedServerId] || []) : [];
 
   // 标签页状态
-  const [activeTab, setActiveTab] = useState<TabType>('params');
+  const [activeTab, setActiveTab] = useState<McpTabType>('params');
 
   // 编辑状态
   const [showTransportDropdown, setShowTransportDropdown] = useState(false);

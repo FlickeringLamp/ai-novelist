@@ -4,7 +4,9 @@ import loader from '@monaco-editor/loader';
 import type * as Monaco from 'monaco-editor';
 import { useTheme } from '../../../context/ThemeContext.tsx';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateTabContent, saveTabContent, isTabInDiffMode, isTabInCheckpointPreview, getCheckpointContent, type RootState } from '../../../store/editor.ts';
+import { updateTabContent, saveTabContent, isTabInDiffMode, isTabInCheckpointPreview, getCheckpointContent } from '../../../store/editor';
+import type { RootState } from '../../../types';
+import type { MonacoEditorProps } from '@/types';
 import api from '../../../utils/httpClient.ts';
 import UnifiedModal from '../../others/UnifiedModal';
 import { useFetchFileTree } from '../../../utils/fileTreeHelper.ts';
@@ -46,11 +48,6 @@ interface ThemeColors {
   gray2: string;
   gray3: string;
   gray5: string;
-}
-
-interface MonacoEditorProps {
-  onChange?: (value: string | undefined) => void;
-  tabBarId?: string;
 }
 
 

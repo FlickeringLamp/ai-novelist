@@ -1,15 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import type { RootState } from '../../../store/store';
+import type { RootState } from '../../../types';
+import type { AddModelModalProps } from '../../../types';
 import { setAllProvidersData } from '../../../store/provider';
 import UnifiedModal from '../../others/UnifiedModal';
 import httpClient from '../../../utils/httpClient';
-
-interface AddModelModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  selectedProviderId: string | null;
-}
 
 const AddModelModal = ({ isOpen, onClose, selectedProviderId }: AddModelModalProps) => {
   const dispatch = useDispatch();

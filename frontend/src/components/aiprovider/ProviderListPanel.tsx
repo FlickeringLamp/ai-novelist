@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
-import type { RootState } from '../../store/store';
+import type { RootState } from '../../types';
+import type { ProviderListPanelProps } from '../../types';
 import {
   setAllProvidersData,
   setSelectedProviderId,
@@ -12,8 +13,6 @@ import CustomProviderModal from './modals/CustomProviderModal';
 import RenameProviderModal from './modals/RenameProviderModal';
 import DeleteConfirmModal from './modals/DeleteConfirmModal';
 import httpClient from '../../utils/httpClient';
-
-interface ProviderListPanelProps {}
 
 const ProviderListPanel = ({}: ProviderListPanelProps) => {
   const dispatch = useDispatch();

@@ -1,18 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import httpClient from '../../../utils/httpClient';
-
-interface UseFilePathAutocompleteReturn {
-  isOpen: boolean;
-  filteredPaths: string[];
-  selectedIndex: number;
-  query: string;
-  cursorPosition: number;
-  setCursorPosition: (pos: number) => void;
-  handleInputChange: (value: string, cursorPos: number) => void;
-  handleKeyDown: (e: React.KeyboardEvent) => boolean;
-  selectPath: (path: string) => string;
-  closeAutocomplete: () => void;
-}
+import type { UseFilePathAutocompleteReturn } from '@/types';
 
 // 最大显示数量
 const MAX_DISPLAY_ITEMS = 10;

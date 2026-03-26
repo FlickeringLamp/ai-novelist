@@ -11,7 +11,7 @@ import ContextProgressBar from './ContextProgressBar';
 import MessageInputPanel from './MessageInputPanel';
 import MiddlePart from './MiddlePart';
 import { setState, setSelectedThreadId } from '../../store/chat';
-import type { RootState } from '../../store/store';
+import type { RootState } from '../../types';
 import httpClient from '../../utils/httpClient';
 import { useState } from 'react';
 

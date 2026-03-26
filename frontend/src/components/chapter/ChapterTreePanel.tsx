@@ -4,7 +4,7 @@ import { faGear, faFolder, faFile, faFolderOpen, faRotate } from '@fortawesome/f
 import { useDispatch, useSelector } from 'react-redux';
 import { updateTabId } from '../../store/editor.ts';
 import { collapseAll } from '../../store/file.ts';
-import type { RootState } from '../../store/store';
+import type { RootState } from '../../types';
 import ChapterContextMenu from './FileContextMenu.tsx';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.ts';

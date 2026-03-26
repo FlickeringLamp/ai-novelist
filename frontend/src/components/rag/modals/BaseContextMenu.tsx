@@ -1,17 +1,5 @@
-import { type ContextMenuItem } from '../../others/ContextMenu';
 import ContextMenu from '../../others/ContextMenu';
-
-interface BaseContextMenuProps {
-  visible: boolean;
-  x: number;
-  y: number;
-  knowledgeBaseId: string | null;
-  onRename: (knowledgeBaseId: string) => void;
-  onDelete: (knowledgeBaseId: string) => void;
-  onClose: () => void;
-  enableKeyboard?: boolean;
-  enableAutoAdjust?: boolean;
-}
+import type { ContextMenuItem, BaseContextMenuProps } from '@/types';
 
 const BaseContextMenu = ({
   visible,

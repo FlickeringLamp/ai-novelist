@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
+import type { RenameModeModalProps } from '@/types';
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface RenameModeModalProps {
-  isOpen: boolean;
-  modeId: string;
-  currentName: string;
-  onClose: () => void;
-  onSubmit: (modeId: string, newName: string) => Promise<void>;
-}
 
 const RenameModeModal = ({ isOpen, modeId, currentName, onClose, onSubmit }: RenameModeModalProps) => {
   const [newName, setNewName] = useState('');

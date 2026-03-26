@@ -1,23 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-
-export interface ContextMenuItem {
-  label?: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  divider?: boolean;
-}
-
-export interface ContextMenuProps {
-  visible: boolean;
-  x: number;
-  y: number;
-  items: ContextMenuItem[];
-  onClose?: () => void;
-  positionType?: 'fixed' | 'absolute';
-  enableKeyboard?: boolean;
-  enableAutoAdjust?: boolean;
-  className?: string;
-}
+import type { ContextMenuProps, ContextMenuItem } from '@/types';
 
 const ContextMenu = ({
   visible,
@@ -103,62 +85,66 @@ const ContextMenu = ({
     if (!visible || !enableAutoAdjust || !menuRef.current) return;
 
     const menu = menuRef.current;
-    const menuRect = menu.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
+    const rect = menu.getBoundingClientRect();
+    const windowHeight = window.innerHeight;
 
-    // 检查下边界，如果超出则向上显示
-    if (y + menuRect.height > viewportHeight) {
-      setAdjustedY(y - menuRect.height);
+    if (rect.bottom > windowHeight) {
+      setAdjustedY(y - rect.height);
     } else {
       setAdjustedY(y);
     }
   }, [visible, y, enableAutoAdjust]);
 
+  // 可见性变化时重置选中状态
+  useEffect(() => {
+    if (visible) {
+      setSelectedIndex(-1);
+    }
+  }, [visible]);
+
   if (!visible) return null;
 
-  const baseClassName = `bg-theme-gray2 border border-theme-gray3 shadow-lg rounded min-w-[160px] z-50 ${className}`;
+  const handleItemClick = (item: ContextMenuItem) => {
+    if (item.disabled || item.divider) return;
+    item.onClick?.();
+    onClose?.();
+  };
 
   return (
     <div
       ref={menuRef}
-      className={positionType === 'fixed' ? `fixed ${baseClassName}` : `absolute ${baseClassName}`}
-      style={{ left: x, top: enableAutoAdjust ? adjustedY : y }}
-      onClick={(e) => e.stopPropagation()}
+      className={`bg-theme-gray1 rounded-medium shadow-medium min-w-[120px] py-1 z-[1000] ${className}`}
+      style={{
+        position: positionType,
+        left: x,
+        top: adjustedY,
+      }}
     >
-      {items.map((item, index) => {
-        if (item.divider) {
-          return <div key={`divider-${index}`} className="border-t border-theme-gray3" />;
-        }
-
-        const isDisabled = item.disabled === true;
-        const itemClassName = `px-4 py-2 cursor-pointer text-sm text-theme-white ${
-          isDisabled
-            ? 'opacity-50 cursor-not-allowed'
-            : enableKeyboard && selectedIndex === index
-            ? 'bg-theme-gray3 text-theme-green'
-            : 'hover:bg-theme-gray3 hover:text-theme-green'
-        }`;
-
-        return (
+      {items.map((item, index) => (
+        item.divider ? (
           <div
+            key={`divider-${index}`}
+            className="h-px bg-theme-gray3 my-1 mx-2"
+          />
+        ) : (
+          <button
             key={index}
-            className={itemClassName}
-            onClick={() => {
-              if (!isDisabled && item.onClick) {
-                item.onClick();
-                onClose?.();
+            onClick={() => handleItemClick(item)}
+            disabled={item.disabled}
+            className={`
+              w-full px-4 py-2 text-left text-sm transition-colors
+              ${item.disabled
+                ? 'text-theme-gray4 cursor-not-allowed'
+                : selectedIndex === index
+                  ? 'bg-theme-green text-theme-black'
+                  : 'text-theme-white hover:bg-theme-gray2'
               }
-            }}
-            onMouseEnter={() => {
-              if (enableKeyboard && !isDisabled) {
-                setSelectedIndex(index);
-              }
-            }}
+            `}
           >
             {item.label}
-          </div>
-        );
-      })}
+          </button>
+        )
+      ))}
     </div>
   );
 };

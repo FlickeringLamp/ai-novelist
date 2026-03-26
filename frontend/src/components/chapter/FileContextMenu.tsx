@@ -1,42 +1,9 @@
-import ContextMenu, { type ContextMenuItem } from '../others/ContextMenu';
+import ContextMenu from '../others/ContextMenu';
 import httpClient from '../../utils/httpClient';
 import { useDispatch } from 'react-redux';
 import { deleteTabFromAllBars, updateTabId } from '../../store/editor';
 import { useFetchFileTree } from '../../utils/fileTreeHelper';
-
-interface SelectedItem {
-  id: string | null;
-  isFolder: boolean;
-  itemTitle: string | null;
-  itemParentPath: string | null;
-  state: string | null;
-}
-
-interface LastSelectedItem {
-  state: string | null;
-  id: string | null;
-  isFolder: boolean;
-  itemTitle: string | null;
-  itemParentPath: string | null;
-}
-
-interface Modal {
-  show: boolean;
-  message: string;
-  onConfirm: (() => void) | null;
-  onCancel: (() => void) | null;
-}
-
-interface ChapterContextMenuProps {
-  contextMenu: { show: boolean; x: number; y: number };
-  selectedItem: SelectedItem;
-  setSelectedItem: (item: SelectedItem) => void;
-  lastSelectedItem: LastSelectedItem;
-  setLastSelectedItem: (item: LastSelectedItem) => void;
-  handleCloseContextMenu: () => void;
-  handleCreateItem: (isFolder: boolean, parentPath: string) => void;
-  setModal: (modal: Modal) => void;
-}
+import type { ChapterContextMenuProps, ContextMenuItem } from '@/types';
 
 function ChapterContextMenu({
   contextMenu,

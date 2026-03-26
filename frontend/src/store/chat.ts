@@ -8,34 +8,7 @@ import type {
   ToolCall,
   UsageMetadata
 } from '../types/langgraph';
-
-// 聊天状态接口
-export interface ChatState {
-  // 完整的state对象（）
-  state: LangGraphState | null;
-  // 输入框消息
-  message: string;
-  // 模式展开状态
-  modeExpanded: boolean;
-  // 自动批准展开状态
-  autoApproveExpanded: boolean;
-  // 自动批准启用状态
-  autoApproveEnabled: boolean;
-  // 工具请求栏显示状态
-  toolRequestVisible: boolean;
-  // 两步RAG配置
-  twoStepRagConfig: { id: string | null; name: string | null };
-  // 两步RAG展开状态
-  twoStepRagExpanded: boolean;
-  // 历史面板展开状态
-  historyExpanded: boolean;
-  // 选中的thread_id
-  selectedThreadId: string | null;
-  // 选中的模式ID
-  selectedModeId: string | null;
-  // 是否正在流式传输
-  isStreaming: boolean;
-}
+import type { ChatState } from '../types/store';
 
 // 初始状态
 const initialState: ChatState = {

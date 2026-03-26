@@ -2,7 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faStop } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useState, useRef } from 'react';
-import type { RootState } from '../../store/store';
+import type { RootState } from '../../types';
 import {
   addUserMessage,
   createAiMessage,

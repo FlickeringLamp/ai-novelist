@@ -1,8 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
+import type { TerminalState } from '../types/store';
 
-export interface TerminalState {
-  isVisible: boolean;
-}
+// TerminalState 类型定义已迁移到 types/store.ts
 
 const initialState: TerminalState = {
   isVisible: false,

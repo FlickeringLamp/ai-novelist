@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngleRight, faAngleUp } from '@fortawesome/free-solid-svg-icons';
-import type { RootState } from '../../../store/store';
+import type { RootState } from '../../../types';
 import { setKnowledgeBases } from '../../../store/knowledge';
 import { setTwoStepRagConfig, setTwoStepRagExpanded } from '../../../store/chat';
 import httpClient from '../../../utils/httpClient';

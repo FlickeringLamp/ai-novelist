@@ -1,9 +1,5 @@
+import type { NotificationModalProps } from '../../../types';
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface NotificationModalProps {
-  message: string;
-  onClose: () => void;
-}
 
 const NotificationModal = ({ message, onClose }: NotificationModalProps) => {
   return (

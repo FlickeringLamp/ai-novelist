@@ -2,21 +2,13 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash } from '@fortawesome/free-solid-svg-icons';
-import type { RootState } from '../../store/store';
+import type { RootState, ChatSession } from '../../types';
 import { setHistoryExpanded, setSelectedThreadId } from '../../store/chat';
 import httpClient from '../../utils/httpClient';
 
-interface Session {
-  session_id: string;
-  message_count: number;
-  created_at: number | null;
-  last_accessed: number | null;
-  preview: string;
-}
-
 const HistoryPanel = () => {
   const dispatch = useDispatch();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(false);
 
   // 从Redux获取当前thread_id和历史面板展开状态

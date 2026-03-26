@@ -1,12 +1,5 @@
+import type { DeleteModeConfirmModalProps } from '@/types';
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface DeleteModeConfirmModalProps {
-  isOpen: boolean;
-  modeId: string;
-  modeName: string;
-  onClose: () => void;
-  onConfirm: (modeId: string) => Promise<void>;
-}
 
 const DeleteModeConfirmModal = ({ isOpen, modeId, modeName, onClose, onConfirm }: DeleteModeConfirmModalProps) => {
   if (!isOpen) return null;

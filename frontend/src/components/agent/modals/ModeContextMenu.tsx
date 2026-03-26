@@ -1,18 +1,5 @@
-import { type ContextMenuItem } from '../../others/ContextMenu';
 import ContextMenu from '../../others/ContextMenu';
-
-interface ModeContextMenuProps {
-  visible: boolean;
-  x: number;
-  y: number;
-  modeId: string | null;
-  modesData: Record<string, any>;
-  onRename: (modeId: string) => void;
-  onDelete: (modeId: string) => void;
-  onClose: () => void;
-  enableKeyboard?: boolean;
-  enableAutoAdjust?: boolean;
-}
+import type { ModeContextMenuProps, ContextMenuItem } from '@/types';
 
 const ModeContextMenu = ({
   visible,

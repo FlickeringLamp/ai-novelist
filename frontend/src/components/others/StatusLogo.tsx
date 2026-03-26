@@ -2,26 +2,17 @@ import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFire } from '@fortawesome/free-solid-svg-icons';
 import { healthChecker } from '../../utils/healthCheck';
+import type { StatusLogoProps } from '@/types';
+import type { LocalHealthStatus } from '../../utils/healthCheck';
 import './StatusLogo.css';
 
-interface HealthStatus {
-  isOnline: boolean;
-  lastCheckTime: Date | null;
-  consecutiveFailures: number;
-}
-
-interface StatusLogoProps {
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
-}
-
 const StatusLogo = ({ isCollapsed, onToggleCollapse }: StatusLogoProps) => {
-  const [status, setStatus] = useState<HealthStatus>(healthChecker.getStatus());
+  const [status, setStatus] = useState<LocalHealthStatus>(healthChecker.getStatus());
 
   useEffect(() => {
     healthChecker.start();
 
-    const handleStatusChange = (newStatus: HealthStatus) => {
+    const handleStatusChange = (newStatus: LocalHealthStatus) => {
       setStatus(newStatus);
     };
 

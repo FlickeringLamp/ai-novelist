@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngleRight, faAngleUp, faTrash, faRotateRight, faEdit, faCopy } from '@fortawesome/free-solid-svg-icons';
-import type { RootState } from '../../store/store';
+import type { RootState } from '../../types';
 import type { Message, AIMessage, StreamChunk, ToolCall } from '../../types/langgraph';
 import { setAvailableTools } from '../../store/mode';
 import { setState, createAiMessage, updateAiMessage, setIsStreaming } from '../../store/chat';

@@ -1,22 +1,7 @@
 import { createSlice, type Draft, type PayloadAction } from '@reduxjs/toolkit';
+import type { ProviderData, ProviderState } from '../types/store';
 
-export interface ProviderData {
-  name: string;
-  enable: boolean;
-  url: string;
-  key: string;
-  favoriteModels: {
-    chat: { [key: string]: any };
-    embedding: { [key: string]: any };
-    other: { [key: string]: any };
-  };
-}
-
-export interface ProviderState {
-  allProvidersData: { [key: string]: ProviderData };
-  selectedProviderId: string | null;
-  selectedModelId: string | null;
-}
+// ProviderData, ProviderState 类型定义已迁移到 types/store.ts
 
 const initialState: ProviderState = {
   allProvidersData: {},

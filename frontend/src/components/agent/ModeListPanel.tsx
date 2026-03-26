@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
-import type { RootState } from '../../store/store';
+import type { RootState, ModeListPanelProps } from '../../types';
 import {
   setAllModesData,
   setSelectedModeId,
@@ -12,8 +12,6 @@ import CustomModeModal from './modals/CustomModeModal';
 import RenameModeModal from './modals/RenameModeModal';
 import DeleteModeConfirmModal from './modals/DeleteModeConfirmModal';
 import httpClient from '../../utils/httpClient';
-
-interface ModeListPanelProps {}
 
 const ModeListPanel = ({}: ModeListPanelProps) => {
   const dispatch = useDispatch();

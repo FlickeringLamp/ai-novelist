@@ -1,10 +1,8 @@
 import { createSlice, type Draft, type PayloadAction } from '@reduxjs/toolkit';
-import type { MCPData, mcpServers, MCPTool } from '../types/mcp';
+import type { MCPData, mcpServers, MCPTool, MCPState } from '../types/store';
 
-export interface MCPState {
-  mcpData: MCPData;
-  loadingServers: string[]; // 正在加载工具的服务器ID列表
-}
+// MCPState 类型定义已迁移到 types/store.ts
+// MCPData, mcpServers, MCPTool 从 types/store 重新导出
 
 const initialState: MCPState = {
   mcpData: {

@@ -1,5 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { setActiveTab, setActiveTabBar, decreaseTab, dirtyTabs, reorderTabs, getTabBarsWithContent, type RootState } from "../../store/editor.ts";
+import { setActiveTab, setActiveTabBar, decreaseTab, dirtyTabs, reorderTabs, getTabBarsWithContent } from '../../store/editor';
+import type { RootState } from '../../types';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import TabBarEditorArea from './editor/EditorArea.tsx';
 import CloseTabConfirmModal from './tab/CloseTabConfirmModal.tsx';

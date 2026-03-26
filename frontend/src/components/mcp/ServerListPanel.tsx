@@ -3,7 +3,7 @@ import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
-import type { RootState } from '../../store/store';
+import type { RootState, ServerListPanelProps } from '@/types';
 import {
   setAllServersConfig,
   setSelectedServerId,
@@ -13,8 +13,6 @@ import ServerContextMenu from './modals/ServerContextMenu';
 import DeleteConfirmModal from './modals/DeleteConfirmModal';
 import NotificationModal from './modals/NotificationModal';
 import httpClient from '../../utils/httpClient';
-
-interface ServerListPanelProps {}
 
 const ServerListPanel = ({}: ServerListPanelProps) => {
   const dispatch = useDispatch();

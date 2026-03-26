@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import type { RootState } from "../../../store/store";
+import type { RootState, BaseDetailModalProps } from "../../../types";
 import { setKnowledgeBases } from "../../../store/knowledge";
 import UnifiedModal from "../../others/UnifiedModal";
 import httpClient from "../../../utils/httpClient";
@@ -12,12 +12,6 @@ import {
   convertSimilarityForBackend,
   convertSimilarityForFrontend,
 } from "../../../utils/validationUtils";
-
-interface BaseDetailModalProps {
-  isOpen: boolean;
-  knowledgeBaseId: string | null;
-  onClose: () => void;
-}
 
 const BaseDetailModal = ({ isOpen, knowledgeBaseId, onClose }: BaseDetailModalProps) => {
   const dispatch = useDispatch();

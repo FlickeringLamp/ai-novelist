@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
-import type { RootState } from '../../store/store';
+import type { RootState, ModeTabType } from '@/types';
 import { setAllModesData, setAvailableTools, setFileTree } from '../../store/mode';
 import httpClient from '../../utils/httpClient';
-
-type TabType = 'prompt' | 'params' | 'tools';
 
 const ModeDetailPanel = () => {
   const dispatch = useDispatch();
@@ -16,7 +14,7 @@ const ModeDetailPanel = () => {
   const availableTools = useSelector((state: RootState) => state.modeSlice.availableTools);
   const fileTree = useSelector((state: RootState) => state.modeSlice.fileTree);
 
-  const [activeTab, setActiveTab] = useState<TabType>('prompt');
+  const [activeTab, setActiveTab] = useState<ModeTabType>('prompt');
   const [prompt, setPrompt] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState<string[]>([]);
   const [temperature, setTemperature] = useState(0.7);

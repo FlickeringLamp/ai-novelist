@@ -1,30 +1,31 @@
 // frontend/src/utils/healthCheck.ts
 
-interface HealthStatus {
-  isOnline: boolean;
-  lastCheckTime: Date | null;
-  consecutiveFailures: number;
-}
+import type { LocalHealthStatus } from '@/types';
 
 class HealthChecker {
   private checkInterval: number = 3000; // 3秒检测一次
   private maxFailures: number = 1; // 连续失败1次就提示
   private intervalId: number | null = null;
-  private status: HealthStatus = {
+  private status: LocalHealthStatus = {
     isOnline: true,
     lastCheckTime: null,
     consecutiveFailures: 0
   };
-  private listeners: Set<(status: HealthStatus) => void> = new Set();
+  private listeners: Set<(status: LocalHealthStatus) => void> = new Set();
 
   // 添加状态监听器
-  addListener(listener: (status: HealthStatus) => void) {
+  addListener(listener: (status: LocalHealthStatus) => void) {
     this.listeners.add(listener);
   }
 
   // 移除状态监听器
-  removeListener(listener: (status: HealthStatus) => void) {
+  removeListener(listener: (status: LocalHealthStatus) => void) {
     this.listeners.delete(listener);
+  }
+
+  // 获取当前状态
+  getStatus(): LocalHealthStatus {
+    return { ...this.status };
   }
 
   // 通知所有监听器
@@ -83,12 +84,10 @@ class HealthChecker {
       this.intervalId = null;
     }
   }
-
-  // 获取当前状态
-  getStatus(): HealthStatus {
-    return { ...this.status };
-  }
 }
 
 // 导出单例
 export const healthChecker = new HealthChecker();
+
+// 导出类型
+export type { LocalHealthStatus };

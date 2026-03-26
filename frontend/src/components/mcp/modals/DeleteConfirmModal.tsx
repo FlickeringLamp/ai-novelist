@@ -1,12 +1,5 @@
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface DeleteConfirmModalProps {
-  isOpen: boolean;
-  serverId: string;
-  serverName: string;
-  onClose: () => void;
-  onConfirm: (serverId: string) => Promise<void>;
-}
+import type { MCPDeleteConfirmModalProps } from '@/types';
 
 const DeleteConfirmModal = ({
   isOpen,
@@ -14,7 +7,7 @@ const DeleteConfirmModal = ({
   serverName,
   onClose,
   onConfirm
-}: DeleteConfirmModalProps) => {
+}: MCPDeleteConfirmModalProps) => {
   if (!isOpen) return null;
 
   return (

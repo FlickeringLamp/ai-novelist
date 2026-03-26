@@ -5,11 +5,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { useTheme } from '../../context/ThemeContext';
-
-interface TerminalItem {
-  id: string;
-  name: string;
-}
+import type { TerminalItem } from '../../types';
 
 // 辅助函数：复制选中的文本
 async function copySelection(term: Terminal): Promise<void> {
@@ -34,7 +30,6 @@ async function pasteToTerminal(term: Terminal): Promise<void> {
 }
 
 // 单个终端组件
-// prop解构+类型注解
 function TerminalView({
   id,
   isActive

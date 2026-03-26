@@ -1,27 +1,9 @@
 import DisplayNameHelper from "../../../utils/DisplayNameHelper.ts";
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from "react-redux";
-import { setActiveTabBar, type RootState } from "../../../store/editor.ts";
-
-interface TabBarProps {
-  tabBarId: string;
-  tabBar: {
-    tabs: string[];
-    activeTabId: string | null;
-  };
-  isActive: boolean;
-  dirtyTabIds: Set<string>;
-  draggedIndex: number | null;
-  dragOverIndex: number | null;
-  scrollContainerRef: (el: HTMLDivElement | null) => void;
-  onTabClick: (tabId: string) => void;
-  onTabClose: (tabId: string) => void;
-  onTabContextMenu: (e: React.MouseEvent, tabId: string) => void;
-  onTabDragStart: (index: number) => void;
-  onTabDragEnd: () => void;
-  onTabDragOver: (index: number) => void;
-  onTabDrop: (fromIndex: number, toIndex: number) => void;
-}
+import { setActiveTabBar } from '../../../store/editor';
+import type { RootState } from '../../../types';
+import type { TabBarProps } from '@/types';
 
 const TabBar = ({
   tabBarId,

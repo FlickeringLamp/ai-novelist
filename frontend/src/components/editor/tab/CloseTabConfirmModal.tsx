@@ -3,14 +3,7 @@ import { useDispatch } from 'react-redux';
 import { saveTabContent, decreaseTab } from '../../../store/editor.ts';
 import api from '../../../utils/httpClient.ts';
 import { useFetchFileTree } from '../../../utils/fileTreeHelper.ts';
-
-interface CloseTabConfirmModalProps {
-  tabId: string | null;
-  tabBarId: string | null;
-  tabContent: string;
-  onClose: () => void;
-  onError: (error: string) => void;
-}
+import type { CloseTabConfirmModalProps } from '@/types';
 
 const CloseTabConfirmModal = ({ tabId, tabBarId, tabContent, onClose, onError }: CloseTabConfirmModalProps) => {
   const dispatch = useDispatch();

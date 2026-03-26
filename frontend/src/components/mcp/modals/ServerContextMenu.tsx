@@ -1,17 +1,5 @@
-import { type ContextMenuItem } from '../../others/ContextMenu';
 import ContextMenu from '../../others/ContextMenu';
-
-interface ServerContextMenuProps {
-  visible: boolean;
-  x: number;
-  y: number;
-  serverId: string | null;
-  serversData: Record<string, any>;
-  onDelete: (serverId: string) => void;
-  onClose: () => void;
-  enableKeyboard?: boolean;
-  enableAutoAdjust?: boolean;
-}
+import type { ServerContextMenuProps, ContextMenuItem } from '@/types';
 
 const ServerContextMenu = ({
   visible,

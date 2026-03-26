@@ -1,12 +1,5 @@
+import type { DeleteConfirmModalProps } from '../../../types';
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface DeleteConfirmModalProps {
-  isOpen: boolean;
-  providerId: string;
-  providerName: string;
-  onClose: () => void;
-  onConfirm: (providerId: string) => Promise<void>;
-}
 
 const DeleteConfirmModal = ({
   isOpen,

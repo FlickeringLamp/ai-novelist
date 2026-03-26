@@ -6,18 +6,7 @@ import {
   faPencil,
   faServer
 } from '@fortawesome/free-solid-svg-icons';
-
-interface SidebarItem {
-  id: string;
-  icon: any;
-  label: string;
-  panelId: string | null;
-}
-
-interface SidebarComponentProps {
-  activePanel: string | null;
-  setActivePanel: (panel: string | null) => void;
-}
+import type { SidebarComponentProps, SidebarItem } from '../types';
 
 const SidebarComponent = ({ activePanel, setActivePanel }: SidebarComponentProps) => {
   // 侧边栏项目配置

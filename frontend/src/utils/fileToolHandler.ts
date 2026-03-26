@@ -1,7 +1,7 @@
 import { useDispatch, useSelector, useStore } from 'react-redux';
 import { addTempFile } from '../store/file';
 import { createTempDiffTab, updateBackUp } from '../store/editor';
-import type { RootState } from '../store/store';
+import type { RootState } from '../types';
 import httpClient from './httpClient';
 
 // 支持的文件工具列表

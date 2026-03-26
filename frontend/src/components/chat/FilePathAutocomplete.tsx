@@ -1,13 +1,5 @@
 import React from 'react';
-
-interface FilePathAutocompleteProps {
-  isOpen: boolean;
-  paths: string[];
-  selectedIndex: number;
-  query: string;
-  onSelect: (path: string) => void;
-  onClose: () => void;
-}
+import type { FilePathAutocompleteProps } from '@/types';
 
 export const FilePathAutocomplete: React.FC<FilePathAutocompleteProps> = ({
   isOpen,

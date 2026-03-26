@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import type { RootState } from "../../store/store";
+import type { RootState, UploadProgressRef } from "../../types";
 import {
   incrementFileRefreshTrigger,
   setUploadProgress,
@@ -8,9 +8,7 @@ import {
 } from "../../store/knowledge";
 import httpClient from "../../utils/httpClient";
 
-export interface UploadProgressRef {
-  triggerFileInput: () => void;
-}
+export type { UploadProgressRef };
 
 const UploadProgress = forwardRef<UploadProgressRef>((_, ref) => {
   const dispatch = useDispatch();
