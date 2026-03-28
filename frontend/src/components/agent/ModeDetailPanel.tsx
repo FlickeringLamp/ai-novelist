@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
-import type { RootState } from '../../store/store';
-import { setAllModesData, setAvailableTools, setFileTree } from '../../store/mode';
+import type { RootState, ModeTabType } from '@/types';
+import { setAllModesData, setAvailableTools } from '../../store/mode';
 import httpClient from '../../utils/httpClient';
-
-type TabType = 'prompt' | 'params' | 'tools';
 
 const ModeDetailPanel = () => {
   const dispatch = useDispatch();
@@ -14,9 +12,9 @@ const ModeDetailPanel = () => {
   const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId);
   const allModesData = useSelector((state: RootState) => state.modeSlice.allModesData);
   const availableTools = useSelector((state: RootState) => state.modeSlice.availableTools);
-  const fileTree = useSelector((state: RootState) => state.modeSlice.fileTree);
+  const fileTree = useSelector((state: RootState) => state.fileSlice.chapters);
 
-  const [activeTab, setActiveTab] = useState<TabType>('prompt');
+  const [activeTab, setActiveTab] = useState<ModeTabType>('prompt');
   const [prompt, setPrompt] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState<string[]>([]);
   const [temperature, setTemperature] = useState(0.7);
@@ -57,7 +55,7 @@ const ModeDetailPanel = () => {
     }
   }, [selectedModeId, currentModeData]);
 
-  // 挂载时获取可用工具和文件树
+  // 挂载时获取可用工具
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -66,14 +64,8 @@ const ModeDetailPanel = () => {
         if (toolsResult) {
           dispatch(setAvailableTools(toolsResult));
         }
-
-        // 获取文件树
-        const treeResult = await httpClient.get('/api/file/tree');
-        if (treeResult) {
-          dispatch(setFileTree(treeResult));
-        }
       } catch (error) {
-        console.error('获取数据失败:', error);
+        console.error('获取可用工具失败:', error);
       }
     };
     fetchData();

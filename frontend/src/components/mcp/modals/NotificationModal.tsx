@@ -1,11 +1,7 @@
 import UnifiedModal from '../../others/UnifiedModal';
+import type { MCPNotificationModalProps } from '@/types';
 
-interface NotificationModalProps {
-  message: string;
-  onClose: () => void;
-}
-
-const NotificationModal = ({ message, onClose }: NotificationModalProps) => {
+const NotificationModal = ({ message, onClose }: MCPNotificationModalProps) => {
   return (
     <UnifiedModal
       message={message}

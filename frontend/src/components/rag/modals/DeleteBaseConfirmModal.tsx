@@ -1,12 +1,5 @@
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface DeleteBaseConfirmModalProps {
-  isOpen: boolean;
-  knowledgeBaseId: string;
-  knowledgeBaseName: string;
-  onClose: () => void;
-  onConfirm: (knowledgeBaseId: string) => Promise<void>;
-}
+import type { DeleteBaseConfirmModalProps } from '@/types';
 
 const DeleteBaseConfirmModal = ({
   isOpen,

@@ -1,9 +1,5 @@
 import UnifiedModal from './UnifiedModal.tsx';
-
-interface ErrorModalProps {
-  errorMessage: string | null;
-  onClose: () => void;
-}
+import type { ErrorModalProps } from '@/types';
 
 const ErrorModal = ({ errorMessage, onClose }: ErrorModalProps) => {
   if (!errorMessage) return null;

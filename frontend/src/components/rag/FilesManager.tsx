@@ -1,21 +1,11 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import type { RootState } from "../../store/store";
+import type { RootState, FilesManagerProps, RagFileSearchResult } from "../../types";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTrash, faPlus } from '@fortawesome/free-solid-svg-icons'
 import httpClient from "../../utils/httpClient";
 import UnifiedModal from "../others/UnifiedModal";
 import type { UploadProgressRef } from "./UploadProgress";
-
-interface SearchResult {
-  content: string;
-  metadata: Record<string, any>;
-  score: number;
-}
-
-interface FilesManagerProps {
-  uploadProgressRef: React.RefObject<UploadProgressRef | null>;
-}
 
 const FilesManager = ({ uploadProgressRef }: FilesManagerProps) => {
   const { selectedKnowledgeBaseId, fileRefreshTrigger } = useSelector((state: RootState) => state.knowledgeSlice);
@@ -27,7 +17,7 @@ const FilesManager = ({ uploadProgressRef }: FilesManagerProps) => {
   
   // 文件内搜索状态
   const [fileSearchQueries, setFileSearchQueries] = useState<Record<string, string>>({});
-  const [fileSearchResults, setFileSearchResults] = useState<Record<string, SearchResult[]>>({});
+  const [fileSearchResults, setFileSearchResults] = useState<Record<string, RagFileSearchResult[]>>({});
   const [isFileSearching, setIsFileSearching] = useState<Record<string, boolean>>({});
   const [showFileSearchResults, setShowFileSearchResults] = useState<Record<string, boolean>>({});
 

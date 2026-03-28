@@ -3,7 +3,7 @@ import { PanelGroup, Panel, PanelResizeHandle, type ImperativePanelHandle } from
 import { useDispatch, useSelector } from 'react-redux';
 import { addTab, setActiveTab } from '../store/editor';
 import { toggleTerminal } from '../store/terminal';
-import type { RootState } from '../store/store';
+import type { RootState, LayoutComponentProps } from '../types';
 import SidebarComponent from './SidebarComponent';
 import ProviderSettingsPanel from './aiprovider/ProviderSettingsPanel';
 import RagManagementPanel from './rag/KnowledgeBasePanel';
@@ -13,12 +13,6 @@ import TopActionBar from './others/TopActionBar';
 import SearchPanel from './search/SearchPanel';
 import CheckpointPanel from './checkpoint/CheckpointPanel';
 import httpClient from '../utils/httpClient';
-
-interface LayoutComponentProps {
-  chapterPanel: React.ReactNode;
-  editorPanel: React.ReactNode;
-  chatPanel: React.ReactNode;
-}
 
 function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutComponentProps) {
   const dispatch = useDispatch();

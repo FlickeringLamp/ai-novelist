@@ -7,47 +7,12 @@ import { toggleCollapse } from '../../store/file.ts';
 import { useEffect, useRef, useState } from 'react';
 import httpClient from '../../utils/httpClient.ts';
 import CreateInput from './CreateInput.tsx';
-import { useFetchFileTree } from '../../utils/fileTreeHelper.ts';
-
-// 类型定义
-interface ChapterItem {
-  id: string;
-  title?: string;
-  isFolder?: boolean;
-  type?: string;
-  children?: ChapterItem[];
-}
-
-interface ChapterTreeItemProps {
-  item: ChapterItem;
-  level: number;
-  creatingItem: {
-    isCreating: boolean;
-    isFolder: boolean;
-    parentPath: string;
-  };
-  onConfirmCreate: (name: string) => void;
-  onCancelCreate: () => void;
-  props: {
-    handleContextMenu: (e: React.MouseEvent, id: string, isFolder: boolean, title: string, parentPath: string) => void;
-    selectedItem: { state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null };
-    lastSelectedItem: { id: string | null };
-    setSelectedItem: (item: { state: string | null; id: string | null; isFolder: boolean; itemTitle: string | null; itemParentPath: string | null }) => void;
-    setModal: (modal: { show: boolean; message: string; onConfirm: (() => void) | null; onCancel: (() => void) | null }) => void;
-    // 拖拽相关
-    draggedItemId: string | null;
-    setDraggedItemId: (id: string | null) => void;
-    dropTargetId: string | null;
-    setDropTargetId: (id: string | null) => void;
-    handleMoveItem: (sourcePath: string, targetPath: string) => Promise<void>;
-  };
-}
+import type { ChapterItem, ChapterTreeItemProps } from '@/types';
 
 // 章节树节点组件
 function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelCreate, props }: ChapterTreeItemProps) {
   const dispatch = useDispatch();
   const collapsedChapters = useSelector((state: any) => state.fileSlice.collapsedChapters);
-  const fetchFileTree = useFetchFileTree();
 
   const {
     handleContextMenu,
@@ -147,8 +112,6 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
           itemTitle: null,
           itemParentPath: null
         });
-        // 触发父组件刷新
-        fetchFileTree();
       } catch (error) {
         console.error('重命名失败:', error);
         setModal({ show: true, message: '重命名失败: ' + (error as Error).toString(), onConfirm: null, onCancel: null });

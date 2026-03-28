@@ -5,48 +5,19 @@ import { faSave, faPlus, faHistory, faFile, faUndo, faChevronRight, faChevronDow
 import httpClient from '../../utils/httpClient';
 import { setCheckpointPreview } from '../../store/editor.ts';
 import UnifiedModal from '../others/UnifiedModal';
-
-interface Checkpoint {
-  commit_hash: string;
-  short_hash: string;
-  message: string;
-}
-
-interface FileChange {
-  path: string;
-  change_type: string;  // 'M'=修改, 'A'=新增, 'D'=删除
-  old_content?: string;
-  new_content?: string;
-}
-
-interface GitChange {
-  path: string;
-  change_type: string;  // 'M'=修改, 'A'=新增, 'D'=删除
-}
-
-interface GitStatus {
-  branch: string;
-  dirty: boolean;
-  untracked_files: string[];
-  modified_files: string[];
-  changes: GitChange[];  // 带变更类型的文件列表
-}
-
-interface CheckpointPanelProps {
-  onDiffDisplay?: (diff: string, filePath: string) => void;
-}
+import type { CheckpointPanelProps, ApiCheckpoint, ApiFileChange, ApiGitChange, ApiGitStatus } from '@/types';
 
 const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
   const dispatch = useDispatch();
-  const [status, setStatus] = useState<GitStatus | null>(null);
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [status, setStatus] = useState<ApiGitStatus | null>(null);
+  const [checkpoints, setCheckpoints] = useState<ApiCheckpoint[]>([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [expandedCheckpoint, setExpandedCheckpoint] = useState<string | null>(null);
-  const [checkpointChanges, setCheckpointChanges] = useState<FileChange[]>([]);
+  const [checkpointChanges, setCheckpointChanges] = useState<ApiFileChange[]>([]);
   const [checkpointChangesMap, setCheckpointChangesMap] = useState<Record<string, any>>({});
 
-  const [restoreModal, setRestoreModal] = useState<{ show: boolean; checkpoint: Checkpoint | null }>({ show: false, checkpoint: null });
+  const [restoreModal, setRestoreModal] = useState<{ show: boolean; checkpoint: ApiCheckpoint | null }>({ show: false, checkpoint: null });
   const [restoring, setRestoring] = useState(false);
 
   // 获取Git状态
@@ -98,7 +69,7 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
     }
   };
 
-  const handleExpandCheckpoint = async (checkpoint: Checkpoint) => {
+  const handleExpandCheckpoint = async (checkpoint: ApiCheckpoint) => {
     if (expandedCheckpoint === checkpoint.commit_hash) {
       setExpandedCheckpoint(null);
       setCheckpointChanges([]);
@@ -167,14 +138,14 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
     }
   };
 
-  const getChangeTypeIcon = (change: FileChange | GitChange) => {
+  const getChangeTypeIcon = (change: ApiFileChange | ApiGitChange) => {
     if (change.change_type === 'A') return <FontAwesomeIcon icon={faFile} className="text-theme-green text-xs" />;
     if (change.change_type === 'D') return <FontAwesomeIcon icon={faFile} className="text-theme-red text-xs" />;
     if (change.change_type === 'M') return <FontAwesomeIcon icon={faFile} className="text-theme-yellow text-xs" />;
     return <FontAwesomeIcon icon={faFile} className="text-theme-gray4 text-xs" />;
   };
 
-  const handleRestoreCheckpoint = async (checkpoint: Checkpoint) => {
+  const handleRestoreCheckpoint = async (checkpoint: ApiCheckpoint) => {
     setRestoreModal({ show: true, checkpoint });
   };
 
@@ -242,7 +213,7 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
               {/* 所有变更文件 */}
               {(() => {
                 // 将未跟踪文件转换为 GitChange 对象
-                const untrackedChanges: GitChange[] = (status.untracked_files || []).map(file => ({
+                const untrackedChanges: ApiGitChange[] = (status.untracked_files || []).map((file: string) => ({
                   path: file,
                   change_type: 'A'
                 }));

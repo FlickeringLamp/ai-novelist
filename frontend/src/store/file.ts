@@ -1,17 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import type { ChapterItem, FileState } from '../types/store';
 
-export interface ChapterItem {
-  id: string;
-  title?: string;
-  isFolder?: boolean;
-  type?: string;
-  children?: ChapterItem[];
-}
-
-export interface FileState {
-  collapsedChapters: Record<string, boolean>;
-  chapters: ChapterItem[];
-}
+// ChapterItem, FileState 类型定义已迁移到 types/store.ts
 
 const fileState: FileState = {
   collapsedChapters: {}, // 管理文件夹展开/折叠状态，不存在或false应该为关闭

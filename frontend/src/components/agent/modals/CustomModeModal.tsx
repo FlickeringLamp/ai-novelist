@@ -1,11 +1,6 @@
 import { useState } from 'react';
+import type { CustomModeModalProps } from '@/types';
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface CustomModeModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (name: string) => Promise<void>;
-}
 
 const CustomModeModal = ({ isOpen, onClose, onSubmit }: CustomModeModalProps) => {
   const [customModeName, setCustomModeName] = useState('');

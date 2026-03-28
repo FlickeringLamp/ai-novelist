@@ -1,18 +1,10 @@
 import { useState } from "react";
 import { useSelector } from "react-redux";
-import type { RootState } from "../../store/store";
+import type { RootState, HeaderBarProps, RagFileSearchResult } from "../../types";
 import BaseDetailModal from "./modals/BaseDetailModal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGear } from '@fortawesome/free-solid-svg-icons';
 import httpClient from "../../utils/httpClient";
-
-interface SearchResult {
-  content: string;
-  metadata: Record<string, any>;
-  score: number;
-}
-
-interface HeaderBarProps {}
 
 const HeaderBar = ({}: HeaderBarProps) => {
   const {
@@ -25,7 +17,7 @@ const HeaderBar = ({}: HeaderBarProps) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
+  const [searchResults, setSearchResults] = useState<RagFileSearchResult[] | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   //"守卫子句"，当没有选中东西的时候，不应该渲染。

@@ -20,5 +20,3 @@ export const store = configureStore({
     terminalSlice: terminalReducer
   },
 })
-
-export type RootState = ReturnType<typeof store.getState>;

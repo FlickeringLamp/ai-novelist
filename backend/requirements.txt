@@ -30,3 +30,4 @@ mcp==1.26.0
 langchain-mcp-adapters==0.2.1
 llama-cpp-python==0.3.16
 pyyaml==6.0.3
+watchdog==6.0.0

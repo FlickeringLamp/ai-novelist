@@ -2,21 +2,11 @@ import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faTimes } from '@fortawesome/free-solid-svg-icons';
 import httpClient from '../../utils/httpClient';
-
-interface SearchResult {
-  path: string;
-  content: string[];
-}
-
-interface SearchPanelProps {
-  onClose?: () => void;
-  onFileSelect: (filePath: string) => void;
-  embedded?: boolean; // 是否为嵌入模式
-}
+import type { SearchPanelProps, FileSearchResult } from '@/types';
 
 const SearchPanel = ({ onClose, onFileSelect, embedded = false }: SearchPanelProps) => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Record<string, SearchResult>>({});
+  const [results, setResults] = useState<Record<string, FileSearchResult>>({});
   const [loading, setLoading] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState('');
 

@@ -1,23 +1,31 @@
 import { useDispatch } from 'react-redux';
 import { setChapters } from '../store/file.ts';
-import httpClient from './httpClient.ts';
+import { getWSClient } from './wsClient.ts';
+
+const WS_URL = 'ws://localhost:8000/ws';
 
 /**
- * Hook 版本的文件树获取函数
- * 可以在组件中使用，用于刷新文件树列表
+ * 初始化 WebSocket 文件监控
+ * 在应用启动时调用一次，订阅后后端会自动推送初始文件树和后续变化
  */
-export const useFetchFileTree = () => {
-  const dispatch = useDispatch();
+export const initFileWatcher = (dispatch: ReturnType<typeof useDispatch>) => {
+  const wsClient = getWSClient(WS_URL);
 
-  const fetchAndSetFileTree = async () => {
-    try {
-      const result = await httpClient.get('/api/file/tree');
-      dispatch(setChapters(result || []));
-    } catch (error) {
-      console.error('获取文件树失败：', error);
-      throw error;
+  // 监听文件树更新
+  const unsubscribeMessage = wsClient.onMessage((message) => {
+    if (message.type === 'file_tree_update') {
+      dispatch(setChapters(message.payload.tree || []));
     }
-  };
+  });
 
-  return fetchAndSetFileTree;
+  // 连接成功后订阅文件变化（订阅时自动返回初始文件树）
+  const unsubscribeConnect = wsClient.onConnect(() => {
+    wsClient.send('subscribe_file_changes', {});
+  });
+
+  // 返回清理函数
+  return () => {
+    unsubscribeMessage();
+    unsubscribeConnect();
+  };
 };

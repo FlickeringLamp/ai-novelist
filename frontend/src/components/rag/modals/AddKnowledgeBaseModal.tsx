@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import type { RootState } from "../../../store/store";
+import type { RootState, AddKnowledgeBaseModalProps } from "../../../types";
 import { setKnowledgeBases } from "../../../store/knowledge";
 import UnifiedModal from "../../others/UnifiedModal";
 import httpClient from "../../../utils/httpClient";
@@ -11,11 +11,6 @@ import {
   validateReturnDocs,
   convertSimilarityForBackend,
 } from "../../../utils/validationUtils";
-
-interface AddKnowledgeBaseModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
 
 const AddKnowledgeBaseModal = ({ isOpen, onClose }: AddKnowledgeBaseModalProps) => {
   const dispatch = useDispatch();

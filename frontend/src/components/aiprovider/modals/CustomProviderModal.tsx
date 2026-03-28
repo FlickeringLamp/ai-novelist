@@ -1,11 +1,6 @@
 import { useState } from 'react';
+import type { CustomProviderModalProps } from '../../../types';
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface CustomProviderModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (name: string) => Promise<void>;
-}
 
 const CustomProviderModal = ({ isOpen, onClose, onSubmit }: CustomProviderModalProps) => {
   const [customProviderName, setCustomProviderName] = useState('');

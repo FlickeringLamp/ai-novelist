@@ -1,18 +1,5 @@
-import { type ContextMenuItem } from '../../others/ContextMenu';
+import type { ProviderContextMenuProps, ContextMenuItem } from '@/types';
 import ContextMenu from '../../others/ContextMenu';
-
-interface ProviderContextMenuProps {
-  visible: boolean;
-  x: number;
-  y: number;
-  providerId: string | null;
-  providersData: Record<string, any>;
-  onRename: (providerId: string) => void;
-  onDelete: (providerId: string) => void;
-  onClose: () => void;
-  enableKeyboard?: boolean;
-  enableAutoAdjust?: boolean;
-}
 
 const ProviderContextMenu = ({
   visible,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import type { RootState } from '../../store/store';
+import type { RootState } from '../../types';
 import { setAllProvidersData, setSelectedProviderId as setSelectedProviderIdAction, setSelectedModelId as setSelectedModelIdAction } from '../../store/provider';
 import httpClient from '../../utils/httpClient';
 

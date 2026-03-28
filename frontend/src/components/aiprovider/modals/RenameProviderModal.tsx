@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
+import type { RenameProviderModalProps } from '../../../types';
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface RenameProviderModalProps {
-  isOpen: boolean;
-  providerId: string;
-  currentName: string;
-  onClose: () => void;
-  onSubmit: (providerId: string, newName: string) => Promise<void>;
-}
 
 const RenameProviderModal = ({
   isOpen,

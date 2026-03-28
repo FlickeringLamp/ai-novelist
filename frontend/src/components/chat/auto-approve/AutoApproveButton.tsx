@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useEffect } from 'react';
-import type { RootState } from '../../../store/store';
+import type { RootState } from '../../../types';
 import { setAutoApproveEnabled } from '../../../store/chat';
 import httpClient from '../../../utils/httpClient';
 

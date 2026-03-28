@@ -1,9 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMinus, faExpand, faXmark } from '@fortawesome/free-solid-svg-icons';
-
-interface WindowControlsProps {
-  className?: string;
-}
+import type { WindowControlsProps } from '@/types';
 
 function WindowControls({ className = '' }: WindowControlsProps) {
   const handleMinimize = () => {

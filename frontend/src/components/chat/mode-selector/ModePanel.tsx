@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
-import type { RootState } from '../../../store/store';
+import type { RootState } from '../../../types';
 import { setModeExpanded, setSelectedModeId } from '../../../store/chat';
 import httpClient from '../../../utils/httpClient';
 

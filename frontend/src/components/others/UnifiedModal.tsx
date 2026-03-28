@@ -1,38 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
-
-interface Button {
-  text: string;
-  onClick: () => void;
-  className?: string;
-  loading?: boolean;
-}
-
-interface SelectOption {
-  label: string;
-  value: string;
-}
-
-interface InputField {
-  label: string;
-  type?: 'text' | 'password' | 'select' | 'textarea';
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  disabled?: boolean;
-  options?: (string | SelectOption)[];
-  autocompleteOptions?: string[];
-  onAutocompleteSelect?: (value: string) => void;
-}
-
-interface UnifiedModalProps {
-  title?: string;
-  message?: string;
-  inputs?: InputField[];
-  buttons: Button[];
-}
+import type { UnifiedModalProps, UnifiedModalButton } from '@/types';
 
 const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProps) => {
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -155,7 +124,7 @@ const UnifiedModal = ({ title, message, inputs = [], buttons }: UnifiedModalProp
           </form>
         )}
         <div className="flex justify-end gap-2.5 mt-5">
-          {buttons.map((button: Button, index: number) => (
+          {buttons.map((button: UnifiedModalButton, index: number) => (
             <button
               key={index}
               ref={(el) => {

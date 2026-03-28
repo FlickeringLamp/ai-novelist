@@ -4,26 +4,7 @@ import {
   type PayloadAction,
   type Draft,
 } from "@reduxjs/toolkit";
-
-export interface TabBar {
-  tabs: string[];
-  activeTabId: string | null;
-}
-
-export interface EditorState {
-  tabBars: Record<string, TabBar>;
-  activeTabBarId: string;
-  currentData: Record<string, string>; // id → content，用户实时操作的数据
-  backUp: Record<string, string>; // id → content，备份用的，主要功能是对比，显示脏数据情况，后续可能用于ai编辑操作
-  diffModeTabs: Record<string, boolean>; // 处于差异对比模式的标签ID集合
-  checkpointContent: Record<string, string>; // id → content，存档点预览的旧版本内容（仅左侧显示用）
-  checkpointPreviewTabs: Record<string, boolean>; // 处于存档点预览模式的标签ID集合
-}
-
-// 定义 RootState 类型
-export interface RootState {
-  tabSlice: EditorState;
-}
+import type { TabBar, EditorState, EditorSliceRootState } from '../types';
 
 // 声明使用（创建初始状态）
 const editorState: EditorState = {
@@ -508,9 +489,9 @@ export default tabSlice.reducer;
 // 由于 "" && ... 会短路，内容不同，也不会被标记为脏数据，故应该使用!== undefined判断是否有值
 export const dirtyTabs = createSelector(
   [
-    (state: RootState) => state.tabSlice.tabBars,
-    (state: RootState) => state.tabSlice.backUp,
-    (state: RootState) => state.tabSlice.currentData,
+    (state: EditorSliceRootState) => state.tabSlice.tabBars,
+    (state: EditorSliceRootState) => state.tabSlice.backUp,
+    (state: EditorSliceRootState) => state.tabSlice.currentData,
   ],
   (tabBars, backUp, currentData): Set<string> => {
     const dirtyTabsSet = new Set<string>();
@@ -529,7 +510,7 @@ export const dirtyTabs = createSelector(
 
 // 返回有内容的标签栏（tabs数组不为空）
 export const getTabBarsWithContent = createSelector(
-  [(state: RootState) => state.tabSlice.tabBars],
+  [(state: EditorSliceRootState) => state.tabSlice.tabBars],
   (tabBars): Record<string, TabBar> => {
     const result: Record<string, TabBar> = {};
     Object.entries(tabBars).forEach(([id, tabBar]) => {
@@ -543,7 +524,7 @@ export const getTabBarsWithContent = createSelector(
 
 // 返回指定标签是否处于差异模式
 export const isTabInDiffMode = createSelector(
-  [(state: RootState) => state.tabSlice.diffModeTabs, (_: RootState, tabId: string) => tabId],
+  [(state: EditorSliceRootState) => state.tabSlice.diffModeTabs, (_: EditorSliceRootState, tabId: string) => tabId],
   (diffModeTabs, tabId): boolean => {
     return diffModeTabs[tabId] || false;
   },
@@ -551,7 +532,7 @@ export const isTabInDiffMode = createSelector(
 
 // 返回指定标签是否处于存档点预览模式
 export const isTabInCheckpointPreview = createSelector(
-  [(state: RootState) => state.tabSlice.checkpointPreviewTabs, (_: RootState, tabId: string) => tabId],
+  [(state: EditorSliceRootState) => state.tabSlice.checkpointPreviewTabs, (_: EditorSliceRootState, tabId: string) => tabId],
   (checkpointPreviewTabs, tabId): boolean => {
     return checkpointPreviewTabs[tabId] || false;
   },
@@ -559,7 +540,7 @@ export const isTabInCheckpointPreview = createSelector(
 
 // 返回指定标签的存档点内容（用于左侧显示）
 export const getCheckpointContent = createSelector(
-  [(state: RootState) => state.tabSlice.checkpointContent, (_: RootState, tabId: string) => tabId],
+  [(state: EditorSliceRootState) => state.tabSlice.checkpointContent, (_: EditorSliceRootState, tabId: string) => tabId],
   (checkpointContent, tabId): string => {
     return checkpointContent[tabId] || '';
   },

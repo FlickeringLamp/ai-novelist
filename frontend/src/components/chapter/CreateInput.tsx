@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-
-// 创建输入框组件
-interface CreateInputProps {
-  isFolder: boolean;
-  onConfirm: (name: string) => void;
-  onCancel: () => void;
-}
+import type { CreateInputProps } from '../../types';
 
 function CreateInput({ isFolder, onConfirm, onCancel }: CreateInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);

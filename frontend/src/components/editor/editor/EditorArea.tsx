@@ -1,16 +1,11 @@
 import { useSelector } from 'react-redux';
 import { useEffect, useState } from 'react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { type RootState as EditorRootState, type TabBar } from "../../../store/editor.ts";
-import type { RootState } from "../../../store/store";
+import type { RootState, EditorRootState } from "@/types";
+import type { TabBarEditorAreaProps } from '@/types';
 import MonacoEditor from './CoreEditor.tsx';
 import StatusBar from './StatusBar.tsx';
 import { TerminalPanel } from '../../terminal';
-
-interface TabBarEditorAreaProps {
-  tabBarId: string;
-  tabBar: TabBar;
-}
 
 /**不知为什么，关闭最后一个活跃标签时，被监听的tabSlice根本不更新, 导致始终无法显示logo
  * 依赖换成tabslice都没用。

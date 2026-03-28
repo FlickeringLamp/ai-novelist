@@ -14,7 +14,7 @@
     "moduleResolution": "bundler",
     "types": [],
     
-    // Path Mapping
+    // 设置基准目录为项目根目录（frontend/），@/ 开头的导入会被映射到 src/ 目录下
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

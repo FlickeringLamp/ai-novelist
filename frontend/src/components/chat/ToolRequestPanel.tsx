@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useEffect, useRef } from 'react';
-import type { RootState } from '../../store/store';
+import type { RootState } from '../../types';
 import type { InterruptResponse } from '../../types/langgraph';
 import { handleInterruptResponse } from '../../utils/interruptHandler';
 import { useFileToolHandler } from '../../utils/fileToolHandler';

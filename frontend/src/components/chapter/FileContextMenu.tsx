@@ -1,42 +1,8 @@
-import ContextMenu, { type ContextMenuItem } from '../others/ContextMenu';
+import ContextMenu from '../others/ContextMenu';
 import httpClient from '../../utils/httpClient';
 import { useDispatch } from 'react-redux';
 import { deleteTabFromAllBars, updateTabId } from '../../store/editor';
-import { useFetchFileTree } from '../../utils/fileTreeHelper';
-
-interface SelectedItem {
-  id: string | null;
-  isFolder: boolean;
-  itemTitle: string | null;
-  itemParentPath: string | null;
-  state: string | null;
-}
-
-interface LastSelectedItem {
-  state: string | null;
-  id: string | null;
-  isFolder: boolean;
-  itemTitle: string | null;
-  itemParentPath: string | null;
-}
-
-interface Modal {
-  show: boolean;
-  message: string;
-  onConfirm: (() => void) | null;
-  onCancel: (() => void) | null;
-}
-
-interface ChapterContextMenuProps {
-  contextMenu: { show: boolean; x: number; y: number };
-  selectedItem: SelectedItem;
-  setSelectedItem: (item: SelectedItem) => void;
-  lastSelectedItem: LastSelectedItem;
-  setLastSelectedItem: (item: LastSelectedItem) => void;
-  handleCloseContextMenu: () => void;
-  handleCreateItem: (isFolder: boolean, parentPath: string) => void;
-  setModal: (modal: Modal) => void;
-}
+import type { ChapterContextMenuProps, ContextMenuItem } from '@/types';
 
 function ChapterContextMenu({
   contextMenu,
@@ -49,7 +15,6 @@ function ChapterContextMenu({
   setModal
 }: ChapterContextMenuProps) {
   const dispatch = useDispatch();
-  const fetchFileTree = useFetchFileTree();
 
   const handleRenameItem = () => {
     setSelectedItem({
@@ -88,7 +53,6 @@ function ChapterContextMenu({
         itemParentPath: null
       });
       handleCloseContextMenu();
-      await fetchFileTree();
     } catch (error) {
       console.error('粘贴失败:', error);
       setModal({ show: true, message: String(error), onConfirm: null, onCancel: null });
@@ -102,7 +66,6 @@ function ChapterContextMenu({
       await httpClient.delete(`/api/file/delete/${selectedItem.id}`);
       // 从所有标签栏中删除该标签
       dispatch(deleteTabFromAllBars({ tabId: selectedItem.id! }));
-      await fetchFileTree();
     } catch (error) {
       console.error('删除失败:', error);
       setModal({ show: true, message: String(error), onConfirm: null, onCancel: null });

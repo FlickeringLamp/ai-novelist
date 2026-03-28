@@ -1,28 +1,12 @@
 import { createSlice, type Draft, type PayloadAction } from '@reduxjs/toolkit';
+import type { ModeData, ModeState } from '../types/store';
 
-export interface ModeData {
-  name: string;
-  builtin: boolean;
-  prompt: string;
-  temperature: number;
-  top_p: number;
-  max_tokens: number;
-  additionalInfo: string[];
-  tools: string[];
-}
-
-export interface ModeState {
-  allModesData: { [key: string]: ModeData };
-  selectedModeId: string | null;
-  availableTools: { [key: string]: any };
-  fileTree: any[];
-}
+// ModeData, ModeState 类型定义已迁移到 types/store.ts
 
 const initialState: ModeState = {
   allModesData: {},
   selectedModeId: null,
   availableTools: {},
-  fileTree: [],
 };
 
 export const modeSlice = createSlice({
@@ -47,12 +31,6 @@ export const modeSlice = createSlice({
     ) => {
       state.availableTools = action.payload;
     },
-    setFileTree: (
-      state: Draft<ModeState>,
-      action: PayloadAction<any[]>
-    ) => {
-      state.fileTree = action.payload;
-    },
   }
 });
 
@@ -60,7 +38,6 @@ export const {
   setAllModesData,
   setSelectedModeId,
   setAvailableTools,
-  setFileTree,
 } = modeSlice.actions;
 
 export default modeSlice.reducer;

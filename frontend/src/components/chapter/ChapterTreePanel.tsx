@@ -4,18 +4,15 @@ import { faGear, faFolder, faFile, faFolderOpen, faRotate } from '@fortawesome/f
 import { useDispatch, useSelector } from 'react-redux';
 import { updateTabId } from '../../store/editor.ts';
 import { collapseAll } from '../../store/file.ts';
-import type { RootState } from '../../store/store';
+import type { RootState } from '../../types';
 import ChapterContextMenu from './FileContextMenu.tsx';
 import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.ts';
 import ChapterTreeItem from './TreeRender.tsx';
 import CreateInput from './CreateInput.tsx';
-import { useFetchFileTree } from '../../utils/fileTreeHelper.ts';
-
 function ChapterTreePanel() {
   const dispatch = useDispatch();
   const chapters = useSelector((state: RootState) => state.fileSlice.chapters);
-  const fetchFileTree = useFetchFileTree();
   /*
    * 以下是两个item状态的思路
    * 首先，文件操作分为三类：
@@ -65,11 +62,6 @@ function ChapterTreePanel() {
   // 拖拽相关状态
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
-
-  // 初始加载文件树
-  useEffect(() => {
-    fetchFileTree();
-  }, []);
 
   // 看看每次的数据长啥样
   useEffect(()=>{
@@ -125,13 +117,10 @@ function ChapterTreePanel() {
         is_folder: creatingItem.isFolder,
         name: name.trim()
       });
-      
+
       // 重置创建状态
       setCreatingItem({ isCreating: false, isFolder: false, parentPath: '' });
-      
-      // 刷新文件树
-      await fetchFileTree();
-      
+
       // 自动选中刚创建的文件/文件夹
       if (result && result.id) {
         setSelectedItem({
@@ -161,12 +150,12 @@ function ChapterTreePanel() {
       const sourceParentPath = sourcePath.includes('/')
         ? sourcePath.substring(0, sourcePath.lastIndexOf('/'))
         : '';
-      
+
       // 如果拖到自己的父路径，无需移动
       if (sourceParentPath === targetPath) {
         return;
       }
-      
+
       // 计算目标路径（如果是文件夹，则是 folder/sourceName；如果是根目录，则是 sourceName）
       const sourceName = sourcePath.includes('/')
         ? sourcePath.substring(sourcePath.lastIndexOf('/') + 1)
@@ -174,24 +163,21 @@ function ChapterTreePanel() {
       const finalTargetPath = targetPath
         ? `${targetPath}/${sourceName}`
         : sourceName;
-      
+
       await httpClient.post('/api/file/move', {
         source_path: sourcePath,
         target_path: targetPath
       });
-      
+
       // 更新所有标签栏中的标签 id
       dispatch(updateTabId({ oldId: sourcePath, newId: finalTargetPath }));
-      
-      // 刷新文件树
-      await fetchFileTree();
     } catch (error) {
       console.error('移动失败:', error);
-      setModal({ 
-        show: true, 
-        message: '移动失败: ' + (error as Error).toString(), 
-        onConfirm: () => setModal({ show: false, message: '', onConfirm: null, onCancel: null }), 
-        onCancel: null 
+      setModal({
+        show: true,
+        message: '移动失败: ' + (error as Error).toString(),
+        onConfirm: () => setModal({ show: false, message: '', onConfirm: null, onCancel: null }),
+        onCancel: null
       });
     }
   };
@@ -264,9 +250,6 @@ function ChapterTreePanel() {
         </button>
         <button className={commonBtnStyle} onClick={() => dispatch(collapseAll())} title="折叠所有">
           <FontAwesomeIcon icon={faFolderOpen} />
-        </button>
-        <button className={commonBtnStyle} onClick={fetchFileTree} title="刷新文件树">
-          <FontAwesomeIcon icon={faRotate} />
         </button>
       </div>
 

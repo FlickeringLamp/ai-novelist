@@ -1,16 +1,7 @@
 import { useDispatch } from 'react-redux';
 import { closeOtherTabs, closeSavedTabs, closeAllTabs, addTabBar, setActiveTabBar } from '../../../store/editor.ts';
-import ContextMenu, { type ContextMenuItem } from '../../others/ContextMenu.tsx';
-
-interface EditorContextMenuProps {
-  visible: boolean;
-  x: number;
-  y: number;
-  tabId: string | null;
-  tabBarId: string | null;
-  activeTabBarId: string | null;
-  onClose: () => void;
-}
+import ContextMenu from '../../others/ContextMenu.tsx';
+import type { EditorContextMenuProps, ContextMenuItem } from '@/types';
 
 function EditorContextMenu({
   visible,

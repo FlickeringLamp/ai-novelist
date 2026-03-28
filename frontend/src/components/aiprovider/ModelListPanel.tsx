@@ -3,7 +3,7 @@ import { Panel } from 'react-resizable-panels';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash, faMinus, faPlus } from '@fortawesome/free-solid-svg-icons';
-import type { RootState } from '../../store/store';
+import type { RootState } from '../../types';
 import { setAllProvidersData } from '../../store/provider';
 import httpClient from '../../utils/httpClient';
 import AddModelModal from './modals/AddModelModal';

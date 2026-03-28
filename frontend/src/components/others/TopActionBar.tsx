@@ -2,15 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faList, faSave, faTerminal } from '@fortawesome/free-solid-svg-icons';
 import StatusLogo from './StatusLogo';
 import WindowControls from './WindowControls';
-
-interface TopActionBarProps {
-  isLeftPanelCollapsed: boolean;
-  leftPanelContent: 'chapter' | 'search' | 'checkpoint';
-  onToggleCollapse: () => void;
-  onLeftPanelContentChange: (content: 'chapter' | 'search' | 'checkpoint') => void;
-  isTerminalVisible?: boolean;
-  onToggleTerminal?: () => void;
-}
+import type { TopActionBarProps } from '@/types';
 
 function TopActionBar({ 
   isLeftPanelCollapsed, 

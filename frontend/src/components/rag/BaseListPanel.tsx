@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import type { RootState } from "../../store/store";
+import type { RootState, KnowledgeContextMenu } from "../../types";
 import { setAllProvidersData } from "../../store/provider";
 import { setKnowledgeBases, setSelectedKnowledgeBaseId } from "../../store/knowledge";
 import httpClient from "../../utils/httpClient";
@@ -10,13 +10,6 @@ import AddKnowledgeBaseModal from "./modals/AddKnowledgeBaseModal";
 import BaseContextMenu from "./modals/BaseContextMenu";
 import UnifiedModal from "../others/UnifiedModal";
 
-interface ContextMenu {
-  visible: boolean;
-  x: number;
-  y: number;
-  knowledgeBaseId: string | null;
-}
-
 const BaseListPanel = () => {
   const dispatch = useDispatch();
   const { knowledgeBases, selectedKnowledgeBaseId } = useSelector(
@@ -24,7 +17,7 @@ const BaseListPanel = () => {
   );
 
   // 右键菜单状态
-  const [contextMenu, setContextMenu] = useState<ContextMenu>({
+  const [contextMenu, setContextMenu] = useState<KnowledgeContextMenu>({
     visible: false,
     x: 0,
     y: 0,

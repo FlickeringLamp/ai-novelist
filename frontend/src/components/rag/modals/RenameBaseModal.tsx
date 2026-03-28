@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
 import UnifiedModal from '../../others/UnifiedModal';
-
-interface RenameBaseModalProps {
-  isOpen: boolean;
-  knowledgeBaseId: string;
-  currentName: string;
-  onClose: () => void;
-  onSubmit: (knowledgeBaseId: string, newName: string) => Promise<void>;
-}
+import type { RenameBaseModalProps } from '@/types';
 
 const RenameBaseModal = ({
   isOpen,
