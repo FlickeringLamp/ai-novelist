@@ -60,8 +60,7 @@ export interface RenameRequest {
 /** 健康检查状态 */
 export interface HealthStatus {
   isOnline: boolean;
-  lastChecked?: number;
-  latency?: number;
+  lastCheckTime: Date | null;
 }
 
 // ==================== Git Checkpoint API 类型 ====================

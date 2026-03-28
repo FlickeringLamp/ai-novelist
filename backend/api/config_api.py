@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -43,18 +42,10 @@ async def set_store_value(request: SetStoreValueRequest):
     
     return request.value
 
-
+# 保留一个简单的端点，用于前端主进程启动
 @router.get("/health", summary="健康检查")
 async def health_check():
     """
-    检查后端服务是否正常运行
-    
-    Returns:
-        Dict: 服务状态信息
+    健康检查端点，用于前端检测后端是否就绪
     """
-    return {
-        "status": "ok",
-        "timestamp": datetime.now().isoformat(),
-        "service": "ai-novelist-backend"
-    }
-
+    return {"status": "ok"}

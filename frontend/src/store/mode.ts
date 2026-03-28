@@ -7,7 +7,6 @@ const initialState: ModeState = {
   allModesData: {},
   selectedModeId: null,
   availableTools: {},
-  fileTree: [],
 };
 
 export const modeSlice = createSlice({
@@ -32,12 +31,6 @@ export const modeSlice = createSlice({
     ) => {
       state.availableTools = action.payload;
     },
-    setFileTree: (
-      state: Draft<ModeState>,
-      action: PayloadAction<any[]>
-    ) => {
-      state.fileTree = action.payload;
-    },
   }
 });
 
@@ -45,7 +38,6 @@ export const {
   setAllModesData,
   setSelectedModeId,
   setAvailableTools,
-  setFileTree,
 } = modeSlice.actions;
 
 export default modeSlice.reducer;

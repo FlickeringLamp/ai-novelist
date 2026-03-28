@@ -36,10 +36,6 @@ export interface FileTreeUpdateEvent {
 export interface WSClientOptions {
   /** WebSocket URL */
   url: string;
-  /** 连接类型标识 */
-  connectionType: string;
-  /** 客户端唯一 ID */
-  clientId?: string;
   /** 自动重连间隔（毫秒） */
   reconnectInterval?: number;
   /** 最大重连次数，null 表示无限 */

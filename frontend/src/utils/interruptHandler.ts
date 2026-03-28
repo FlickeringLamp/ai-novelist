@@ -153,18 +153,9 @@ export const handleInterruptResponse = async (
               }));
 
               // 立即处理文件工具调用
-              processFileToolCalls(toolCalls);
+                processFileToolCalls(toolCalls);
+              }
             }
-          } else if (parsedChunk.type === 'tool') {
-            console.log('收到ToolMessage，刷新文件树');
-            try {
-              const { setChapters } = await import('../store/file');
-              const chapters = await httpClient.get('/api/file/tree');
-              dispatch(setChapters(chapters || []));
-            } catch (error) {
-              console.error('刷新文件树失败:', error);
-            }
-          }
         } catch (e) {
           console.log('无法解析chunk:', line);
         }

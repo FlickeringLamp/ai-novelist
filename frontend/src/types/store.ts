@@ -148,7 +148,6 @@ export interface ModeState {
   allModesData: { [key: string]: ModeData };
   selectedModeId: string | null;
   availableTools: { [key: string]: any };
-  fileTree: any[];
 }
 
 // ==================== Provider Store ====================

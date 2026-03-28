@@ -1,79 +1,50 @@
 """
-WebSocket API 端点
+WebSocket API 路由
 
-提供统一的 WebSocket 入口，根据连接类型路由到不同服务
+统一 WebSocket 端点：/ws
 """
-import logging
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 
-from backend.websocket.connection_manager import connection_manager
-from backend.websocket.file_websocket_service import file_websocket_service
+import logging
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+from backend.websocket import ws_manager
+from backend.websocket.handlers import init_handlers
+from backend.websocket.handlers.file_handler import stop_watcher
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["WebSocket"])
 
+# 初始化所有处理器
+init_handlers()
+
 
 @router.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    type: str = Query(..., description="连接类型: file, chat, embedding"),
-    client_id: str = Query(..., description="客户端唯一标识")
-):
+async def websocket_endpoint(websocket: WebSocket):
     """
-    统一 WebSocket 端点
-    
-    根据 type 参数路由到不同服务：
-    - file: 文件监控服务
-    - chat: 聊天流式服务
-    - embedding: 嵌入进度服务
-    
+    WebSocket 统一端点
     连接示例：
-    ws://localhost:8000/ws?type=file&client_id=xxx
+        ws://localhost:8000/ws
+    
+    消息格式：
+        {"type": "message_type", "payload": {...}}
+    
+    支持的类型：
+        - ping: 心跳
+        - subscribe_file_changes: 订阅文件变化（自动返回初始文件树）
+        - ... 更多类型通过 register_handler 注册
     """
-    logger.info(f"新的 WebSocket 连接请求: type={type}, client_id={client_id}")
+    await ws_manager.connect(websocket)
     
     try:
-        if type == "file":
-            await file_websocket_service.handle_connection(websocket, client_id)
-        
-        elif type == "chat":
-            # TODO: 实现聊天 WebSocket 服务
-            await websocket.accept()
-            await connection_manager.connect(websocket, type, client_id)
-            try:
-                while True:
-                    data = await websocket.receive_text()
-                    await connection_manager.handle_message(type, client_id, data)
-            except WebSocketDisconnect:
-                logger.info(f"聊天 WebSocket 断开: client_id={client_id}")
-            finally:
-                connection_manager.disconnect(type, client_id)
-        
-        elif type == "embedding":
-            # TODO: 迁移现有的嵌入进度 WebSocket
-            await websocket.accept()
-            await connection_manager.connect(websocket, type, client_id)
-            try:
-                while True:
-                    data = await websocket.receive_text()
-                    await connection_manager.handle_message(type, client_id, data)
-            except WebSocketDisconnect:
-                logger.info(f"嵌入 WebSocket 断开: client_id={client_id}")
-            finally:
-                connection_manager.disconnect(type, client_id)
-        
-        else:
-            await websocket.accept()
-            await websocket.send_json({
-                "type": "error",
-                "payload": {"message": f"未知的连接类型: {type}"}
-            })
-            await websocket.close()
-    
+        while True:
+            # 接收前端消息
+            data = await websocket.receive_text()
+            await ws_manager.handle_message(data)
+    except WebSocketDisconnect:
+        logger.info("WebSocket 断开")
     except Exception as e:
-        logger.error(f"WebSocket 处理异常: {e}")
-        try:
-            await websocket.close()
-        except:
-            pass
+        logger.error(f"WebSocket 错误: error={e}")
+    finally:
+        ws_manager.disconnect()
+        stop_watcher()

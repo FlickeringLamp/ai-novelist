@@ -9,7 +9,6 @@ import type { RootState } from '../../../types';
 import type { MonacoEditorProps } from '@/types';
 import api from '../../../utils/httpClient.ts';
 import UnifiedModal from '../../others/UnifiedModal';
-import { useFetchFileTree } from '../../../utils/fileTreeHelper.ts';
 
 // 根据文件后缀获取Monaco编辑器的语言类型
 const getLanguageFromExtension = (filename: string): string => {
@@ -97,7 +96,6 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
   const monacoRef = useRef<typeof Monaco | null>(null);
   const { theme } = useTheme();
   const dispatch = useDispatch();
-  const fetchFileTree = useFetchFileTree();
 
   const tabBar = useSelector((state: RootState) => state.tabSlice.tabBars[tabBarId!] || null);
   const activeTab = tabBar?.tabs.find((tab: string) => tab === tabBar?.activeTabId);
@@ -137,8 +135,6 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
       const content = currentData[activeTab] || '';
       await api.put(`/api/file/update/${encodeURIComponent(activeTab)}`, { content });
       dispatch(saveTabContent({ id: activeTab }));
-      // 保存后重新获取文件树列表
-      await fetchFileTree();
     } catch (error: any) {
       setErrorModal(`保存失败: ${error.message}`);
     } finally {

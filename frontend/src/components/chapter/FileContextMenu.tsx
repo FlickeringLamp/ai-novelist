@@ -2,7 +2,6 @@ import ContextMenu from '../others/ContextMenu';
 import httpClient from '../../utils/httpClient';
 import { useDispatch } from 'react-redux';
 import { deleteTabFromAllBars, updateTabId } from '../../store/editor';
-import { useFetchFileTree } from '../../utils/fileTreeHelper';
 import type { ChapterContextMenuProps, ContextMenuItem } from '@/types';
 
 function ChapterContextMenu({
@@ -16,7 +15,6 @@ function ChapterContextMenu({
   setModal
 }: ChapterContextMenuProps) {
   const dispatch = useDispatch();
-  const fetchFileTree = useFetchFileTree();
 
   const handleRenameItem = () => {
     setSelectedItem({
@@ -55,7 +53,6 @@ function ChapterContextMenu({
         itemParentPath: null
       });
       handleCloseContextMenu();
-      await fetchFileTree();
     } catch (error) {
       console.error('粘贴失败:', error);
       setModal({ show: true, message: String(error), onConfirm: null, onCancel: null });
@@ -69,7 +66,6 @@ function ChapterContextMenu({
       await httpClient.delete(`/api/file/delete/${selectedItem.id}`);
       // 从所有标签栏中删除该标签
       dispatch(deleteTabFromAllBars({ tabId: selectedItem.id! }));
-      await fetchFileTree();
     } catch (error) {
       console.error('删除失败:', error);
       setModal({ show: true, message: String(error), onConfirm: null, onCancel: null });

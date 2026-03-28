@@ -31,21 +31,21 @@
 *   **LangGraph**: 基于图的AI工作流编排框架
 *   **ChromaDB**: 向量数据库，提供语义搜索和知识库管理
 
-Total : 184 files,  15959 codes, 2910 comments, 2760 blanks, all 21629 lines
+Total : 197 files,  16709 codes, 3214 comments, 2959 blanks, all 22882 lines
 
 ## Languages
 | language | files | code | comment | blank | total |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| TypeScript JSX | 74 | 8,373 | 595 | 1,048 | 10,016 |
-| Python | 53 | 3,788 | 1,851 | 1,135 | 6,774 |
-| TypeScript | 25 | 1,846 | 279 | 308 | 2,433 |
-| Markdown | 7 | 580 | 0 | 90 | 670 |
+| TypeScript JSX | 74 | 8,010 | 587 | 984 | 9,581 |
+| Python | 60 | 4,019 | 1,949 | 1,214 | 7,182 |
+| TypeScript | 31 | 2,729 | 493 | 494 | 3,716 |
+| Markdown | 7 | 578 | 0 | 88 | 666 |
 | JavaScript | 10 | 464 | 87 | 81 | 632 |
 | YAML | 3 | 446 | 60 | 37 | 543 |
 | PostCSS | 4 | 185 | 19 | 30 | 234 |
 | JSON | 3 | 140 | 0 | 2 | 142 |
 | Skill | 2 | 62 | 0 | 21 | 83 |
-| pip requirements | 1 | 32 | 0 | 0 | 32 |
+| pip requirements | 1 | 33 | 0 | 0 | 33 |
 | JSON with Comments | 1 | 29 | 19 | 7 | 55 |
 | HTML | 1 | 14 | 0 | 1 | 15 |
 
@@ -64,9 +64,9 @@ Total : 184 files,  15959 codes, 2910 comments, 2760 blanks, all 21629 lines
     - 给个API填写工具（ask交互工具升级）
     - 一个知识库，汇总碰到的所有问题
     - 允许用户手动清理加载的文件，避免AI忘记清理，以及当文件到达指定的数量时自动触发清理逻辑。
-- websocket：实现流式对话，文件内容同步，流式显示更改（）
-- write_file工具 ———— 标签栏多了怎么处理，先看看两个栏的情况会创到哪里吧（）
-- 文件操作工具，需要支持用户介入（）
+- rag知识库的websocket功能可能需要和现在的合并
+- write_file工具 ———— 标签栏多了怎么处理，先看看两个栏的情况会创到哪里吧
+- 文件操作工具，需要支持用户介入
 - 系统提示词构建，需要将editor里面的标签也写进去（）
 - 每次获取100个文件，超出100则自动转化为 不包括最底层 的“文件夹树”，再超过100个则再去掉一层。通过工具可以展开
 - 长期记忆功能

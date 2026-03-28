@@ -238,6 +238,5 @@ export type ModeTabType = 'prompt' | 'params' | 'tools';
 
 /** 本地健康检查状态（扩展 HealthStatus） */
 export interface LocalHealthStatus extends HealthStatus {
-  lastCheckTime: Date | null;
   consecutiveFailures: number;
 }

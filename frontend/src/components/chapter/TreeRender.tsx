@@ -7,14 +7,12 @@ import { toggleCollapse } from '../../store/file.ts';
 import { useEffect, useRef, useState } from 'react';
 import httpClient from '../../utils/httpClient.ts';
 import CreateInput from './CreateInput.tsx';
-import { useFetchFileTree } from '../../utils/fileTreeHelper.ts';
 import type { ChapterItem, ChapterTreeItemProps } from '@/types';
 
 // 章节树节点组件
 function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelCreate, props }: ChapterTreeItemProps) {
   const dispatch = useDispatch();
   const collapsedChapters = useSelector((state: any) => state.fileSlice.collapsedChapters);
-  const fetchFileTree = useFetchFileTree();
 
   const {
     handleContextMenu,
@@ -114,8 +112,6 @@ function ChapterTreeItem({ item, level, creatingItem, onConfirmCreate, onCancelC
           itemTitle: null,
           itemParentPath: null
         });
-        // 触发父组件刷新
-        fetchFileTree();
       } catch (error) {
         console.error('重命名失败:', error);
         setModal({ show: true, message: '重命名失败: ' + (error as Error).toString(), onConfirm: null, onCancel: null });
