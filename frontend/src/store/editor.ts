@@ -6,6 +6,32 @@ import {
 } from "@reduxjs/toolkit";
 import type { TabBar, EditorState, EditorSliceRootState } from '../types';
 
+/**
+ * 这里详细讲解一下四个核心数据
+ * 
+ * 1. currentData,这是展示用的新值。
+ * 主要用途有：
+ * - 用户编辑时，可以配合backUp,计算脏状态
+ * - AI编辑内容时，配合backUp,显示左右差异对比，兼计算脏状态
+ * - 存档点差异对比视图中，存储新版本内容，与checkpointContent配合展示左右对比
+ * 
+ * 2.backUp，备份数据
+ * 主要用途有：
+ * - 用户编辑时，计算脏状态
+ * - AI编辑内容时，左右对比，计算脏状态
+ * - 在开启存档点差异对比视图时，默认与currentData相同
+ * 
+ * 3. checkpointContent,检查点数据（旧）
+ * 主要用途：
+ * - 配合currentData显示差异对比
+ * 
+ * 4. aiSuggestContent
+ * 主要用途：
+ * 在AI操作文件时的diff差异对比视图中，复制currentData,但后续不会同步currentData.
+ * 用户编辑currentData完毕后，点击批准，计算AISuggestContent和currentData的diff差异，、
+ * 发给后端，让后端保存currentData到磁盘的同时，将diff差异一并作为工具调用结果，发送给AI
+ */
+
 // 声明使用（创建初始状态）
 const editorState: EditorState = {
   tabBars: {
@@ -20,6 +46,7 @@ const editorState: EditorState = {
   diffModeTabs: {},
   checkpointContent: {},
   checkpointPreviewTabs: {},
+  aiSuggestContent: {},
 };
 
 // 其他给reducer用的辅助函数
@@ -155,6 +182,14 @@ export const tabSlice = createSlice({
         delete state.checkpointPreviewTabs[tabId];
         delete state.checkpointContent[tabId];
       }
+      
+      // 如果是差异模式标签，清理差异模式状态
+      if (state.diffModeTabs[tabId]) {
+        delete state.diffModeTabs[tabId];
+      }
+      
+      // 清理AI建议内容
+      delete state.aiSuggestContent[tabId];
     },
     // 设置活跃标签
     setActiveTab: (
@@ -250,6 +285,18 @@ export const tabSlice = createSlice({
           delete state.checkpointContent[tabId];
         }
       });
+      
+      // 清理被关闭标签的差异模式状态
+      closedTabs.forEach(tabId => {
+        if (state.diffModeTabs[tabId]) {
+          delete state.diffModeTabs[tabId];
+        }
+      });
+      
+      // 清理被关闭标签的AI建议内容
+      closedTabs.forEach(tabId => {
+        delete state.aiSuggestContent[tabId];
+      });
     },
     // 关闭所有已保存标签
     closeSavedTabs: (state: Draft<EditorState>) => {
@@ -287,6 +334,18 @@ export const tabSlice = createSlice({
           delete state.checkpointContent[tabId];
         }
       });
+      
+      // 清理被关闭标签的差异模式状态
+      closedTabs.forEach(tabId => {
+        if (state.diffModeTabs[tabId]) {
+          delete state.diffModeTabs[tabId];
+        }
+      });
+      
+      // 清理被关闭标签的AI建议内容
+      closedTabs.forEach(tabId => {
+        delete state.aiSuggestContent[tabId];
+      });
     },
     // 关闭所有标签
     closeAllTabs: (state: Draft<EditorState>) => {
@@ -305,6 +364,16 @@ export const tabSlice = createSlice({
       closedTabs.forEach(tabId => {
         delete state.checkpointPreviewTabs[tabId];
         delete state.checkpointContent[tabId];
+      });
+      
+      // 清理所有差异模式状态
+      closedTabs.forEach(tabId => {
+        delete state.diffModeTabs[tabId];
+      });
+      
+      // 清理所有AI建议内容
+      closedTabs.forEach(tabId => {
+        delete state.aiSuggestContent[tabId];
       });
     },
     // 从所有标签栏中删除指定标签（用于文件删除时清理标签）
@@ -348,6 +417,12 @@ export const tabSlice = createSlice({
       // 清理checkpoint预览状态
       delete state.checkpointPreviewTabs[tabId];
       delete state.checkpointContent[tabId];
+      
+      // 清理差异模式状态
+      delete state.diffModeTabs[tabId];
+      
+      // 清理AI建议内容
+      delete state.aiSuggestContent[tabId];
     },
     // 创建临时标签用于差异对比（用于文件工具调用）
     createTempDiffTab: (
@@ -356,16 +431,8 @@ export const tabSlice = createSlice({
     ) => {
       const { id, originalContent, modifiedContent } = action.payload;
 
-      // 找到第一个有内容的标签栏，如果没有则使用第一个标签栏
-      const tabBarIds = Object.keys(state.tabBars);
-      let targetTabBarId = tabBarIds[0];
-      
-      for (const tabBarId of tabBarIds) {
-        if (state.tabBars[tabBarId]!.tabs.length > 0) {
-          targetTabBarId = tabBarId;
-          break;
-        }
-      }
+      // 使用当前活跃的标签栏，确保文件创建在用户正在使用的标签栏
+      const targetTabBarId = state.activeTabBarId;
 
       if (targetTabBarId) {
         const targetTabBar = state.tabBars[targetTabBarId]!;
@@ -412,35 +479,22 @@ export const tabSlice = createSlice({
     ) => {
       const { id, checkpointContent: oldContent, currentContent } = action.payload;
 
-      // 找到第一个有内容的标签栏，如果没有则使用第一个标签栏
-      const tabBarIds = Object.keys(state.tabBars);
-      let targetTabBarId = tabBarIds[0];
+      // 使用当前活跃的标签栏
+      const targetTabBarId = state.activeTabBarId;
+      const targetTabBar = state.tabBars[targetTabBarId]!;
 
-      for (const tabBarId of tabBarIds) {
-        if (state.tabBars[tabBarId]!.tabs.length > 0) {
-          targetTabBarId = tabBarId;
-          break;
-        }
+      // 如果标签不存在，则添加
+      if (!targetTabBar.tabs.find((tab) => tab === id)) {
+        targetTabBar.tabs.push(id);
       }
 
-      if (targetTabBarId) {
-        const targetTabBar = state.tabBars[targetTabBarId]!;
+      // 设置为活跃标签
+      targetTabBar.activeTabId = id;
 
-        // 如果标签不存在，则添加
-        if (!targetTabBar.tabs.find((tab) => tab === id)) {
-          targetTabBar.tabs.push(id);
-        }
-
-        // 设置为活跃标签
-        targetTabBar.activeTabId = id;
-
-        // 设置活跃标签栏
-        state.activeTabBarId = targetTabBarId;
-      }
-
-      // 存档预览模式：
-      // - checkpointContent 存储旧版本（用于左侧显示）
-      // - backUp 和 currentData 都存储当前版本（避免脏状态）
+      // 存档预览模式：对比 旧版本(checkpointContent) vs 新版本(backUp/currentData)
+      // - checkpointContent: 旧版本（前一个检查点的内容）
+      // - backUp/currentData: 新版本（后一个检查点的内容）
+      // - 由于最新内容和最新提交之间，无法直接比较两个检查点之间的差异，所以单独讨论
       state.checkpointContent[id] = oldContent;
       state.backUp[id] = currentContent;
       state.currentData[id] = currentContent;
@@ -456,6 +510,22 @@ export const tabSlice = createSlice({
       const { id } = action.payload;
       delete state.checkpointPreviewTabs[id];
       delete state.checkpointContent[id];
+    },
+    // 设置AI建议内容（初始化AI编辑时的建议内容快照）
+    setAiSuggestContent: (
+      state: Draft<EditorState>,
+      action: PayloadAction<{ id: string; content: string }>,
+    ) => {
+      const { id, content } = action.payload;
+      state.aiSuggestContent[id] = content;
+    },
+    // 清除AI建议内容
+    clearAiSuggestContent: (
+      state: Draft<EditorState>,
+      action: PayloadAction<{ id: string }>,
+    ) => {
+      const { id } = action.payload;
+      delete state.aiSuggestContent[id];
     },
   },
 });
@@ -480,6 +550,8 @@ export const {
   updateBackUp,
   setCheckpointPreview,
   exitCheckpointPreview,
+  setAiSuggestContent,
+  clearAiSuggestContent,
 } = tabSlice.actions;
 
 export default tabSlice.reducer;
@@ -543,5 +615,21 @@ export const getCheckpointContent = createSelector(
   [(state: EditorSliceRootState) => state.tabSlice.checkpointContent, (_: EditorSliceRootState, tabId: string) => tabId],
   (checkpointContent, tabId): string => {
     return checkpointContent[tabId] || '';
+  },
+);
+
+// 返回指定标签的AI建议内容
+export const getAiSuggestContent = createSelector(
+  [(state: EditorSliceRootState) => state.tabSlice.aiSuggestContent, (_: EditorSliceRootState, tabId: string) => tabId],
+  (aiSuggestContent, tabId): string => {
+    return aiSuggestContent[tabId] || '';
+  },
+);
+
+// 返回指定标签是否存在AI建议内容
+export const hasAiSuggestContent = createSelector(
+  [(state: EditorSliceRootState) => state.tabSlice.aiSuggestContent, (_: EditorSliceRootState, tabId: string) => tabId],
+  (aiSuggestContent, tabId): boolean => {
+    return tabId in aiSuggestContent;
   },
 );

@@ -1,18 +1,4 @@
-/**
- * WebSocket 客户端 - 单连接简化版
- * 
- * 只提供基础封装：
- * - 自动重连
- * - 心跳检测
- * - 连接状态管理
- * 
- * 消息处理交给业务层自己判断
- */
-
-import type {
-  WSMessage,
-  WSClientOptions,
-} from '../types/websocket';
+import type { WSMessage, WSClientOptions } from '../types/websocket';
 
 export class WSClient {
   private ws: WebSocket | null = null;
@@ -56,7 +42,6 @@ export class WSClient {
       this.isConnecting = true;
       this.isManuallyClosed = false;
 
-      // 设置连接超时
       this.connectionTimeoutTimer = setTimeout(() => {
         this.ws?.close();
         this.isConnecting = false;
@@ -71,7 +56,6 @@ export class WSClient {
           this.isConnecting = false;
           this.reconnectAttempts = 0;
           this.startHeartbeat();
-          // 触发所有连接处理器
           this.connectHandlers.forEach(handler => {
             try {
               handler();
@@ -90,7 +74,6 @@ export class WSClient {
           this.clearConnectionTimeout();
           this.isConnecting = false;
           this.stopHeartbeat();
-          // 触发所有断开连接处理器
           this.disconnectHandlers.forEach(handler => {
             try {
               handler();
@@ -161,7 +144,6 @@ export class WSClient {
   private handleMessage(data: string): void {
     try {
       const message = JSON.parse(data) as WSMessage;
-      // 触发所有消息处理器
       this.messageHandlers.forEach(handler => {
         try {
           handler(message);
@@ -188,7 +170,6 @@ export class WSClient {
   /** 添加连接成功处理器，返回取消订阅函数 */
   onConnect(handler: () => void): () => void {
     this.connectHandlers.push(handler);
-    // 如果已经连接，立即执行
     if (this.isConnected) {
       try {
         handler();
@@ -276,21 +257,8 @@ export class WSClient {
   }
 }
 
-// 单例实例
-let wsClientInstance: WSClient | null = null;
+const wsClient = new WSClient({
+  url: 'ws://localhost:8000/ws'
+});
 
-/** 获取 WebSocket 客户端单例 */
-export function getWSClient(url: string): WSClient {
-  if (!wsClientInstance) {
-    wsClientInstance = new WSClient({ url });
-  }
-  return wsClientInstance;
-}
-
-/** 销毁 WebSocket 客户端 */
-export function destroyWSClient(): void {
-  if (wsClientInstance) {
-    wsClientInstance.disconnect();
-    wsClientInstance = null;
-  }
-}
+export default wsClient;

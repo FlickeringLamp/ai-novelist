@@ -1,15 +1,19 @@
 import { useDispatch, useSelector, useStore } from 'react-redux';
 import { addTempFile } from '../store/file';
-import { createTempDiffTab, updateBackUp } from '../store/editor';
+import { createTempDiffTab, updateBackUp, setAiSuggestContent } from '../store/editor';
 import type { RootState } from '../types';
 import httpClient from './httpClient';
+import { languageMap } from './languageMap';
 
 // 支持的文件工具列表
 export const FILE_TOOLS = ['manage_file', 'apply_diff', 'search_text'];
 
-// 验证文件名是否以.md结尾
-const isValidMdFile = (path: string): boolean => {
-  return path.endsWith('.md');
+// 验证文件扩展名是否受支持
+const isValidFile = (path: string): boolean => {
+  const lastDotIndex = path.lastIndexOf('.');
+  if (lastDotIndex <= 0) return false;
+  const ext = path.slice(lastDotIndex + 1).toLowerCase();
+  return ext in languageMap;
 };
 
 // 解析operations内容，计算修改后的内容（支持插入、替换、删除）
@@ -116,7 +120,7 @@ export const useFileToolHandler = () => {
     const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
     const path = parsedArgs.path;
     
-    if (!path || !isValidMdFile(path)) {
+    if (!path || !isValidFile(path)) {
       return;
     }
 
@@ -163,6 +167,9 @@ export const useFileToolHandler = () => {
 
     // 创建差异对比标签页（backUp为原内容，currentData为修改后的内容）
     dispatch(createTempDiffTab({ id: path, originalContent, modifiedContent }));
+    
+    // 设置AI建议内容为修改后的内容快照（用于后续计算用户diff）
+    dispatch(setAiSuggestContent({ id: path, content: modifiedContent }));
   };
 
   // 处理AI消息中的文件工具调用

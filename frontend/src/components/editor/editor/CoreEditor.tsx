@@ -4,18 +4,20 @@ import loader from '@monaco-editor/loader';
 import type * as Monaco from 'monaco-editor';
 import { useTheme } from '../../../context/ThemeContext.tsx';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateTabContent, saveTabContent, isTabInDiffMode, isTabInCheckpointPreview, getCheckpointContent } from '../../../store/editor';
+import { updateTabContent, saveTabContent, isTabInDiffMode, isTabInCheckpointPreview, getCheckpointContent, getTabBarsWithContent, hasAiSuggestContent } from '../../../store/editor';
 import type { RootState } from '../../../types';
 import type { MonacoEditorProps } from '@/types';
 import api from '../../../utils/httpClient.ts';
 import UnifiedModal from '../../others/UnifiedModal';
+import { languageMap } from '../../../utils/languageMap';
 
 // 根据文件后缀获取Monaco编辑器的语言类型
 const getLanguageFromExtension = (filename: string): string => {
   if (!filename) return 'markdown';
   
   // 特殊处理无扩展名的文件（如 .gitignore）
-  if (filename.startsWith('.') && !filename.includes('.', 1)) {
+  const baseName = filename.split('/').pop() || filename;
+  if (baseName.startsWith('.') && !baseName.includes('.', 1)) {
     return 'plaintext';
   }
   
@@ -23,19 +25,6 @@ const getLanguageFromExtension = (filename: string): string => {
   const lastDotIndex = filename.lastIndexOf('.');
   const ext = lastDotIndex > 0 ? filename.slice(lastDotIndex + 1).toLowerCase() : '';
   if (!ext) return 'markdown';
-
-  const languageMap: Record<string, string> = {
-    // 脚本语言
-    'js': 'javascript',
-    'py': 'python',
-    'sh': 'shell',
-    'ps1': 'powershell',
-    // 标记语言
-    'json': 'json',
-    'md': 'markdown',
-    // 其他
-    'txt': 'plaintext',
-  };
 
   return languageMap[ext] || 'markdown';
 };
@@ -105,6 +94,10 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
   const isDiffMode = useSelector((state: RootState) => activeTab ? isTabInDiffMode(state, activeTab) : false);
   const isCheckpointPreview = useSelector((state: RootState) => activeTab ? isTabInCheckpointPreview(state, activeTab) : false);
   const checkpointContent = useSelector((state: RootState) => activeTab ? getCheckpointContent(state, activeTab) : '');
+  const isAiSuggestDiff = useSelector((state: RootState) => activeTab ? hasAiSuggestContent(state, activeTab) : false);
+  // 获取有内容的标签栏数量，用于判断是否在分屏状态
+  const tabBarsWithContent = useSelector(getTabBarsWithContent);
+  const isSplitScreen = Object.keys(tabBarsWithContent).length > 1;
   const [isSaving, setIsSaving] = useState(false);
   const [errorModal, setErrorModal] = useState<string | null>(null);
 
@@ -240,8 +233,17 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
           original={isCheckpointPreview ? checkpointContent : (activeTab ? (backUpData[activeTab] || '') : '')}
           modified={value}
           onMount={(editor, monaco) => {
-            editorRef.current = editor.getModifiedEditor();
-            handleEditorDidMount(editor.getModifiedEditor(), monaco);
+            const modifiedEditor = editor.getModifiedEditor();
+            editorRef.current = modifiedEditor;
+            handleEditorDidMount(modifiedEditor, monaco);
+            
+            // AI建议差异对比视图可编辑，监听修改内容变化
+            if (!isCheckpointPreview && activeTab) {
+              modifiedEditor.onDidChangeModelContent(() => {
+                const newValue = modifiedEditor.getValue();
+                dispatch(updateTabContent({ id: activeTab, content: newValue }));
+              });
+            }
           }}
           options={{
             minimap: { enabled: true },
@@ -252,9 +254,9 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
             scrollBeyondLastLine: true,
             renderWhitespace: "all",
             renderControlCharacters: true,
-            readOnly: true, // 差异模式下只读
-            enableSplitViewResizing: true,
-            renderSideBySide: true,
+            readOnly: isCheckpointPreview, // 存档点差异对比视图只读，AI建议差异对比视图可编辑
+            enableSplitViewResizing: !isSplitScreen, // 分屏时禁用拖拽调整
+            renderSideBySide: !isSplitScreen, // 分屏时使用内联模式，单屏使用左右对比模式
             unicodeHighlight: {
               ambiguousCharacters: false,
               invisibleCharacters: false,

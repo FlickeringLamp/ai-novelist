@@ -1,37 +1,47 @@
 import type { ToolCall, StreamChunk, InterruptResponse } from '../types/langgraph';
 import httpClient from './httpClient';
+import wsClient from './wsClient';
 import { tryCompleteJSON } from './jsonUtils';
 import { createAiMessage, updateAiMessage, setState, setMessage, clearInterrupt, setIsStreaming } from '../store/chat';
 import type { Dispatch } from '@reduxjs/toolkit';
-import { exitDiffMode, saveTabContent, decreaseTab } from '../store/editor';
+import { exitDiffMode, saveTabContent, decreaseTab, clearAiSuggestContent } from '../store/editor';
 import { FILE_TOOLS } from './fileToolHandler';
+import { computeDiff, hasDiff } from './diffUtils';
+import type { RootState } from '../types';
 
 // 处理中断响应的共享函数
 export const handleInterruptResponse = async (
   dispatch: Dispatch<any>,
   interrupt: any,
   response: InterruptResponse,
-  processFileToolCalls: (toolCalls: ToolCall[]) => void
+  processFileToolCalls: (toolCalls: ToolCall[]) => void,
+  currentData?: Record<string, string>,
+  aiSuggestContent?: Record<string, string>
 ) => {
   console.log('处理中断响应:', response);
   
   try {
-    const interruptResponse = {
-      interruptId: interrupt.id,
-      choice: response.choice || (response.action === 'approve' ? '1' : '2'),
-      additionalData: response.additionalData || ''
-    };
-    
-    // 处理所有文件工具的差异对比模式
+    // 处理所有文件工具的差异对比模式，计算用户diff
     const toolName = interrupt?.value?.tool_name;
+    let userDiff: string | null = null;
+    
     if (toolName && FILE_TOOLS.includes(toolName)) {
       const path = interrupt.value.parameters?.path as string | undefined;
-      if (path) {
+      if (path && currentData && aiSuggestContent) {
+        const aiContent = aiSuggestContent[path];
+        const currentContent = currentData[path];
+        
         // 关闭差异对比模式
         dispatch(exitDiffMode({ id: path }));
         
         if (response.action === 'approve') {
-          // 批准：同步 currentData 到 backUp
+          // 批准：计算用户diff（如果有修改）
+          if (aiContent !== undefined && currentContent !== undefined && hasDiff(aiContent, currentContent)) {
+            userDiff = computeDiff(aiContent, currentContent);
+            console.log('用户修改了AI建议内容，diff:', userDiff);
+          }
+          
+          // 同步 currentData 到 backUp
           dispatch(saveTabContent({ id: path }));
           
           // 如果是删除文件操作（manage_file 且 content 为 null），需要关闭标签页
@@ -40,11 +50,24 @@ export const handleInterruptResponse = async (
             dispatch(decreaseTab({ tabId: path }));
           }
         } else {
-          // 拒绝：关闭标签栏里的标签
+          // 拒绝：关闭标签栏里的标签，不计算diff
           dispatch(decreaseTab({ tabId: path }));
         }
+        
+        // 清除AI建议内容
+        dispatch(clearAiSuggestContent({ id: path }));
+        
+        // 无论批准还是拒绝，都刷新文件树以清理乐观更新的临时状态
+        wsClient.send('subscribe_file_changes', {});
       }
     }
+    
+    const interruptResponse = {
+      interruptId: interrupt.id,
+      choice: response.choice || (response.action === 'approve' ? '1' : '2'),
+      additionalData: response.additionalData || '',
+      user_diff: userDiff || undefined  // 如果有用户diff，一并发送
+    };
     
     // 立即清除中断，关闭操作栏
     dispatch(clearInterrupt());
@@ -57,7 +80,8 @@ export const handleInterruptResponse = async (
       body: {
         interrupt_id: interruptResponse.interruptId,
         choice: interruptResponse.choice,
-        additional_data: interruptResponse.additionalData
+        additional_data: interruptResponse.additionalData,
+        user_diff: interruptResponse.user_diff
       }
     } as any);
     

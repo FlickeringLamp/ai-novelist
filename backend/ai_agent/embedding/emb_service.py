@@ -2,12 +2,12 @@ from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 import os
+from typing import Optional
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from backend.settings.settings import settings
-from typing import Callable, Optional
 import chromadb
 from uuid import uuid4
 import asyncio
@@ -15,6 +15,7 @@ from functools import partial
 
 # 导入本地嵌入模型支持
 from backend.ai_agent.embedding.llama_cpp_embeddings import LlamaCppEmbeddings
+from backend.websocket.manager import ws_manager
 
 DB_PATH = settings.CHROMADB_PERSIST_DIR
 
@@ -175,14 +176,13 @@ def create_collection(collection_name):
     return vector_store
 
 
-async def add_file_to_collection(file_path, collection_name, progress_callback: Optional[Callable] = None, batch_size: int = 10):
+async def add_file_to_collection(file_path, collection_name, batch_size: int = 10):
     """
     将新文件嵌入到已有的集合中
     
     Args:
         file_path: 文件路径
         collection_name: 集合名（知识库ID，如 db_xxx）
-        progress_callback: 异步进度回调函数，参数为 (current, total, message)
         batch_size: 每批处理的文档数量
     
     Returns:
@@ -224,8 +224,17 @@ async def add_file_to_collection(file_path, collection_name, progress_callback: 
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, partial(vector_store.add_documents, documents=batch, ids=uuids))
         
-        if progress_callback:
-            await progress_callback(i + len(batch), total_docs, f"已嵌入 {i + len(batch)}/{total_docs} 个文档片段")
+        # 发送 WebSocket 进度消息
+        await ws_manager.send({
+            "type": "embedding_progress",
+            "payload": {
+                "kb_id": collection_name,
+                "current": i + len(batch),
+                "total": total_docs,
+                "percentage": round(((i + len(batch)) / total_docs * 100), 2),
+                "message": f"已嵌入 {i + len(batch)}/{total_docs} 个文档片段"
+            }
+        })
     
     print(f"成功将文件 {os.path.basename(file_path)} 添加到集合 {collection_name}")
     return True

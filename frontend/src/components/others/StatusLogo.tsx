@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFire } from '@fortawesome/free-solid-svg-icons';
-import { getWSClient } from '../../utils/wsClient';
+import wsClient from '../../utils/wsClient';
 import type { StatusLogoProps, HealthStatus } from '@/types';
 import './StatusLogo.css';
 
@@ -12,7 +12,6 @@ const StatusLogo = ({ isCollapsed, onToggleCollapse }: StatusLogoProps) => {
   });
 
   useEffect(() => {
-    const wsClient = getWSClient('ws://localhost:8000/ws');
 
     const handleConnect = () => {
       console.log('[StatusLogo] WebSocket 已连接');

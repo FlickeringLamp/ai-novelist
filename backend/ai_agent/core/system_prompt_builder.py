@@ -18,6 +18,7 @@ from backend.file.file_service import get_file_tree_for_ai, read_file, resolve_f
 from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb, get_two_step_rag_config
 from backend.ai_agent.skill import get_skill_loader
 from backend.ai_agent.utils.file_utils import split_paragraphs
+from backend.websocket.handlers.tab_handler import request_tab_state, format_tab_state_for_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -354,21 +355,18 @@ class SystemPromptBuilder:
             # 确保data目录存在
             os.makedirs(data_path, exist_ok=True)
             
-            # 获取文件树
-            file_tree_result = {"success": True, "tree": await get_file_tree_for_ai(data_path, data_path)}
+            # 获取文件树（返回 FileTreeResult 对象，包含统计信息）
+            from backend.file.smart_file_tree import format_tree_for_prompt
+            file_tree_result = await get_file_tree_for_ai(data_path, data_path)
             
-            if not file_tree_result.get("success", False):
-                logger.error(f"获取文件树失败: {file_tree_result.get('error', '未知错误')}")
-                return "[当前工作区文件结构]:\n(获取文件树失败)"
-            
-            # 格式化文件树为文本
-            tree_text = self._format_tree_to_text(file_tree_result.get("tree", []))
+            # 格式化文件树为文本，包含统计信息让AI了解显示范围
+            tree_text = format_tree_for_prompt(file_tree_result, data_path)
             
             # 如果文件树为空，显示"暂无文件"
-            if not tree_text:
-                tree_text = "暂无文件"
+            if not file_tree_result.tree:
+                tree_text = "[当前工作区文件结构]:\n暂无文件"
             
-            return f"[当前工作区文件结构]:\n{tree_text}"
+            return tree_text
             
         except Exception as e:
             logger.error(f"获取文件树内容时出错: {e}")
@@ -479,6 +477,12 @@ class SystemPromptBuilder:
                 file_tree_content = await self.get_file_tree_content()
                 if file_tree_content:
                     context_parts.append(f"【当前工作区文件结构】\n{file_tree_content}")
+            
+            # 请求并添加标签栏状态
+            tab_state = await request_tab_state()
+            tab_state_content = format_tab_state_for_prompt(tab_state)
+            if tab_state_content:
+                context_parts.append(tab_state_content)
             
             # 处理 @路径 同步（如果用户输入中包含 @路径）
             if user_input and mode:

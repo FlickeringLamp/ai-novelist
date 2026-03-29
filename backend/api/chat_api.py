@@ -46,6 +46,7 @@ class InterruptResponseRequest(BaseModel):
     interrupt_id: str = Field(..., description="中断ID")
     choice: str = Field(..., description="用户选择 ('1'=恢复, '2'=取消)")
     additional_data: str = Field(default="", description="附加信息")
+    user_diff: str = Field(default=None, description="用户对AI建议内容的修改diff")
 
 class NewThreadRequest(BaseModel):
     """创建新会话请求"""
@@ -153,8 +154,12 @@ async def send_interrupt_response(request: InterruptResponseRequest):
     interrupt_id = request.interrupt_id
     choice = request.choice
     additional_data = request.additional_data
+    user_diff = request.user_diff
+    print(f"api处的用户修改:{user_diff}")
     thread_id = settings.get_config("thread_id")
     logger.info(f"收到中断响应: interrupt_id={interrupt_id}, choice={choice}, thread_id: {thread_id}")
+    if user_diff:
+        logger.info(f"用户对AI建议内容的diff长度: {len(user_diff)}")
     
     # 为thread_id创建流式传输任务
     stream_interrupt_manager.create_task(thread_id)
@@ -167,12 +172,15 @@ async def send_interrupt_response(request: InterruptResponseRequest):
             config = {"configurable": {"thread_id": thread_id}}
             
             # 构建中断响应
-            human_response = Command(
-                resume= {
-                    "choice_action": choice,
-                    "choice_data": additional_data
-                }
-            )
+            resume_data = {
+                "choice_action": choice,
+                "choice_data": additional_data
+            }
+            # 如果有用户diff，一并发送给AI
+            if user_diff:
+                resume_data["user_diff"] = user_diff
+                
+            human_response = Command(resume=resume_data)
             
             # 流式处理中断响应
             async for message_chunk, metadata in graph.astream(human_response, config, stream_mode="messages"):

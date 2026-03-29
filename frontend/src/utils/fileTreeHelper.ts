@@ -1,15 +1,12 @@
 import { useDispatch } from 'react-redux';
 import { setChapters } from '../store/file.ts';
-import { getWSClient } from './wsClient.ts';
-
-const WS_URL = 'ws://localhost:8000/ws';
+import wsClient from './wsClient.ts';
 
 /**
  * 初始化 WebSocket 文件监控
  * 在应用启动时调用一次，订阅后后端会自动推送初始文件树和后续变化
  */
 export const initFileWatcher = (dispatch: ReturnType<typeof useDispatch>) => {
-  const wsClient = getWSClient(WS_URL);
 
   // 监听文件树更新
   const unsubscribeMessage = wsClient.onMessage((message) => {

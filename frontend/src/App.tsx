@@ -1,21 +1,23 @@
 import './App.css';
 import { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useStore } from 'react-redux';
 import { ThemeProvider } from './context/ThemeContext';
 import LayoutComponent from './components/LayoutComponent';
 import EditorPanel from './components/editor/EditorPanel';
 import ChatPanel from './components/chat/ChatPanel';
 import ChapterTreePanel from './components/chapter/ChapterTreePanel';
-import { getWSClient } from './utils/wsClient';
+import wsClient from './utils/wsClient';
 import { initFileWatcher } from './utils/fileTreeHelper';
-
-const WS_URL = 'ws://localhost:8000/ws';
+import { initTabStateHandler } from './utils/tabStateHandler';
+import type { EditorSliceRootState } from './types/store';
 
 function App() {
   const dispatch = useDispatch();
+  const store = useStore();
 
   useEffect(() => {
-    const wsClient = getWSClient(WS_URL);
+    // 初始化标签栏状态处理器
+    initTabStateHandler(() => store.getState() as EditorSliceRootState);
     
     // 先注册回调（在连接前注册，onConnect 处理器内部会检查 if (this.isConnected)，如果已经连接会立即执行）
     const cleanupFileWatcher = initFileWatcher(dispatch);
@@ -29,7 +31,7 @@ function App() {
       cleanupFileWatcher();
       wsClient.disconnect();
     };
-  }, [dispatch]);
+  }, [dispatch, store]);
 
   return (
     <ThemeProvider>

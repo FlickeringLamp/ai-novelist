@@ -67,6 +67,10 @@ export interface EditorState {
   checkpointContent: Record<string, string>;
   /** 处于存档点预览模式的标签 ID 集合 */
   checkpointPreviewTabs: Record<string, boolean>;
+  /** AI建议内容，用于AI编辑时的diff对比。
+   * 复制currentData初始值，但不会同步更新。
+   * 用户编辑currentData后，计算与此的diff作为工具调用结果发送给AI */
+  aiSuggestContent: Record<string, string>;
 }
 
 // ==================== File Store ====================

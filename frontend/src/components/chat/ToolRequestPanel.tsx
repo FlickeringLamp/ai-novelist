@@ -13,11 +13,13 @@ const ToolRequestPanel = () => {
   const interrupt = interrupts.length > 0 ? (interrupts[0] ?? null) : null;
   const message = useSelector((state: RootState) => state.chatSlice.message);
   const autoApproveEnabled = useSelector((state: RootState) => state.chatSlice.autoApproveEnabled);
+  const currentData = useSelector((state: RootState) => state.tabSlice.currentData);
+  const aiSuggestContent = useSelector((state: RootState) => state.tabSlice.aiSuggestContent);
   const autoApproveRef = useRef(false);
 
   // 处理中断响应
   const handleInterrupt = async (response: InterruptResponse) => {
-    await handleInterruptResponse(dispatch, interrupt, response, processFileToolCalls);
+    await handleInterruptResponse(dispatch, interrupt, response, processFileToolCalls, currentData, aiSuggestContent);
   };
 
   // 自动批准逻辑

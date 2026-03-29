@@ -143,21 +143,48 @@ async def get_file_tree_for_user(dir_path: str, base_dir_path: str) -> List[Dict
     return await get_file_tree(dir_path, base_dir_path, ignore_parser)
 
 
-async def get_file_tree_for_ai(dir_path: str, base_dir_path: str) -> List[Dict]:
+async def get_file_tree_for_ai(dir_path: str, base_dir_path: str):
     """递归读取目录结构（用于AI系统提示词）
     
-    使用 .aiignore 文件过滤文件
+    使用 .aiignore 文件过滤文件，并自动应用智能降级策略
+    当文件数量超过阈值时，自动从完整文件树降级为文件夹树或结构树
     
     Args:
         dir_path: 要读取的目录路径
         base_dir_path: 基础目录路径，用于计算相对路径
     
     Returns:
-        文件树结构列表
+        FileTreeResult: 包含树结构和统计信息的结果对象
     """
+    # 使用 os.walk() 获取所有文件和目录路径
+    all_paths = set()
+    for root, dirs, files in os.walk(dir_path):
+        # 添加目录路径
+        for d in dirs:
+            all_paths.add(os.path.normpath(os.path.join(root, d)))
+        # 添加文件路径
+        for f in files:
+            all_paths.add(os.path.normpath(os.path.join(root, f)))
+    
+    # 应用忽略规则
     ignore_file = os.path.join(settings.DATA_DIR, '.aiignore')
     ignore_parser = IgnoreParser(ignore_file, settings.DATA_DIR)
-    return await get_file_tree(dir_path, base_dir_path, ignore_parser)
+    if ignore_parser:
+        ignored_paths = ignore_parser.get_ignored_paths()
+        all_paths = all_paths - ignored_paths
+    
+    # 使用智能文件树构建器，应用自适应降级策略
+    from backend.file.smart_file_tree import build_adaptive_file_tree, FileTreeResult
+    result = build_adaptive_file_tree(
+        list(all_paths),
+        base_dir_path,
+        max_items=100,  # 阈值：超过100项自动降级
+        min_depth=1     # 至少保留1层目录结构
+    )
+    
+    logger.info(f"AI文件树已生成: {result.level_desc} "
+                f"(总计 {result.total_items} 项, 显示 {result.displayed_items} 项)")
+    return result
 
 
 async def create_item(name: str, is_folder: bool = False, parent_path: str = "") -> Dict[str, Any]:
