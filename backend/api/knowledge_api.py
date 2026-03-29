@@ -4,7 +4,7 @@ import shutil
 from typing import Dict, List
 from pydantic import BaseModel, Field
 from backend.settings.settings import settings
-from fastapi import APIRouter, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 from backend.ai_agent.embedding import (
     get_files_in_collection,
     add_file_to_collection,
@@ -13,7 +13,6 @@ from backend.ai_agent.embedding import (
     create_collection,
     search_emb,
     asearch_emb,
-    websocket_manager,
     get_all_knowledge_bases,
     get_two_step_rag_config,
     set_two_step_rag_config
@@ -194,37 +193,6 @@ async def get_knowledge_base_files(kb_id: str):
     return files
 
 
-@router.websocket("/bases/{kb_id}/progress")
-async def websocket_progress(websocket: WebSocket, kb_id: str):
-    """
-    WebSocket端点，用于接收嵌入进度
-    
-    - **kb_id**: 知识库ID（路径参数）
-    """
-    await websocket_manager.connect(kb_id, websocket)
-    try:
-        while True:
-            # 保持连接活跃
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        websocket_manager.disconnect(kb_id, websocket)
-
-
-async def process_embedding_task(file_path: str, kb_id: str, filename: str):
-    """后台任务：处理文件嵌入"""
-    logger.info(f"开始处理嵌入任务: {filename}, kb_id={kb_id}")
-    
-    async def progress_callback(current: int, total: int, message: str):
-        logger.info(f"进度回调: current={current}, total={total}, message={message}")
-        await websocket_manager.broadcast_progress(kb_id, current, total, message)
-    
-    success = await add_file_to_collection(file_path, kb_id, progress_callback=progress_callback)
-    
-    if not success:
-        logger.error(f"文件 {filename} 嵌入失败")
-
-
-
 @router.post("/bases/{kb_id}/files", summary="上传文件到知识库")
 async def upload_file_to_knowledge_base(
     kb_id: str,
@@ -251,7 +219,7 @@ async def upload_file_to_knowledge_base(
             shutil.copyfileobj(file.file, buffer)
         
         # 添加后台任务处理嵌入
-        background_tasks.add_task(process_embedding_task, file_path, kb_id, file.filename)
+        background_tasks.add_task(add_file_to_collection, file_path, kb_id)
         
         logger.info(f"开始异步上传文件 {file.filename} 到知识库 {kb_id}")
         return {

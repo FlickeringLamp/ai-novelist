@@ -214,6 +214,8 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                 user_choice = interrupt(interrupt_data)
                 choice_action = user_choice.get("choice_action", "2")
                 choice_data = user_choice.get("choice_data", "")
+                user_diff = user_choice.get("user_diff", "")
+                print(f"用户修改:{user_diff}")
                 
                 if choice_action == "1":
                     try:
@@ -223,8 +225,14 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                         if isinstance(observation, list):
                             observation = str(observation)
                         
+                        # 构建工具结果消息
+                        tool_content = str(observation)
+                        # 如果有用户diff，附加到工具结果中
+                        if user_diff:
+                            tool_content += f"\n\n[用户修改了文件内容]：\n{user_diff}"
+                        
                         # 将工具结果放入ToolMessage
-                        result.append(ToolMessage(content=str(observation), tool_call_id=tool_call["id"]))
+                        result.append(ToolMessage(content=tool_content, tool_call_id=tool_call["id"]))
                         
                         # 将用户附加信息放入HumanMessage（如果有内容）
                         if choice_data:

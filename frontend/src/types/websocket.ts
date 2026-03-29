@@ -13,7 +13,9 @@ export type MessageType =
   | 'system_notify'
   | 'error'
   | 'ping'
-  | 'pong';
+  | 'pong'
+  | 'request_tab_state'
+  | 'tab_state_response';
 
 /** WebSocket 消息结构 */
 export interface WSMessage {

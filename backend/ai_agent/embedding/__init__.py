@@ -11,7 +11,6 @@ from .emb_service import (
     get_two_step_rag_config, 
     set_two_step_rag_config
 )
-from .websocket_manager import WebSocketManager, websocket_manager
 
 __all__ = [
     "create_collection",
@@ -20,8 +19,6 @@ __all__ = [
     "add_file_to_collection",
     "remove_file_from_collection",
     "prepare_emb",
-    "WebSocketManager",
-    "websocket_manager",
     "search_emb",
     "asearch_emb",
     "get_all_knowledge_bases",

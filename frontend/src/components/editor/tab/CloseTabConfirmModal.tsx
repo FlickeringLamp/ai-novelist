@@ -2,6 +2,7 @@ import UnifiedModal from '../../others/UnifiedModal.tsx';
 import { useDispatch } from 'react-redux';
 import { saveTabContent, decreaseTab } from '../../../store/editor.ts';
 import api from '../../../utils/httpClient.ts';
+import wsClient from '../../../utils/wsClient.ts';
 import type { CloseTabConfirmModalProps } from '@/types';
 
 const CloseTabConfirmModal = ({ tabId, tabBarId, tabContent, onClose, onError }: CloseTabConfirmModalProps) => {
@@ -20,6 +21,7 @@ const CloseTabConfirmModal = ({ tabId, tabBarId, tabContent, onClose, onError }:
               await api.put(`/api/file/update/${encodeURIComponent(tabId)}`, { content: tabContent });
               dispatch(saveTabContent({ id: tabId }));
               dispatch(decreaseTab({ tabId }));
+              wsClient.send('subscribe_file_changes', {});
               onClose();
             } catch (error: any) {
               console.error("保存失败：", error);
@@ -33,6 +35,7 @@ const CloseTabConfirmModal = ({ tabId, tabBarId, tabContent, onClose, onError }:
           text: '丢弃',
           onClick: async () => {
             dispatch(decreaseTab({ tabId }));
+            wsClient.send('subscribe_file_changes', {});
             onClose();
           },
           className: 'bg-theme-gray5'

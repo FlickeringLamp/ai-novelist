@@ -19,7 +19,7 @@ class FileWatcherService(FileSystemEventHandler):
         super().__init__()
         self._observer: Observer | None = None
         self._callback: callable = None
-        self._ignore_patterns = {'.git'}
+        self._ignore_patterns = {'.git', 'db', 'chromadb'}
 
     def set_callback(self, callback: callable):
         """设置文件变化回调函数"""
