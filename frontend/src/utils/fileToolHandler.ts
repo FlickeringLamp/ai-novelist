@@ -1,20 +1,13 @@
-import { useDispatch, useSelector, useStore } from 'react-redux';
+import { useDispatch, useStore } from 'react-redux';
+import { useRef } from 'react';
 import { addTempFile } from '../store/file';
 import { createTempDiffTab, updateBackUp, setAiSuggestContent } from '../store/editor';
 import type { RootState } from '../types';
 import httpClient from './httpClient';
-import { languageMap } from './languageMap';
+import { createPathStabilizer } from './paramStabilizer';
 
 // 支持的文件工具列表
 export const FILE_TOOLS = ['manage_file', 'apply_diff', 'search_text'];
-
-// 验证文件扩展名是否受支持
-const isValidFile = (path: string): boolean => {
-  const lastDotIndex = path.lastIndexOf('.');
-  if (lastDotIndex <= 0) return false;
-  const ext = path.slice(lastDotIndex + 1).toLowerCase();
-  return ext in languageMap;
-};
 
 // 解析operations内容，计算修改后的内容（支持插入、替换、删除）
 const applyDiff = (originalContent: string, operations: any[]): string => {
@@ -85,6 +78,8 @@ const searchAndReplace = (content: string, search: string, replace: string, useR
 export const useFileToolHandler = () => {
   const dispatch = useDispatch();
   const store = useStore();
+  // 路径稳定检测器 - 每个工具调用使用独立实例
+  const pathStabilizerRef = useRef<ReturnType<typeof createPathStabilizer> | null>(null);
 
   // 获取文件内容（优先使用前端状态中的缓存）
   const fetchFileContent = async (path: string): Promise<string> => {
@@ -116,11 +111,30 @@ export const useFileToolHandler = () => {
   };
 
   // 处理文件工具调用
-  const handleFileToolCall = async (toolName: string, args: any) => {
+  const handleFileToolCall = async (toolName: string, args: any, isPartial: boolean = false) => {
     const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
-    const path = parsedArgs.path;
+    const path: string | undefined = parsedArgs.path;
     
-    if (!path || !isValidFile(path)) {
+    // === 路径稳定检测（针对流式传输中的不完整路径）===
+    if (isPartial) {
+      // 初始化稳定检测器
+      if (!pathStabilizerRef.current) {
+        pathStabilizerRef.current = createPathStabilizer();
+      }
+      
+      // 路径未稳定，直接返回，不处理
+      if (!pathStabilizerRef.current(path)) {
+        return;
+      }
+      
+      // 路径已稳定，继续处理
+    } else {
+      // 完整参数，重置检测器
+      pathStabilizerRef.current = null;
+    }
+    
+    // 路径为空则不处理
+    if (!path) {
       return;
     }
 
@@ -185,13 +199,13 @@ export const useFileToolHandler = () => {
           // 处理加载中的_partial_args
           try {
             const partialArgs = JSON.parse((args as any)._partial_args);
-            await handleFileToolCall(toolName || '', partialArgs);
+            await handleFileToolCall(toolName || '', partialArgs, true);
           } catch (e) {
             console.error("解析_partial_args失败:", e);
           }
         } else {
           // 处理完整的args
-          await handleFileToolCall(toolName || '', args);
+          await handleFileToolCall(toolName || '', args, false);
         }
       }
     }
