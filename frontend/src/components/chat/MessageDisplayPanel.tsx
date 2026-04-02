@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faAngleRight, faAngleUp, faTrash, faRotateRight, faEdit, faCopy } from '@fortawesome/free-solid-svg-icons';
+import { faAngleRight, faAngleUp, faTrash, faRotateRight, faEdit, faCopy, faCheck } from '@fortawesome/free-solid-svg-icons';
 import type { RootState } from '../../types';
 import type { Message, AIMessage, StreamChunk, ToolCall } from '../../types/langgraph';
 import { setAvailableTools } from '../../store/mode';
@@ -109,9 +109,12 @@ const MessageDisplayPanel = () => {
   };
 
   // 复制消息内容到剪贴板
-  const copyMessage = async (content: string) => {
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const copyMessage = async (content: string, msgId: string) => {
     try {
       await navigator.clipboard.writeText(content);
+      setCopiedMessageId(msgId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
     } catch (error) {
       setModal({ show: true, message: '复制失败: ' + (error as Error).toString(), onConfirm: null, onCancel: null });
     }
@@ -521,7 +524,7 @@ const MessageDisplayPanel = () => {
             {isExpanded ? (
               <div className="whitespace-pre-wrap">{msg.content}</div>
             ) : (
-              <div className="text-theme-gray3 text-sm">{previewContent}</div>
+              <div className="text-sm">{previewContent}</div>
             )}
           </div>
         </div>
@@ -668,15 +671,13 @@ const MessageDisplayPanel = () => {
           <div className="flex items-center justify-between mt-1 px-1">
             {/* 按钮组 */}
             <div className="flex gap-2">
-              {!isInterrupted && (
-                <button
-                  className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"
-                  onClick={() => copyMessage(msg.content || '')}
-                  title="复制"
-                >
-                  <FontAwesomeIcon icon={faCopy} />
-                </button>
-              )}
+              <button
+                className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"
+                onClick={() => copyMessage(msg.content || '', msg.id)}
+                title={copiedMessageId === msg.id ? "已复制" : "复制"}
+              >
+                <FontAwesomeIcon icon={copiedMessageId === msg.id ? faCheck : faCopy} />
+              </button>
               {!isUser && !isInterrupted && (
                 <button
                   className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"

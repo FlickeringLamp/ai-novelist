@@ -22,6 +22,7 @@ async def manage_file(path: str, content: Optional[str]) -> str:
   "path": "新建文件夹/废弃章节.md",
   "content": null
 }
+==注意！只能写入普通文本，不允许标记“段落-哈希”，这些标记是系统提供的虚拟id,用于其他文件操作==
     """
     try:
         # 如果content为None，删除文件

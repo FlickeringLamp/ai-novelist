@@ -347,12 +347,13 @@ def _normalize_search_path(file_path: str) -> str:
     return file_path
 
 
-async def search_files(query: str, ignore_file: Optional[str] = None) -> str:
+async def search_files(query: str, ignore_file: Optional[str] = None, max_results: int = 100) -> str:
     """搜索文件内容（使用 ripgrep）
     
     Args:
         query: 搜索关键词
         ignore_file: 忽略规则文件路径
+        max_results: 最大结果数限制（默认100）
     
     Returns:
         ripgrep 原始输出字符串
@@ -362,7 +363,8 @@ async def search_files(query: str, ignore_file: Optional[str] = None) -> str:
         return await ripgrep_service.search(
             query=query,
             case_sensitive=False,
-            ignore_file=ignore_file
+            ignore_file=ignore_file,
+            max_results=max_results
         )
     except Exception as e:
         logger.error(f"ripgrep 搜索失败: {e}")
@@ -420,20 +422,30 @@ async def search_files_for_user(query: str) -> Dict[str, Dict[str, Any]]:
 async def search_files_for_ai(query: str) -> str:
     """搜索文件内容（用于AI工具）
     
-    使用 .aiignore 文件过滤文件
+    使用 .aiignore 文件过滤文件，默认限制100个结果
+    如果结果被截断，会添加提示信息
     
     Args:
         query: 搜索关键词
     
     Returns:
-        ripgrep 原始输出字符串（已规范化路径）
+        ripgrep 原始输出字符串（已规范化路径），可能包含截断提示
     """
     ignore_file = os.path.join(settings.DATA_DIR, '.aiignore')
-    rg_output = await search_files(query, ignore_file)
+    
+    # 先搜索 max_results + 1 个，用于判断是否还有更多结果
+    max_results = 100
+    rg_output = await search_files(query, ignore_file, max_results=max_results + 1)
+    
+    # 检查是否被截断（如果结果数超过 max_results，说明有更多结果被截断）
+    lines = rg_output.split('\n')
+    match_lines = [line for line in lines if line.strip() and line != '--' and re.match(r'^.+?(:|\-)\d+\1.*$', line)]
+    is_truncated = len(match_lines) > max_results
     
     # 规范化输出中的路径
     filtered_lines = []
-    for line in rg_output.split('\n'):
+    count = 0
+    for line in lines:
         if not line.strip() or line == '--':
             continue
         
@@ -441,6 +453,11 @@ async def search_files_for_ai(query: str) -> str:
         # 或 文件路径-行号-内容（上下文行）
         match = re.match(r'^(.+?)(:|\-)(\d+)\2(.*)$', line)
         if match:
+            # 只保留前 max_results 个匹配
+            if count >= max_results:
+                continue
+            count += 1
+            
             file_path = match.group(1)
             separator = match.group(2)
             line_number = match.group(3)
@@ -455,7 +472,14 @@ async def search_files_for_ai(query: str) -> str:
             # 不匹配的行直接添加
             filtered_lines.append(line)
     
-    return '\n'.join(filtered_lines)
+    result = '\n'.join(filtered_lines)
+    
+    # 如果结果被截断，添加提示信息
+    if is_truncated:
+        truncated_count = len(match_lines) - max_results
+        result += f"\n\n[提示：检索结果被折叠了 {truncated_count} 个匹配项。建议使用更精确的检索词，或指定具体文件路径以减少检索范围]"
+    
+    return result
 
 
 async def upload_image(file: UploadFile) -> Dict[str, Any]:

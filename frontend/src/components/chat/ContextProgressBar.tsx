@@ -7,7 +7,7 @@ const ContextProgressBar = () => {
   const selectedProviderId = useSelector((state: RootState) => state.providerSlice.selectedProviderId);
   const selectedModelId = useSelector((state: RootState) => state.providerSlice.selectedModelId);
   const allModesData = useSelector((state: RootState) => state.modeSlice.allModesData);
-  const selectedModeId = useSelector((state: RootState) => state.modeSlice.selectedModeId);
+  const selectedModeId = useSelector((state: RootState) => state.chatSlice.selectedModeId);
   
   // 从state获取最新AI消息的tokens
   const currentTokens = useSelector((state: RootState) => {

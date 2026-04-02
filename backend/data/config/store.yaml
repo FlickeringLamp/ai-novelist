@@ -28,16 +28,21 @@ mode:
     - skills/backend-api-skill/SKILL.md
     - skills/backend-api-skill/config/store_template.yaml
     - skills/backend-api-skill/api/mcp_api_docs.md
+    - /home/denghuo/文档/ai-novelist/backend/data/演示文件.md
+    - /home/denghuo/文档/ai-novelist/backend/data/config/skills.yaml
+    - /home/denghuo/文档/ai-novelist/backend/data/skills/backend-api-skill/api/knowledge_api_docs.md
     tools:
     - load_unload_file
     - manage_file
-    - apply_diff
+    - insert_line
+    - delete_line
+    - replace_line
     - search_text
     - ask_user_question
-    - rag_search
-    - rag_list_files
     - load_unload_skill
     - execute_command
+    skillPaths:
+    - /home/denghuo/文档/ai-novelist/backend/data/skills/backend-api-skill/SKILL.md
 autoApproveSettings: false
 selectedProvider: deepseek
 selectedModel: deepseek-chat
@@ -228,7 +233,7 @@ provider:
         gpt-5-mini: 400000
       embedding: {}
       other: {}
-thread_id: thread_1774456744230
+thread_id: thread_1775141212301
 knowledgeBase: {}
 two-step-rag: null
 mcpServers:
@@ -247,7 +252,7 @@ mcpServers:
     name: 高德
     description: 本地高德
     url: ''
-    isActive: true
+    isActive: false
     transport: stdio
     command: npx
     args:
@@ -256,3 +261,30 @@ mcpServers:
     env:
     - AMAP_MAPS_API_KEY
     headers: {}
+theme:
+  colors:
+    black: '#000000'
+    green: '#eb7900'
+    green1: '#2ad541'
+    white: '#FFFFFF'
+    red: '#ff0000'
+    yellow: '#eab308'
+    gray1: '#111111'
+    gray2: '#333333'
+    gray3: '#666666'
+    gray4: '#999999'
+    gray5: '#cccccc'
+  config:
+    mode: dark
+    colors:
+      black: '#000000'
+      gray1: '#111111'
+      gray2: '#333333'
+      gray3: '#666666'
+      gray4: '#999999'
+      gray5: '#cccccc'
+      white: '#FFFFFF'
+      green: '#eb8100'
+      green1: '#d57200'
+      red: '#ff0000'
+      yellow: '#eab308'

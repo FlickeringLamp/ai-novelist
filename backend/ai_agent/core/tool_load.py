@@ -3,7 +3,9 @@ from backend.ai_agent.tool.rag_tool.rag_search import rag_search
 from backend.ai_agent.tool.rag_tool.rag_list_files import rag_list_files
 from backend.ai_agent.tool.file_tool.load_unload_file import load_unload_file
 from backend.ai_agent.tool.file_tool.manage_file import manage_file
-from backend.ai_agent.tool.file_tool.apply_diff import apply_diff
+from backend.ai_agent.tool.file_tool.insert_line import insert_line
+from backend.ai_agent.tool.file_tool.delete_line import delete_line
+from backend.ai_agent.tool.file_tool.replace_line import replace_line
 from backend.ai_agent.tool.file_tool.search_text import search_text
 from backend.ai_agent.tool.operation_tool.ask_user import ask_user_question
 from backend.ai_agent.tool.operation_tool.execute_command import execute_command
@@ -23,7 +25,9 @@ async def import_tools(mode: str = None):
         "rag_list_files": rag_list_files,
         "load_unload_file": load_unload_file,
         "manage_file": manage_file,
-        "apply_diff": apply_diff,
+        "insert_line": insert_line,
+        "delete_line": delete_line,
+        "replace_line": replace_line,
         "search_text": search_text,
         "ask_user_question": ask_user_question,
         "execute_command": execute_command,

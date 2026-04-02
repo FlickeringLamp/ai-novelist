@@ -98,7 +98,7 @@ const TabBar = ({
         ))}
       </div>
       {/* 地址栏区域 - 显示当前标签栏的活跃标签名称 */}
-      <div className="h-[40%] text-sm text-theme-gray5 whitespace-nowrap px-3">
+      <div className="h-[40%] text-sm text-theme-white whitespace-nowrap px-3">
         {(() => {
           const activeTab = tabBar.tabs.find(tab => tab === tabBar.activeTabId);
           return activeTab ? new DisplayNameHelper(activeTab).getValue() : '';

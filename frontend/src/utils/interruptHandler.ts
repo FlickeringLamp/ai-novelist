@@ -2,7 +2,7 @@ import type { ToolCall, StreamChunk, InterruptResponse } from '../types/langgrap
 import httpClient from './httpClient';
 import wsClient from './wsClient';
 import { tryCompleteJSON } from './jsonUtils';
-import { createAiMessage, updateAiMessage, setState, setMessage, clearInterrupt, setIsStreaming } from '../store/chat';
+import { createAiMessage, updateAiMessage, setState, setMessage, clearInterrupt, setIsStreaming, addUserMessage, addToolMessage } from '../store/chat';
 import type { Dispatch } from '@reduxjs/toolkit';
 import { exitDiffMode, saveTabContent, decreaseTab, clearAiSuggestContent } from '../store/editor';
 import { FILE_TOOLS } from './fileToolHandler';
@@ -44,7 +44,7 @@ export const handleInterruptResponse = async (
           // 同步 currentData 到 backUp
           dispatch(saveTabContent({ id: path }));
           
-          // 如果是删除文件操作（manage_file 且 content 为 null），需要关闭标签页
+          // 处理删除文件操作（manage_file 且 content 为 null）
           const content = interrupt.value.parameters?.content;
           if (toolName === 'manage_file' && content === null) {
             dispatch(decreaseTab({ tabId: path }));
@@ -69,12 +69,19 @@ export const handleInterruptResponse = async (
       user_diff: userDiff || undefined  // 如果有用户diff，一并发送
     };
     
+    if (response.additionalData && response.additionalData.trim()) {
+      dispatch(addUserMessage({
+        id: `temp-human-${Date.now()}`,
+        content: response.additionalData
+      }));
+    }
+
     // 立即清除中断，关闭操作栏
     dispatch(clearInterrupt());
-    
+
     // 开始流式传输
     dispatch(setIsStreaming(true));
-    
+
     const responseStream = await httpClient.streamRequest('/api/chat/interrupt-response', {
       method: 'POST',
       body: {
@@ -200,4 +207,25 @@ export const handleInterruptResponse = async (
   } catch (error) {
     console.error('处理中断响应失败:', error);
   }
+};
+
+/**
+ * 注册WebSocket工具结果处理器
+ * 用于接收后端推送的工具执行结果并临时显示
+ */
+export const registerToolResultHandler = (dispatch: Dispatch<any>) => {
+  wsClient.onMessage((message: any) => {
+    if (message.type === 'tool_result') {
+      const { tool_call_id, tool_name, result } = message.payload;
+      console.log('收到工具结果:', tool_name, result);
+
+      // 临时添加工具消息到消息列表
+      dispatch(addToolMessage({
+        id: `temp-tool-${tool_call_id}`,
+        content: result,
+        tool_call_id: tool_call_id,
+        name: tool_name
+      }));
+    }
+  });
 };

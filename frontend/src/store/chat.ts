@@ -57,7 +57,31 @@ export const chatSlice = createSlice({
         }
       };
     },
-    
+
+    // 添加工具消息
+    addToolMessage: (state: Draft<ChatState>, action: PayloadAction<{ id: string; content: string; tool_call_id?: string; name?: string }>) => {
+      const { id, content, tool_call_id, name } = action.payload;
+      if (!state.state) return;
+
+      const newMessages = [...state.state.values.messages];
+      newMessages.push({
+        id,
+        type: 'tool',
+        content,
+        tool_call_id: tool_call_id || id,
+        additional_kwargs: { _temporary: true, _tool_name: name },
+        response_metadata: {}
+      });
+
+      state.state = {
+        ...state.state,
+        values: {
+          ...state.state.values,
+          messages: newMessages
+        }
+      };
+    },
+
     // 创建AI消息（用于流式传输开始）
     createAiMessage: (state: Draft<ChatState>, action: PayloadAction<{ id: string }>) => {
       const { id } = action.payload;
@@ -207,6 +231,7 @@ export const chatSlice = createSlice({
 export const {
   setState,
   addUserMessage,
+  addToolMessage,
   createAiMessage,
   updateAiMessage,
   setMessage,

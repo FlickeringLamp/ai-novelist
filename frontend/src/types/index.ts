@@ -96,6 +96,13 @@ export type {
   ApiFileChange,
   ApiGitChange,
   ApiGitStatus,
+  // File Tools
+  InsertLineItem,
+  DeleteLineItem,
+  ReplaceLineItem,
+  InsertLineParams,
+  DeleteLineParams,
+  ReplaceLineParams,
 } from './api';
 
 // ==================== 组件共享类型 ====================
@@ -203,3 +210,13 @@ export type {
   // Hooks
   UseFilePathAutocompleteReturn,
 } from './props';
+
+// ==================== 主题类型 ====================
+export type {
+  ThemeColorConfig,
+  ThemeMode,
+  Theme,
+  StoredThemeConfig,
+  ThemeContextType,
+  ThemeColorPickerProps,
+} from './theme';
