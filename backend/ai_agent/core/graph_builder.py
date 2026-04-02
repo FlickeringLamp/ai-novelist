@@ -196,7 +196,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             for tool_call in state["messages"][-1].tool_calls:
                 tool_name = tool_call["name"]
                 tool = tools_by_name[tool_name]
-                
+
                 # 格式化参数显示
                 args = tool_call["args"]
                 formatted_args = {}
@@ -205,35 +205,49 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                         formatted_args[key] = value[:100] + "..."
                     else:
                         formatted_args[key] = value
-                
+
                 interrupt_data = {
                     "tool_name": tool_name,
                     "parameters": formatted_args
                 }
-                
+
                 user_choice = interrupt(interrupt_data)
                 choice_action = user_choice.get("choice_action", "2")
                 choice_data = user_choice.get("choice_data", "")
                 user_diff = user_choice.get("user_diff", "")
                 print(f"用户修改:{user_diff}")
-                
+
                 if choice_action == "1":
                     try:
                         observation = await tool.ainvoke(tool_call["args"])
-                
+
                         # 确保observation是字符串类型
                         if isinstance(observation, list):
                             observation = str(observation)
-                        
+
                         # 构建工具结果消息
                         tool_content = str(observation)
                         # 如果有用户diff，附加到工具结果中
                         if user_diff:
                             tool_content += f"\n\n[用户修改了文件内容]：\n{user_diff}"
-                        
+
                         # 将工具结果放入ToolMessage
                         result.append(ToolMessage(content=tool_content, tool_call_id=tool_call["id"]))
-                        
+
+                        # WebSocket推送工具执行结果
+                        try:
+                            from backend.websocket import ws_manager
+                            await ws_manager.send({
+                                "type": "tool_result",
+                                "payload": {
+                                    "tool_call_id": tool_call["id"],
+                                    "tool_name": tool_name,
+                                    "result": tool_content[:2000]  # 限制长度
+                                }
+                            })
+                        except Exception as e:
+                            print(f"[WebSocket] 推送工具结果失败: {e}")
+
                         # 将用户附加信息放入HumanMessage（如果有内容）
                         if choice_data:
                             result.append(HumanMessage(content=choice_data))
@@ -241,7 +255,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                         # 构造错误信息字符串
                         error_message = f"工具执行失败: {str(e)}"
                         result.append(ToolMessage(content=error_message, tool_call_id=tool_call["id"]))
-                        
+
                         # 将用户附加信息放入HumanMessage（如果有内容）
                         if choice_data:
                             result.append(HumanMessage(content=choice_data))
@@ -249,7 +263,7 @@ def with_graph_builder(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
                     # 用户拒绝执行工具
                     cancel_message = "用户取消了工具请求"
                     result.append(ToolMessage(content=cancel_message, tool_call_id=tool_call["id"]))
-                    
+
                     # 将用户附加信息放入HumanMessage（如果有内容）
                     if choice_data:
                         result.append(HumanMessage(content=choice_data))

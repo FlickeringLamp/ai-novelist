@@ -4,7 +4,7 @@ const StatusBar =({ charCount }: { charCount: number })=> {
     <div
       className="bg-theme-black h-full flex items-center justify-between px-4 text-sm text-theme-gray5 border-t border-theme-gray3"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 text-theme-white">
         <span>总字符数: {charCount}</span>
       </div>
     </div>

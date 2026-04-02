@@ -7,9 +7,17 @@ ALL_AVAILABLE_TOOLS = {
         "name": "管理文件",
         "description": "负责文件的创建/删除/重写"
     },
-    "apply_diff": {
-        "name": "应用差异",
-        "description": "应用差异补丁来修改文件内容（支持插入、替换、删除）"
+    "insert_line": {
+        "name": "插入行",
+        "description": "在指定段落号前插入新内容（1=开头，大于最大段落=末尾）"
+    },
+    "delete_line": {
+        "name": "删除行",
+        "description": "删除指定段落"
+    },
+    "replace_line": {
+        "name": "替换行",
+        "description": "替换指定段落内容"
     },
     "search_text": {
         "name": "搜索文本",

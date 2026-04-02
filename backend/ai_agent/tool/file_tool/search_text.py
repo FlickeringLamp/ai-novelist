@@ -18,7 +18,7 @@ async def search_text(path: Optional[str] = None, pattern: str = None, replace: 
 搜索文本，支持在文件或文件夹内搜索，也支持在单个文件内搜索并替换
 
 使用示例：
-1. 在整个项目中搜索
+1. 在整个项目中搜索（null而非"null"）
 {
   "path": null,
   "pattern": "张三"
@@ -34,6 +34,7 @@ async def search_text(path: Optional[str] = None, pattern: str = None, replace: 
   "pattern": "\\d{4}年\\d{1,2}月\\d{1,2}日",
   "replace": "2024年1月1日"
 }
+==注意！此工具不可用于删除空行。==
     """
     try:
         # 判断是文件搜索还是项目搜索
@@ -50,10 +51,15 @@ async def search_text(path: Optional[str] = None, pattern: str = None, replace: 
                 if not matches:
                     return f"【工具结果】：在文件 '{path}' 中未找到匹配项"
                 
+                # 限制最大结果数
+                max_results = 100
+                total_matches = len(matches)
+                is_truncated = total_matches > max_results
+                
                 # 构建匹配结果展示
                 lines = content.split('\n')
                 results = []
-                for match in matches[:20]:  # 限制返回前20个匹配
+                for match in matches[:max_results]:
                     # 找到匹配所在的行号
                     pos = match.start()
                     line_num = content[:pos].count('\n') + 1
@@ -61,10 +67,13 @@ async def search_text(path: Optional[str] = None, pattern: str = None, replace: 
                     results.append(f"行{line_num}: {line_content}")
                 
                 result_text = '\n'.join(results)
-                if len(matches) > 20:
-                    result_text += f"\n... 还有 {len(matches) - 20} 个匹配项"
                 
-                return f"【工具结果】：在 '{path}' 中找到 {len(matches)} 个匹配项：\n\n{result_text}"
+                # 如果被截断，添加提示信息
+                if is_truncated:
+                    truncated_count = total_matches - max_results
+                    result_text += f"\n\n[提示：检索结果被折叠了 {truncated_count} 个匹配项。建议使用更精确的检索词以减少检索范围]"
+                
+                return f"【工具结果】：在 '{path}' 中找到 {total_matches} 个匹配项：\n\n{result_text}"
             else:
                 # 多文件搜索：使用原有搜索服务
                 display_path = path if path else "根目录"

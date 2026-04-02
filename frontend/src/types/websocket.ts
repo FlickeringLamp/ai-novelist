@@ -6,6 +6,7 @@
 export type MessageType =
   | 'file_change'
   | 'file_tree_update'
+  | 'file_content_sync'
   | 'chat_stream'
   | 'chat_interrupt'
   | 'embedding_progress'
@@ -32,6 +33,12 @@ export interface FileChangeEvent {
 /** 文件树更新事件 */
 export interface FileTreeUpdateEvent {
   chapters: any[];
+}
+
+/** 文件内容同步事件 */
+export interface FileContentSyncEvent {
+  path: string;
+  content: string;
 }
 
 /** WebSocket 客户端选项 */

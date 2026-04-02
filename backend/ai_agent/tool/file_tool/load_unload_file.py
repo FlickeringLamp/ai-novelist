@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from backend.settings.settings import settings
-from backend.file.file_service import normalize_to_absolute
+from backend.file.file_service import normalize_to_absolute, read_file as file_service_read_file
+from backend.ai_agent.utils.file_utils import format_file_with_hashes
 
 
 class LoadUnloadFileInput(BaseModel):
@@ -12,12 +13,12 @@ class LoadUnloadFileInput(BaseModel):
 async def load_unload_file(file_path: str) -> str:
     """
 加载或卸载文件到AI上下文中
-你可以认为这是加强版的“读取文件内容”工具
+你可以认为这是加强版的"读取文件内容"工具
 功能说明：
 - 如果文件不在[额外文件内容]列表中，使用此工具可以将该文件的内容加载到末尾附加消息，从此会自动订阅更新，保持最新内容，无需重复读取文件
 - 如果文件已在[额外文件内容]列表中：使用此工具可以卸载文件内容，取消订阅，节省上下文
-- 已加载的文件内容会作为末尾附加消息，不会污染系统提示词
-- 推荐加载1-20个文件，过多的订阅会导致上下文膨胀，建议及时卸载用不到的订阅
+- 将文件加载后，文件内容将会显示为"虚拟id|实际内容"，注意，虚拟id不真实存在于实际文件，无法被搜索和改写
+- 推荐加载1-5个文件，过多的订阅会导致上下文膨胀，建议及时卸载用不到的订阅
 使用示例（支持绝对路径/相对路径）：
 {
   "file_path": "第一章.md"

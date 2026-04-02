@@ -17,7 +17,7 @@ from backend.settings.settings import settings
 from backend.file.file_service import get_file_tree_for_ai, read_file, resolve_file_path, normalize_to_absolute
 from backend.ai_agent.embedding import get_all_knowledge_bases, asearch_emb, get_two_step_rag_config
 from backend.ai_agent.skill import get_skill_loader
-from backend.ai_agent.utils.file_utils import split_paragraphs
+from backend.ai_agent.utils.file_utils import split_paragraphs, format_file_with_hashes
 from backend.websocket.handlers.tab_handler import request_tab_state, format_tab_state_for_prompt
 
 logger = logging.getLogger(__name__)
@@ -147,12 +147,10 @@ class SystemPromptBuilder:
                     content = await read_file(file_path)
                     
                     if content:
-                        # 为文件内容添加段落编号
-                        paragraphs, paragraph_ending = split_paragraphs(content)
-                        numbered_paragraphs = [f"{i+1} | {p}" for i, p in enumerate(paragraphs)]
-                        numbered_content = paragraph_ending.join(numbered_paragraphs)
+                        # 使用 format_file_with_hashes 格式化内容
+                        formatted_content = format_file_with_hashes(content)
                         
-                        file_contents.append(f"[额外文件 - {file_path}]:\n{numbered_content}")
+                        file_contents.append(f"[额外文件 - {file_path}]:\n{formatted_content}")
                     else:
                         logger.warning(f"文件内容为空或文件不存在: {file_path}")
                 except Exception as e:

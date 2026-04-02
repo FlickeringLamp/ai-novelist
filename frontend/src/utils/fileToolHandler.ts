@@ -3,72 +3,132 @@ import { useRef } from 'react';
 import { addTempFile } from '../store/file';
 import { createTempDiffTab, updateBackUp, setAiSuggestContent } from '../store/editor';
 import type { RootState } from '../types';
+import type { InsertLineItem, DeleteLineItem, ReplaceLineItem } from '../types';
 import httpClient from './httpClient';
 import { createPathStabilizer } from './paramStabilizer';
+import CryptoJS from 'crypto-js';
 
 // 支持的文件工具列表
-export const FILE_TOOLS = ['manage_file', 'apply_diff', 'search_text'];
+export const FILE_TOOLS = ['manage_file', 'insert_line', 'delete_line', 'replace_line', 'search_text'];
 
-// 解析operations内容，计算修改后的内容（支持插入、替换、删除）
-const applyDiff = (originalContent: string, operations: any[]): string => {
-  const paragraphs = originalContent.split('\n');
-  const result = [...paragraphs];
+// 计算短哈希值（与后端一致，使用SHA256，默认2位）
+const getShortHash = (content: string, length: number = 2): string => {
+  const normalized = content.trim();
+  const hash = CryptoJS.SHA256(normalized).toString(CryptoJS.enc.Hex);
+  return hash.substring(0, length);
+};
+
+// 段落分割函数（处理 \r\n 和 \n）
+const splitParagraphs = (content: string): string[] => {
+  return content.split(/\r?\n/);
+};
+
+// 解析ID字符串，提取段落号和哈希值
+// ID格式：段落号-哈希（如 "3-b2"）
+const parseId = (id: string): { paragraph: number; hash: string } => {
+  const parts = id.split('-');
+  if (parts.length !== 2) {
+    throw new Error(`无效的ID格式: ${id}，期望格式为 '段落号-哈希'（如 '3-b2'）`);
+  }
+  const paragraphStr = parts[0]!;
+  const hashStr = parts[1]!;
+  const paragraph = parseInt(paragraphStr, 10);
+  if (isNaN(paragraph)) {
+    throw new Error(`无效的ID格式: ${id}，段落号必须是数字`);
+  }
+  return { paragraph, hash: hashStr.toLowerCase() };
+};
+
+// 批量插入行（按段落号降序排序，从后往前插入，避免行号偏移）
+const insertLines = (originalContent: string, inserts: InsertLineItem[]): string => {
+  const paragraphs = splitParagraphs(originalContent);
   
-  // 按段落号降序排序，避免索引偏移
-  const sortedOps = [...operations].sort((a, b) => b.paragraph - a.paragraph);
+  // 按段落号降序排序，从后往前插入
+  const sortedInserts = [...inserts].sort((a, b) => b.paragraph - a.paragraph);
   
-  for (const op of sortedOps) {
-    const paragraphNum = op.paragraph;
-    const oldContent = op.old;
-    const newContent = op.new;
-    const index = paragraphNum - 1;
-    
-    // 插入操作：old为null/undefined
-    if (oldContent === null || oldContent === undefined) {
-      if (newContent === null || newContent === undefined) {
-        console.warn(`操作无效：old和new不能同时为null（段落${paragraphNum}）`);
-        continue;
-      }
-      // 1=开头，大于长度=末尾，其他=指定位置前
-      const insertPos = paragraphNum <= 1 ? 0 : Math.min(index, result.length);
-      result.splice(insertPos, 0, newContent);
-      continue;
-    }
-    
-    // 替换/删除操作：需要验证old内容
-    if (index < 0 || index >= result.length) {
-      console.warn(`段落${paragraphNum}超出范围（共${result.length}段）`);
-      continue;
-    }
-    
-    const actualContent = result[index];
-    if (actualContent !== oldContent) {
-      console.warn(`段${paragraphNum}内容不匹配\n期望: ${oldContent}\n实际: ${actualContent}`);
-      continue;
-    }
-    
-    if (newContent === null || newContent === undefined) {
-      result.splice(index, 1); // 删除
-    } else {
-      result[index] = newContent; // 替换
-    }
+  for (const item of sortedInserts) {
+    const index = item.paragraph - 1;
+    const insertPos = item.paragraph <= 1 ? 0 : Math.min(index, paragraphs.length);
+    paragraphs.splice(insertPos, 0, item.content);
   }
   
-  return result.join('\n');
+  return paragraphs.join('\n');
+};
+
+// 批量删除行（按段落号降序排序，从后往前删除，避免行号偏移）
+const deleteLines = (originalContent: string, deletes: DeleteLineItem[]): string => {
+  const paragraphs = splitParagraphs(originalContent);
+
+  // 解析所有删除项，提取段落号和哈希
+  const parsedDeletes = deletes.map(item => {
+    const parsed = parseId(item.id);
+    return { ...parsed, id: item.id };
+  });
+
+  // 按段落号降序排序，从后往前删除
+  const sortedDeletes = parsedDeletes.sort((a, b) => b.paragraph - a.paragraph);
+
+  for (const item of sortedDeletes) {
+    const index = item.paragraph - 1;
+
+    if (index < 0 || index >= paragraphs.length) {
+      console.warn(`段落${item.paragraph}超出范围（共${paragraphs.length}段）`);
+      continue;
+    }
+
+    const actualContent = paragraphs[index] || '';
+    const actualHash = getShortHash(actualContent);
+
+    if (actualHash !== item.hash) {
+      console.warn(`ID ${item.id} 哈希不匹配\n期望: ${item.hash}\n实际: ${actualHash}`);
+      continue;
+    }
+
+    paragraphs.splice(index, 1);
+  }
+
+  return paragraphs.join('\n');
+};
+
+// 批量替换行（替换不影响行号偏移，顺序无关）
+const replaceLines = (originalContent: string, replaces: ReplaceLineItem[]): string => {
+  const paragraphs = splitParagraphs(originalContent);
+
+  for (const item of replaces) {
+    const parsed = parseId(item.id);
+    const index = parsed.paragraph - 1;
+
+    if (index < 0 || index >= paragraphs.length) {
+      console.warn(`段落${parsed.paragraph}超出范围（共${paragraphs.length}段）`);
+      continue;
+    }
+
+    const actualContent = paragraphs[index] || '';
+    const actualHash = getShortHash(actualContent);
+
+    if (actualHash !== parsed.hash) {
+      console.warn(`ID ${item.id} 哈希不匹配\n期望: ${parsed.hash}\n实际: ${actualHash}`);
+      continue;
+    }
+
+    paragraphs[index] = item.new_content;
+  }
+
+  return paragraphs.join('\n');
 };
 
 // 搜索并替换文本
-const searchAndReplace = (content: string, search: string, replace: string, useRegex: boolean = false, ignoreCase: boolean = false): string => {
+const searchAndReplace = (content: string, pattern: string, replace: string, useRegex: boolean = false, ignoreCase: boolean = false): string => {
   if (useRegex) {
     const flags = ignoreCase ? 'gi' : 'g';
-    const regex = new RegExp(search, flags);
+    const regex = new RegExp(pattern, flags);
     return content.replace(regex, replace);
   } else {
     if (ignoreCase) {
-      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
       return content.replace(regex, replace);
     } else {
-      return content.split(search).join(replace);
+      return content.split(pattern).join(replace);
     }
   }
 };
@@ -158,11 +218,29 @@ export const useFileToolHandler = () => {
         break;
       }
       
-      case 'apply_diff': {
-        const operations = parsedArgs.operations;
+      case 'insert_line': {
+        const inserts: InsertLineItem[] = parsedArgs.inserts;
         
-        if (operations && Array.isArray(operations)) {
-          modifiedContent = applyDiff(originalContent, operations);
+        if (inserts && Array.isArray(inserts) && inserts.length > 0) {
+          modifiedContent = insertLines(originalContent, inserts);
+        }
+        break;
+      }
+      
+      case 'delete_line': {
+        const deletes: DeleteLineItem[] = parsedArgs.deletes;
+        
+        if (deletes && Array.isArray(deletes) && deletes.length > 0) {
+          modifiedContent = deleteLines(originalContent, deletes);
+        }
+        break;
+      }
+      
+      case 'replace_line': {
+        const replaces: ReplaceLineItem[] = parsedArgs.replaces;
+        
+        if (replaces && Array.isArray(replaces) && replaces.length > 0) {
+          modifiedContent = replaceLines(originalContent, replaces);
         }
         break;
       }

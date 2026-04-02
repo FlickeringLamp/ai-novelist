@@ -1,61 +1,184 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode, useMemo } from 'react';
+import httpClient from '../utils/httpClient';
+import type {
+  ThemeColorConfig,
+  ThemeMode,
+  Theme,
+  StoredThemeConfig,
+  ThemeContextType,
+} from '../types';
 
-// 默认主题配置
-const defaultTheme = {
-  black: '#000000',    // 纯黑：项目底色
-  green: '#34eb5c',    // 绿色：普通状态，用于小件
-  green1: '#2ad541',  // 暗绿色：用于用户消息气泡
-  white: '#FFFFFF',    // 纯白色：普通状态，多用于字体
-  red:   '#ff0000',    // 红色：错误/离线状态，用于小件
-  yellow: '#eab308',   // 黄色：修改状态，用于小件
-  gray1: '#111111',    // 焦浓重淡清
-  gray2: '#333333',    // hover、activate 状态
-  gray3: '#666666',
-  gray4: '#999999',
-  gray5: '#cccccc',
+// 夜间模式默认灰阶+黑白
+const nightModeDefaults: Record<string, string> = {
+  black: '#000000',    // 墨 - 项目底色
+  gray1: '#111111',    // 焦
+  gray2: '#333333',    // 浓
+  gray3: '#666666',    // 重
+  gray4: '#999999',    // 淡
+  gray5: '#cccccc',    // 清
+  white: '#FFFFFF',    // 白（字体色）
 };
 
-// 创建主题上下文
-interface ThemeContextType {
-  theme: typeof defaultTheme;
-  updateTheme: (newTheme: Partial<typeof defaultTheme>) => void;
-}
+// 日间模式默认灰阶+黑白
+const dayModeDefaults: Record<string, string> = {
+  black: '#ffffffe3',
+  gray1: '#f3eee2',
+  gray2: '#f0e8da',
+  gray3: '#f3ecafef',
+  gray4: '#ecda9c',
+  gray5: '#f8ce42',
+  white: '#000000',
+};
+
+// 其他主题色默认值
+const otherDefaults: Record<string, string> = {
+  green: '#34eb5c',    // 主题绿
+  green1: '#2ad541',   // 主题青
+  red: '#ff0000',      // 红色
+  yellow: '#eab308',   // 黄色
+};
+
+// 合并所有默认值
+const allDefaults: Record<string, string> = {
+  ...nightModeDefaults,
+  ...otherDefaults,
+};
+
+// 面板上可编辑的主题色配置（黑、白、灰阶由日/夜模式自动管理）
+export const customizableColors: ThemeColorConfig[] = [
+  { key: 'green', name: '主题绿', defaultValue: '#34eb5c' },
+  { key: 'green1', name: '主题青', defaultValue: '#2ad541' },
+  { key: 'red', name: '红色', defaultValue: '#ff0000' },
+  { key: 'yellow', name: '黄色', defaultValue: '#eab308' },
+];
+
+// 灰阶颜色键名列表
+const grayKeys = ['black', 'gray1', 'gray2', 'gray3', 'gray4', 'gray5', 'white'];
+
+const CONFIG_KEY = 'theme.config';
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: defaultTheme,
-  updateTheme: () => {},
+  theme: allDefaults,
+  mode: 'dark',
+  setMode: () => {},
+  colors: allDefaults,
+  updateThemeColor: () => {},
+  resetThemeColor: () => {},
+  resetAllThemeColors: () => {},
 });
 
 // 主题提供者组件
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setTheme] = useState(defaultTheme);
+  const [mode, setModeState] = useState<ThemeMode>('dark');
+  const [colors, setColors] = useState<Record<string, string>>(allDefaults);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // 当前主题（就是 colors）
+  const theme = useMemo(() => ({ ...colors }), [colors]);
+
+  // 从后端加载主题配置
+  useEffect(() => {
+    const loadThemeFromBackend = async () => {
+      try {
+        const response = await httpClient.get(`/api/config/store?key=${encodeURIComponent(CONFIG_KEY)}`) as StoredThemeConfig;
+        if (response && typeof response === 'object') {
+          if (response.mode) {
+            setModeState(response.mode);
+          }
+          if (response.colors) {
+            setColors(prev => ({ ...prev, ...response.colors }));
+          }
+        }
+      } catch (error) {
+        console.log('Failed to load theme from backend, using default theme');
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+
+    loadThemeFromBackend();
+  }, []);
 
   // 应用主题到 CSS 变量
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty('--color-black', theme.black);
-    root.style.setProperty('--color-green', theme.green);
-    root.style.setProperty('--color-green1', theme.green1);
-    root.style.setProperty('--color-white', theme.white);
-    root.style.setProperty('--color-red', theme.red);
-    root.style.setProperty('--color-yellow', theme.yellow);
-    root.style.setProperty('--color-gray1', theme.gray1);
-    root.style.setProperty('--color-gray2', theme.gray2);
-    root.style.setProperty('--color-gray3', theme.gray3);
-    root.style.setProperty('--color-gray4', theme.gray4);
-    root.style.setProperty('--color-gray5', theme.gray5);
-  }, [theme]);
+    Object.entries(colors).forEach(([key, value]) => {
+      root.style.setProperty(`--color-${key}`, value);
+    });
+  }, [colors]);
 
-  // 更新主题的函数（预留用于后续的动态主题功能）
-  const updateTheme = (newTheme: Partial<typeof defaultTheme>) => {
-    setTheme(prevTheme => ({
-      ...prevTheme,
-      ...newTheme,
+  // 保存到后端
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const saveTheme = async () => {
+      try {
+        await httpClient.post('/api/config/store', {
+          key: CONFIG_KEY,
+          value: {
+            mode,
+            colors,
+          } satisfies StoredThemeConfig,
+        });
+      } catch (error) {
+        console.error('Failed to save theme to backend:', error);
+      }
+    };
+
+    saveTheme();
+  }, [mode, colors, isLoaded]);
+
+  // 切换日/夜模式 - 只覆盖灰阶+黑白的值
+  const setMode = (newMode: ThemeMode) => {
+    setModeState(newMode);
+    setColors(prev => {
+      const newColors = { ...prev };
+      const grayDefaults = newMode === 'dark' ? nightModeDefaults : dayModeDefaults;
+      // 只覆盖灰阶颜色
+      grayKeys.forEach(key => {
+        if (grayDefaults[key]) {
+          newColors[key] = grayDefaults[key];
+        }
+      });
+      return newColors;
+    });
+  };
+
+  // 更新颜色
+  const updateThemeColor = (key: string, value: string) => {
+    setColors(prev => ({
+      ...prev,
+      [key]: value,
     }));
   };
 
+  // 重置单个颜色为默认值
+  const resetThemeColor = (key: string) => {
+    const defaultValue = allDefaults[key];
+    if (defaultValue) {
+      setColors(prev => ({
+        ...prev,
+        [key]: defaultValue,
+      }));
+    }
+  };
+
+  // 重置所有主题色
+  const resetAllThemeColors = () => {
+    setModeState('dark');
+    setColors(allDefaults);
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, updateTheme }}>
+    <ThemeContext.Provider value={{
+      theme,
+      mode,
+      setMode,
+      colors,
+      updateThemeColor,
+      resetThemeColor,
+      resetAllThemeColors,
+    }}>
       {children}
     </ThemeContext.Provider>
   );

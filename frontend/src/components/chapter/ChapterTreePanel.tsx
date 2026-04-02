@@ -10,6 +10,7 @@ import UnifiedModal from '../others/UnifiedModal';
 import httpClient from '../../utils/httpClient.ts';
 import ChapterTreeItem from './TreeRender.tsx';
 import CreateInput from './CreateInput.tsx';
+import { ThemeSettingsPanel } from '../theme';
 function ChapterTreePanel() {
   const dispatch = useDispatch();
   const chapters = useSelector((state: RootState) => state.fileSlice.chapters);
@@ -58,6 +59,9 @@ function ChapterTreePanel() {
     x: 0,
     y: 0
   });
+
+  // 主题设置弹窗状态
+  const [showThemeSettings, setShowThemeSettings] = useState(false);
 
   // 拖拽相关状态
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
@@ -320,10 +324,23 @@ function ChapterTreePanel() {
 
       {/* 设置按钮区域 */}
       <div className="h-[5%] flex-shrink-0 flex justify-end items-end p-2.5 bg-theme-gray1 w-full border-t border-theme-gray3">
-        <button className="bg-transparent text-theme-white border-none p-0 rounded-0 text-lg cursor-pointer flex items-center justify-center transition-colors hover:bg-transparent hover:border-transparent hover:text-theme-green" title="设置">
+        <button 
+          onClick={() => setShowThemeSettings(true)}
+          className="bg-transparent text-theme-white border-none p-0 rounded-0 text-lg cursor-pointer flex items-center justify-center transition-colors hover:bg-transparent hover:border-transparent hover:text-theme-green" 
+          title="主题色设置"
+        >
           <FontAwesomeIcon icon={faGear} />
         </button>
       </div>
+
+      {/* 主题设置弹窗 */}
+      {showThemeSettings && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center">
+          <div className="w-[90%] max-w-md h-[80%] bg-theme-black rounded-lg shadow-2xl overflow-hidden">
+            <ThemeSettingsPanel onClose={() => setShowThemeSettings(false)} />
+          </div>
+        </div>
+      )}
 
       {/* 模态框管理模块 */}
       {modal.show && (
