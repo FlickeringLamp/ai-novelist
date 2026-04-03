@@ -25,12 +25,6 @@ mode:
     - .aiignore
     - .gitignore
     - .userignore
-    - skills/backend-api-skill/SKILL.md
-    - skills/backend-api-skill/config/store_template.yaml
-    - skills/backend-api-skill/api/mcp_api_docs.md
-    - /home/denghuo/文档/ai-novelist/backend/data/演示文件.md
-    - /home/denghuo/文档/ai-novelist/backend/data/config/skills.yaml
-    - /home/denghuo/文档/ai-novelist/backend/data/skills/backend-api-skill/api/knowledge_api_docs.md
     tools:
     - load_unload_file
     - manage_file
@@ -41,8 +35,6 @@ mode:
     - ask_user_question
     - load_unload_skill
     - execute_command
-    skillPaths:
-    - /home/denghuo/文档/ai-novelist/backend/data/skills/backend-api-skill/SKILL.md
 autoApproveSettings: false
 selectedProvider: deepseek
 selectedModel: deepseek-chat

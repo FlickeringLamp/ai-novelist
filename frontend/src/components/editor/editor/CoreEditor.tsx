@@ -52,29 +52,36 @@ loader.config({
 });
 // 定义自定义主题
 const defineTheme = (monaco: typeof Monaco, themeColors: ThemeColors) => {
+  const green = themeColors.green ?? '#00ff00';
+  const white = themeColors.white ?? '#ffffff';
+  const black = themeColors.black ?? '#000000';
+  const gray2 = themeColors.gray2 ?? '#2a2a2a';
+  const gray3 = themeColors.gray3 ?? '#3a3a3a';
+  const gray5 = themeColors.gray5 ?? '#5a5a5a';
+
   monaco.editor.defineTheme('theme-green', {
     base: 'vs-dark',
     inherit: true,
     rules: [
       // Markdown 标题的 # 符号
-      { token: 'keyword.md', foreground: themeColors.green.replace('#', '') },
+      { token: 'keyword.md', foreground: green.replace('#', '') },
       // Markdown 链接 - 这是蓝色的主要来源
-      { token: 'string.link.md', foreground: themeColors.green.replace('#', '') },
+      { token: 'string.link.md', foreground: green.replace('#', '') },
       // 粗体和斜体
-      { token: 'strong', foreground: themeColors.green.replace('#', '') },
-      { token: 'emphasis', foreground: themeColors.green.replace('#', '') },
+      { token: 'strong', foreground: green.replace('#', '') },
+      { token: 'emphasis', foreground: green.replace('#', '') },
       // 标签<img src="x.jpg">，<div>内容</div>
-      { token: 'tag', foreground: themeColors.green.replace('#', '') },
+      { token: 'tag', foreground: green.replace('#', '') },
     ],
     colors: {
-      'editor.foreground': themeColors.white, // 文字颜色
-      'editor.background': themeColors.black, // 背景色
-      'editorCursor.foreground': themeColors.green, // 光标颜色
-      'editor.lineHighlightBackground': themeColors.gray2, // 当前行高亮色
-      'editorLineNumber.foreground': themeColors.gray5, // 行号颜色
-      'editorLineNumber.activeForeground': themeColors.green, // 选中行行号颜色
-      'editor.selectionBackground': themeColors.green + '85', // 选中背景（添加透明度）
-      'editor.inactiveSelectionBackground': themeColors.gray3, // 非活动窗口选中文本背景色
+      'editor.foreground': white, // 文字颜色
+      'editor.background': black, // 背景色
+      'editorCursor.foreground': green, // 光标颜色
+      'editor.lineHighlightBackground': gray2, // 当前行高亮色
+      'editorLineNumber.foreground': gray5, // 行号颜色
+      'editorLineNumber.activeForeground': green, // 选中行行号颜色
+      'editor.selectionBackground': green + '85', // 选中背景（添加透明度）
+      'editor.inactiveSelectionBackground': gray3, // 非活动窗口选中文本背景色
     }
   });
 };
@@ -104,7 +111,7 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
   // 编辑器挂载处理，在挂载后执行
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     // 定义自定义主题
-    defineTheme(monaco, theme);
+    defineTheme(monaco, theme as unknown as ThemeColors);
     // 应用主题
     monaco.editor.setTheme('theme-green');
     // 保存实例到ref,方便供 "传递给Editor的回调函数"外 的函数访问
@@ -138,7 +145,7 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
   // 监听主题变化并更新编辑器主题
   useEffect(() => {
     if (monacoRef.current) {
-      defineTheme(monacoRef.current, theme); // 定义
+      defineTheme(monacoRef.current, theme as unknown as ThemeColors); // 定义
       monacoRef.current.editor.setTheme('theme-green'); // 应用
     }
   }, [theme]);
@@ -227,7 +234,7 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
           height="100%"
           language={activeTab ? getLanguageFromExtension(activeTab) : 'markdown'}
           beforeMount={(monaco) => {
-            defineTheme(monaco, theme);
+            defineTheme(monaco, theme as unknown as ThemeColors);
           }}
           theme="theme-green"
           original={isCheckpointPreview ? checkpointContent : (activeTab ? (backUpData[activeTab] || '') : '')}
@@ -270,7 +277,7 @@ const CoreEditor = forwardRef<any, MonacoEditorProps>((props, ref) => {
           language={activeTab ? getLanguageFromExtension(activeTab) : 'markdown'}
           beforeMount={(monaco) => {
             // 在编辑器挂载前定义主题
-            defineTheme(monaco, theme);
+            defineTheme(monaco, theme as unknown as ThemeColors);
           }}
           theme="theme-green"
           value={value}
