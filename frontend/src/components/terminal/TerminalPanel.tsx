@@ -53,10 +53,10 @@ function TerminalView({
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       fontSize: 14,
       theme: {
-        background: theme.black,
-        foreground: theme.green,
-        cursor: theme.green,
-        selectionBackground: theme.green + '40', // 添加透明度
+        background: theme.black ?? '#000000',
+        foreground: theme.green ?? '#00ff00',
+        cursor: theme.green ?? '#00ff00',
+        selectionBackground: (theme.green ?? '#00ff00') + '40', // 添加透明度
       },
       scrollback: 10000, // 历史记录10000行
     });
