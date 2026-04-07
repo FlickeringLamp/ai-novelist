@@ -25,7 +25,6 @@ mode:
     - .aiignore
     - .gitignore
     - .userignore
-    - F:\1\ai-novelist\backend\data\测试文件演示.md
     tools:
     - load_unload_file
     - manage_file

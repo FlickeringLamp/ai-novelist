@@ -172,10 +172,12 @@ Total : 215 files,  18327 codes, 3673 comments, 3443 blanks, all 25443 lines
     python -m venv backend_env
     backend_env\Scripts\activate
     cd backend
-    pip install -r requirements.txt
+    pip install -r requirements.lock
     cd ..
     python main.py
     ```
+
+    > **注意**：使用 `requirements.lock` 可确保所有依赖版本完全锁定，避免兼容性问题。开发环境如需最新版本，可使用 `requirements.txt`。
 
 4. **浏览器访问**：
     浏览器访问http://localhost:3000
