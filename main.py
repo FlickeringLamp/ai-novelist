@@ -1,11 +1,32 @@
 import os
+import sys
+from pathlib import Path
+
+# 配置 GitPython 使用打包的 git 可执行文件
+def setup_portable_git():
+    """检测并使用便携版 Git（便携 Python 模式）"""
+    script_dir = Path(sys.argv[0]).parent.resolve()
+    git_exe = script_dir / 'bin' / 'PortableGit' / 'mingw64' / 'bin' / 'git.exe'
+    if git_exe.exists():
+        os.environ['GIT_PYTHON_GIT_EXECUTABLE'] = str(git_exe)
+        os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
+        # 同时添加到 PATH
+        git_bin = git_exe.parent
+        os.environ['PATH'] = str(git_bin) + os.pathsep + os.environ.get('PATH', '')
+        return True
+    return False
+
+setup_portable_git()
+
+# 添加项目根目录到 sys.path（确保便携环境中能正确导入 backend）
+script_dir = Path(__file__).parent.resolve()
+if str(script_dir) not in sys.path:
+    sys.path.insert(0, str(script_dir))
 
 # 禁用 LiteLLM 自动获取模型价格信息
 os.environ["LITELLM_LOG"] = "ERROR"
 
-import sys
 import logging
-from pathlib import Path
 
 # 先初始化数据目录和文件（必须在导入 settings 之前）
 from backend.settings.initializer import initialize_directories_and_files
@@ -14,14 +35,15 @@ initialize_directories_and_files()
 # 初始化完成后再导入 settings
 from backend import settings
 
-# 获取静态文件目录路径（支持开发环境和PyInstaller打包环境）
+# 获取静态文件目录路径（支持开发环境和便携 Python 环境）
 def get_static_dir():
-    if getattr(sys, 'frozen', False):
-        # PyInstaller 打包后的环境
-        return Path(sys._MEIPASS) / 'static'
-    else:
-        # 开发环境
-        return Path('static')
+    # 优先使用相对于脚本的路径（便携 Python 环境）
+    script_dir = Path(sys.argv[0]).parent.resolve()
+    static_from_script = script_dir / 'static'
+    if static_from_script.exists():
+        return static_from_script
+    # 开发环境：当前工作目录
+    return Path('static').resolve()
 
 static_dir = get_static_dir()
 
@@ -148,14 +170,27 @@ if __name__ == "__main__":
     try:
         # 启动服务器
         logger.info("后端运行中......")
-        uvicorn.run(
-            "main:app",
-            host=settings.HOST,
-            port=settings.PORT,
-            reload=True,  # 启用热重载机制
-            log_level="warning",  # 减少uvicorn的日志输出
-            access_log=False  # 禁用访问日志
-        )
+        
+        if getattr(sys, 'frozen', False):
+            # 打包环境：直接传递 app 对象，禁用 reload
+            uvicorn.run(
+                app,
+                host=settings.HOST,
+                port=settings.PORT,
+                reload=False,
+                log_level="warning",
+                access_log=False
+            )
+        else:
+            # 开发环境：使用模块路径，启用 reload
+            uvicorn.run(
+                "main:app",
+                host=settings.HOST,
+                port=settings.PORT,
+                reload=True,
+                log_level="warning",
+                access_log=False
+            )
     except Exception as e:
         logger.error(f"服务器启动失败: {e}")
         sys.exit(1)

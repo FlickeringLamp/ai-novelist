@@ -135,7 +135,7 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
           ...config
         }
       });
-
+      console.log("serversResult:",serversResult)
       dispatch(setAllServersConfig(serversResult));
     } catch (error) {
       setNotificationMessage(`更新服务器配置失败: ${(error as Error).message}`);
@@ -167,6 +167,8 @@ const ServerDetailPanel = ({}: ServerDetailPanelProps) => {
 
     const key = newEnvKey.trim();
     const value = newEnvValue.trim();
+    console.log("key:",key)
+    console.log("value:",value)
 
     try {
       const currentEnv = selectedServer?.env || [];

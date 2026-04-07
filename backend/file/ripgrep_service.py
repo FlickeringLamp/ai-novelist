@@ -1,9 +1,8 @@
 import subprocess
 import asyncio
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Optional
 import logging
-import re
 from backend.settings.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -31,7 +30,7 @@ class RipgrepSearchService:
             
             if not search_dir.exists():
                 logger.warning(f"搜索目录不存在: {search_dir}")
-                return []
+                return ""
             
             cmd = [settings.RG_EXECUTABLE, query, str(search_dir)]
             
@@ -64,28 +63,33 @@ class RipgrepSearchService:
                     cmd.append("--ignore-file")
                     cmd.append(str(ignore_path))
             
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
+            # 使用 run_in_executor 包装同步 subprocess，避免 Windows 上 asyncio subprocess 的问题
+            def run_rg():
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='ignore'
+                )
+                return result
             
-            stdout, stderr = await process.communicate()
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, run_rg)
             
-            if process.returncode != 0:
-                if b"No matches found" in stderr or process.returncode == 1:
+            if result.returncode != 0:
+                if "No matches found" in result.stderr or result.returncode == 1:
                     return ""
                 else:
-                    logger.error(f"ripgrep 搜索失败: {stderr.decode('utf-8', errors='ignore')}")
+                    logger.error(f"ripgrep 搜索失败: {result.stderr}")
                     return ""
             
             # 直接返回原始输出，不进行解析
-            output = stdout.decode('utf-8', errors='ignore')
-            print(f"结果为{output}")
+            output = result.stdout
             return output
             
-        except FileNotFoundError:
-            logger.error("ripgrep 未安装，请先安装 ripgrep")
+        except FileNotFoundError as e:
+            logger.error(f"ripgrep 未找到: {e}")
             return ""
         except Exception as e:
             logger.error(f"搜索失败: {e}")

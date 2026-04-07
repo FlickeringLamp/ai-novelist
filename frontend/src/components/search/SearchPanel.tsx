@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faSearch } from '@fortawesome/free-solid-svg-icons';
 import httpClient from '../../utils/httpClient';
-import type { SearchPanelProps, FileSearchResult } from '@/types';
+import type { FileSearchResult, SearchPanelProps } from '@/types';
 
-const SearchPanel = ({ onClose, onFileSelect, embedded = false }: SearchPanelProps) => {
+const SearchPanel = ({ onFileSelect }: SearchPanelProps) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Record<string, FileSearchResult>>({});
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,6 @@ const SearchPanel = ({ onClose, onFileSelect, embedded = false }: SearchPanelPro
 
   const handleResultClick = (filePath: string) => {
     onFileSelect(filePath);
-    if (onClose) onClose();
   };
 
   const highlightText = (text: string, query: string) => {
@@ -56,27 +55,18 @@ const SearchPanel = ({ onClose, onFileSelect, embedded = false }: SearchPanelPro
   };
 
   return (
-    <div className={`${embedded ? 'w-full h-full' : 'fixed top-[3%] left-[51px] right-0 bottom-0'} bg-theme-black ${embedded ? '' : 'z-[1000]'} flex flex-col`}>
+    <div className="w-full h-full bg-theme-black overflow-hidden flex flex-col">
       {/* 搜索栏头部 */}
-      <div className="h-[60px] bg-theme-black border-b border-theme-gray3 flex items-center px-4 gap-3">
+      <div className="h-[60px] w-full bg-theme-black border-b border-theme-gray3 flex items-center gap-1 flex-shrink-0">
         <FontAwesomeIcon icon={faSearch} className="text-theme-green text-lg" />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="搜索文件内容..."
-          className="flex-1 bg-transparent border-none outline-none text-theme-white text-lg placeholder-theme-gray4"
+          className="w-[80%] flex-1 bg-transparent border-none outline-none text-theme-white text-lg placeholder-theme-gray4"
           autoFocus
         />
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-theme-gray3 rounded transition-colors"
-            title="关闭"
-          >
-            <FontAwesomeIcon icon={faTimes} className="text-theme-white" />
-          </button>
-        )}
       </div>
 
       {/* 搜索结果列表 */}
@@ -139,7 +129,7 @@ const SearchPanel = ({ onClose, onFileSelect, embedded = false }: SearchPanelPro
 
       {/* 底部统计信息 */}
       {!loading && results && Object.keys(results).length > 0 && (
-        <div className="h-[40px] bg-theme-black border-t border-theme-gray3 flex items-center px-4 text-theme-gray4 text-sm">
+        <div className="h-[40px] bg-theme-black border-t border-theme-gray3 flex items-center px-4 text-theme-gray4 text-sm flex-shrink-0">
           找到 {Object.keys(results).length} 个文件
         </div>
       )}

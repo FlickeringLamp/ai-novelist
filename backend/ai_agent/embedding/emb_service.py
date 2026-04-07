@@ -139,29 +139,26 @@ def delete_collection(collection_name):
     print(f"成功删除数据库集合: {collection_name}")
     return True
 
-def create_collection(collection_name):
+def create_collection(collection_name, provider: str, model: str, provider_url: str = '', api_key: str = ''):
     """
     创建新的数据库集合
     
     Args:
         collection_name: 集合名（知识库ID，如 db_xxx）
+        provider: 模型提供商ID
+        model: 嵌入模型名
+        provider_url: 提供商API地址
+        api_key: API密钥
     
     Returns:
         vector_store: 向量存储实例
     """
-    # 从配置获取知识库参数
-    kb_config = settings.get_config('knowledgeBase', collection_name)
-    provider = kb_config.get('provider', '')
-    model = kb_config.get('model', '')
-    
-    provider_config = settings.get_config('provider', provider)
-    
     # 准备嵌入模型
     embeddings = prepare_emb(
         provider=provider,
         model_id=model,
-        embedding_url=provider_config.get('url', ''),
-        embedding_api_key=settings.get_provider_key(provider)
+        embedding_url=provider_url,
+        embedding_api_key=api_key
     )
     
     # 使用 Chroma 创建新的集合

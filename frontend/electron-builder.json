@@ -2,8 +2,14 @@
   "appId": "com.ai-novelist.app",
   "productName": "青烛",
   "directories": {
-    "output": "../dist/exe"
+    "output": "../dist"
   },
+  "asar": true,
+  "asarUnpack": [
+    "main.py",
+    "backend/**/*",
+    "static/**/*"
+  ],
   "files": [
     "electron/**/*",
     "package.json",
@@ -11,12 +17,21 @@
       "from": "../dist/frontend",
       "to": ".",
       "filter": ["**/*"]
-    }
+    },
+    "../main.py",
+    "../backend/**/*",
+    "../static/**/*",
+    "../.env.example"
   ],
   "extraResources": [
     {
-      "from": "../dist/backend",
-      "to": "backend",
+      "from": "../dist/portable/python",
+      "to": "python",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "../dist/portable/bin",
+      "to": "bin",
       "filter": ["**/*"]
     }
   ],
@@ -24,6 +39,10 @@
     "target": [
       {
         "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
         "arch": ["x64"]
       }
     ],
@@ -42,5 +61,8 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "青烛"
+  },
+  "portable": {
+    "artifactName": "青烛-便携版-${version}.exe"
   }
 }

@@ -1,6 +1,6 @@
 fastapi==0.123.0
 uvicorn[standard]==0.38.0
-langchain==1.1.0
+langchain==1.2.15
 GitPython==3.1.46
 langchain-core==1.2.13
 langchain-community==0.4.1
@@ -8,7 +8,7 @@ langchain-openai==1.1.9
 langchain-text-splitters==1.0.0
 langchain-ollama==1.0.1
 langchain_google_genai==4.2.1
-langgraph==1.0.8
+langgraph==1.1.6
 langgraph-checkpoint-sqlite==3.0.0
 openai==2.21.0
 dashscope==1.25.2
@@ -31,3 +31,4 @@ langchain-mcp-adapters==0.2.1
 llama-cpp-python==0.3.16
 pyyaml==6.0.3
 watchdog==6.0.0
+pyinstaller==6.19.0

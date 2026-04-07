@@ -9,7 +9,18 @@ project_root = Path(SPECPATH)
 # 数据收集配置（自动收集所有依赖的数据文件）
 datas = []
 # 自动收集主要依赖的数据文件
-data_packages = ['chromadb', 'langchain', 'langchain_community', 'fastapi']
+data_packages = [
+    'chromadb',
+    'langchain',
+    'langchain_community',
+    'fastapi',
+    'mcp',
+    'langchain_mcp_adapters',
+    'litellm',
+    'langchain_google_genai',
+    'watchdog',
+    'llama_cpp',  # 需要打包 DLL 库文件
+]
 for package in data_packages:
     try:
         datas += collect_data_files(package)
@@ -21,6 +32,8 @@ datas += [
     (str(project_root / 'static'), 'static'),
     # 添加本地嵌入模型目录
     (str(project_root / 'models' / 'embedding'), 'models/embedding'),
+    # 添加可执行工具目录
+    (str(project_root / 'bin'), 'bin'),
 ]
 
 # 隐藏导入（自动收集所有子模块，确保百分百不缺依赖）
@@ -79,8 +92,12 @@ packages = [
     'idna',
     'urllib3',
     'sniffio',
-    # 本地嵌入模型支持
     'llama_cpp',
+    'mcp',
+    'langchain_mcp_adapters',
+    'litellm',
+    'watchdog',
+    'git',
 ]
 
 for package in packages:
@@ -103,8 +120,10 @@ hiddenimports += [
     'backend.ai_agent.tool.operation_tool',
     'backend.ai_agent.utils',
     'backend.api',
-    'backend.config',
     'backend.file',
+    'backend.git',
+    'backend.websocket',
+    'backend.settings',
 ]
 
 # 排除的模块（可选，减小文件体积）
@@ -168,3 +187,15 @@ coll = COLLECT(
     upx_exclude=[],
     name='backend',  # 输出目录名称（dist/backend 目录，方便 Electron 打包）
 )
+
+# 打包后复制数据目录到输出目录
+import shutil
+src_data = project_root / 'backend' / 'data'
+dst_data = project_root / 'dist' / 'backend' / 'data'
+if src_data.exists():
+    if dst_data.exists():
+        shutil.rmtree(dst_data)
+    shutil.copytree(src_data, dst_data)
+    print(f"已复制数据目录: {src_data} -> {dst_data}")
+else:
+    print(f"警告: 源数据目录不存在: {src_data}")

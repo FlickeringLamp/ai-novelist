@@ -1,7 +1,7 @@
 import { useSelector, useDispatch } from 'react-redux';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { setActiveTab, setActiveTabBar, decreaseTab, dirtyTabs, reorderTabs, getTabBarsWithContent } from '../../store/editor';
 import type { RootState } from '../../types';
-import { useRef, useEffect, useState, useCallback } from 'react';
 import TabBarEditorArea from './editor/EditorArea.tsx';
 import CloseTabConfirmModal from './tab/CloseTabConfirmModal.tsx';
 import ErrorModal from '../others/ErrorModal.tsx';
@@ -9,13 +9,48 @@ import EditorContextMenu from './tab/TabContextMenu.tsx';
 import TabBar from './tab/TabBar.tsx';
 import EditorLogo from '../others/Logo.tsx';
 
+// 检查指定文件是否只在指定标签栏有脏状态（其他标签栏都没有该文件的脏状态）
+const isDirtyOnlyInThisTabBar = (
+  tabId: string,
+  tabBarId: string,
+  tabBars: RootState['tabSlice']['tabBars'],
+  backUp: RootState['tabSlice']['backUp'],
+  currentData: RootState['tabSlice']['currentData']
+): boolean => {
+  // 首先检查当前标签栏是否有脏状态
+  const currentTabBar = tabBars[tabBarId];
+  if (!currentTabBar?.tabs.includes(tabId)) {
+    return false;
+  }
+  const backUpContent = backUp[tabId];
+  const currentContent = currentData[tabId];
+  if (backUpContent === undefined || currentContent === backUpContent) {
+    return false; // 当前标签栏没有脏状态
+  }
+
+  // 检查其他标签栏是否也有该文件的脏状态
+  for (const [otherTabBarId, otherTabBar] of Object.entries(tabBars)) {
+    if (otherTabBarId === tabBarId) continue;
+    if (otherTabBar.tabs.includes(tabId)) {
+      const otherBackUp = backUp[tabId];
+      const otherCurrent = currentData[tabId];
+      if (otherBackUp !== undefined && otherCurrent !== otherBackUp) {
+        // 其他标签栏也有该文件的脏状态
+        return false;
+      }
+    }
+  }
+
+  return true; // 只有当前标签栏有脏状态
+};
+
 //（最外层容器）
 const EditorPanel = () => {
   const allState = useSelector((state:RootState)=> state.tabSlice);
   const tabBars = useSelector(getTabBarsWithContent);
   const hasTabBars = Object.keys(tabBars).length > 0 // tabBars为{}依然是true，只能判断键的数量
   const activeTabBarId = useSelector((state: RootState) => state.tabSlice.activeTabBarId);
-  const dirtyTabIds = useSelector(dirtyTabs);
+  const dirtyTabIds = useSelector(dirtyTabs); // 全局脏状态，用于显示指示器
   const dispatch = useDispatch();
   const scrollContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [modalTab, setModalTab] = useState<string | null>(null); // 用于标记关闭脏状态标签（只有脏状态标签关闭时需要弹窗）
@@ -105,7 +140,8 @@ const EditorPanel = () => {
               }}
               onTabClose={(tabId) => {
                 dispatch(setActiveTabBar({ tabBarId }));
-                if (dirtyTabIds.has(tabId)) {
+                // 只有该文件仅在当前标签栏有脏状态时才弹窗
+                if (isDirtyOnlyInThisTabBar(tabId, tabBarId, allState.tabBars, allState.backUp, allState.currentData)) {
                   setModalTab(tabId);
                   setModalTabBarId(tabBarId);
                 } else {

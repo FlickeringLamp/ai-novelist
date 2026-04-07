@@ -2,11 +2,7 @@ import os
 import time
 import logging
 from pathlib import Path
-from typing import Dict, Any
-import git
-from git import Repo, GitCommandError
-
-import yaml
+from git import Repo
 
 from backend.settings.settings import settings
 
