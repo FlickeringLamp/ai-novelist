@@ -1,7 +1,6 @@
 import { spawn, exec, execSync } from 'child_process';
 import http from 'http';
 import path from 'path';
-import fs from 'fs';
 import { ipcMain } from 'electron';
 import { getBackendPath, APP_CONFIG } from '../utils/constants.js';
 
@@ -23,28 +22,15 @@ class BackendManager {
   // 启动后端服务
   start() {
     const backend = getBackendPath();
-    
-    if (backend.type === 'python') {
-      const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-      this.process = spawn(pythonCmd, [backend.path], {
-        cwd: path.dirname(backend.path),
-        detached: false,
-        stdio: 'inherit',
-      });
-    } else {
-      if (!fs.existsSync(backend.path)) {
-        console.error('后端可执行文件不存在:', backend.path);
-        return;
-      }
-      
-      this.process = spawn(backend.path, [], {
-        cwd: path.dirname(backend.path),
-        detached: false,
-        stdio: 'inherit',
-      });
-    }
 
-    if (this.process.pid) {
+    // 使用返回的 pythonPath 启动（开发环境是 'python'/'python3'，绿色包是具体路径）
+    this.process = spawn(backend.pythonPath, [backend.path], {
+      cwd: path.dirname(backend.path),
+      detached: false,
+      stdio: 'inherit',
+    });
+
+    if (this.process?.pid) {
       this.pid = this.process.pid;
     }
 
@@ -59,7 +45,7 @@ class BackendManager {
   // 停止后端服务
   stop(callback) {
     const { port } = APP_CONFIG.backend;
-    
+
     const getPidByPort = (port) => {
       try {
         let output;
@@ -144,7 +130,7 @@ class BackendManager {
   // 健康检查
   checkHealth() {
     const { port, healthCheckPath, healthCheckTimeout } = APP_CONFIG.backend;
-    
+
     return new Promise((resolve) => {
       const options = {
         hostname: 'localhost',

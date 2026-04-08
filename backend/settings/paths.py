@@ -9,16 +9,21 @@ from pathlib import Path
 def get_model_dir():
     """获取模型目录路径"""
     if getattr(sys, 'frozen', False):
-        base_dir = os.path.dirname(sys.executable)
+        # 文件夹模式：models 在 _internal 目录下
+        exe_dir = Path(sys.executable).parent
+        return exe_dir / '_internal' / 'models' / 'embedding'
     else:
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    return os.path.join(base_dir, 'models', 'embedding')
+        # 开发环境
+        return Path(__file__).parent.parent.parent / 'models' / 'embedding'
 
 
 def get_data_dir():
     """获取数据目录路径"""
     if getattr(sys, 'frozen', False):
-        return Path('data')
+        # PyInstaller 打包后，数据放在 exe 同级目录的 data/ 文件夹
+        # 使用 sys.executable 获取 exe 所在目录
+        exe_dir = Path(sys.executable).parent
+        return exe_dir / 'data'
     else:
         return Path('backend/data')
 
@@ -26,9 +31,12 @@ def get_data_dir():
 def get_bin_dir():
     """获取可执行文件目录路径"""
     if getattr(sys, 'frozen', False):
-        return Path('bin')
+        # 文件夹模式：bin 在 _internal 目录下
+        exe_dir = Path(sys.executable).parent
+        return exe_dir / '_internal' / 'bin'
     else:
-        return Path('bin')
+        # 开发环境，bin 在项目根目录
+        return Path(__file__).parent.parent.parent / 'bin'
 
 
 def get_env_file_path() -> Path:

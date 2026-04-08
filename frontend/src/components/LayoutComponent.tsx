@@ -111,14 +111,11 @@ function LayoutComponent({ chapterPanel, editorPanel, chatPanel }: LayoutCompone
             onResize={handleLeftPanelChange}
             onCollapse={() => setIsLeftPanelCollapsed(true)}
             onExpand={() => setIsLeftPanelCollapsed(false)}
-            className="bg-theme-black p-0"
+            className="bg-theme-black p-0 flex flex-col w-full h-full overflow-hidden"
           >
             {leftPanelContent === 'chapter' && chapterPanel}
             {leftPanelContent === 'search' && (
-              <SearchPanel
-                onFileSelect={handleFileSelect}
-                embedded={true}
-              />
+              <SearchPanel onFileSelect={handleFileSelect} />
             )}
             {leftPanelContent === 'checkpoint' && (
               <CheckpointPanel />

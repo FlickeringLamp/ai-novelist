@@ -354,9 +354,7 @@ export interface FilePathAutocompleteProps {
 // ==================== Search / 搜索组件 ====================
 
 export interface SearchPanelProps {
-  onClose?: () => void;
   onFileSelect: (filePath: string) => void;
-  embedded?: boolean;
 }
 
 // ==================== Checkpoint / 存档组件 ====================

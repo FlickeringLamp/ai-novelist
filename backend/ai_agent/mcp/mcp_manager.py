@@ -168,13 +168,14 @@ async def get_mcp_server_tools(server_id: str) -> dict:
 async def save_mcp_server(server_id: str, server_config: dict) -> dict:
     # 获取现有配置
     config = settings.get_config("mcpServers", default={})
-    
+    print("config:",config)
+    print("server_config",server_config)
     # 创建新配置副本，剔除动态字段
     new_config = {k: v for k, v in server_config.items() if k not in ("envValues", "tools")}
-    
+    print("new_config:",new_config)
     # 处理 envValues - 保存到环境变量（如果有的话）
-    if "envValues" in new_config:
-        env_values = new_config.pop("envValues")
+    if "envValues" in server_config:
+        env_values = server_config["envValues"]
         for key, value in env_values.items():
             settings.env_manager.set_api_key(key, value)
     

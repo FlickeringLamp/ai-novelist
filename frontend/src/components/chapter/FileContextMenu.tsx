@@ -66,6 +66,14 @@ function ChapterContextMenu({
       await httpClient.delete(`/api/file/delete/${selectedItem.id}`);
       // 从所有标签栏中删除该标签
       dispatch(deleteTabFromAllBars({ tabId: selectedItem.id! }));
+      // 重置选中状态，使后续新建操作默认在根目录
+      setSelectedItem({
+        state: null,
+        id: null,
+        isFolder: false,
+        itemTitle: null,
+        itemParentPath: null
+      });
     } catch (error) {
       console.error('删除失败:', error);
       setModal({ show: true, message: String(error), onConfirm: null, onCancel: null });
@@ -106,7 +114,6 @@ function ChapterContextMenu({
 
       if (isFolder) {
         items.push(
-          { divider: true },
           { label: '新建文件', onClick: () => handleCreateItem(false, selectedItem.id || '') },
           { label: '新建文件夹', onClick: () => handleCreateItem(true, selectedItem.id || '') }
         );

@@ -25,19 +25,17 @@ const UploadProgress = forwardRef<UploadProgressRef>((_, ref) => {
     
     const { kb_id, current, total, percentage, message: msg } = message.payload;
     
-    // 只处理当前选中知识库的进度
-    if (kb_id === selectedKnowledgeBaseId) {
-      dispatch(setUploadProgress({
-        knowledgeBaseId: kb_id,
-        progress: {
-          current,
-          total,
-          percentage,
-          message: msg
-        }
-      }));
-    }
-  }, [dispatch, selectedKnowledgeBaseId]);
+    // 更新对应知识库的进度
+    dispatch(setUploadProgress({
+      knowledgeBaseId: kb_id,
+      progress: {
+        current,
+        total,
+        percentage,
+        message: msg
+      }
+    }));
+  }, [dispatch]);
 
   // 上传文件到知识库
   const uploadFileToKnowledgeBase = async (file: File) => {
@@ -99,17 +97,15 @@ const UploadProgress = forwardRef<UploadProgressRef>((_, ref) => {
     }
   }));
 
-// 订阅 WebSocket 消息
-useEffect(() => {
-  if (!currentUploading) return;
-
-  // 订阅嵌入进度消息
-  const unsubscribe = wsClient.onMessage(handleEmbeddingProgress);
-  
-  return () => {
-    unsubscribe();
-  };
-}, [currentUploading, handleEmbeddingProgress]);
+  // 订阅 WebSocket 消息
+  useEffect(() => {
+    // 始终订阅嵌入进度消息，不限于当前上传状态
+    const unsubscribe = wsClient.onMessage(handleEmbeddingProgress);
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [handleEmbeddingProgress]);
 
   // 监听上传完成
   useEffect(() => {

@@ -125,20 +125,24 @@
 ![Electron](https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
+Total : 215 files,  18327 codes, 3673 comments, 3443 blanks, all 25443 lines
+
 ## Languages
 | language | files | code | comment | blank | total |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| TypeScript JSX | 76 | 8,297 | 618 | 1,019 | 9,934 |
-| Python | 63 | 4,398 | 2,189 | 1,342 | 7,929 |
-| TypeScript | 38 | 3,062 | 632 | 587 | 4,281 |
-| Markdown | 8 | 576 | 0 | 87 | 663 |
-| YAML | 3 | 480 | 60 | 37 | 577 |
-| JavaScript | 10 | 464 | 87 | 81 | 632 |
+| TypeScript JSX | 76 | 8,329 | 627 | 1,022 | 9,978 |
+| Python | 63 | 4,458 | 2,210 | 1,349 | 8,017 |
+| TypeScript | 38 | 3,060 | 632 | 587 | 4,279 |
+| Markdown | 11 | 946 | 0 | 276 | 1,222 |
+| JavaScript | 10 | 489 | 91 | 91 | 671 |
+| YAML | 3 | 470 | 59 | 37 | 566 |
 | PostCSS | 4 | 185 | 19 | 30 | 234 |
-| JSON | 3 | 145 | 0 | 2 | 147 |
+| JSON | 3 | 167 | 0 | 2 | 169 |
+| PowerShell | 1 | 64 | 11 | 15 | 90 |
 | Skill | 2 | 62 | 0 | 21 | 83 |
-| pip requirements | 1 | 33 | 0 | 0 | 33 |
+| pip requirements | 1 | 34 | 0 | 0 | 34 |
 | JSON with Comments | 1 | 29 | 19 | 7 | 55 |
+| Ignore | 1 | 20 | 5 | 5 | 30 |
 | HTML | 1 | 14 | 0 | 1 | 15 |
 
 ## 快速开始
@@ -196,11 +200,10 @@
     - 允许用户手动清理加载的文件，避免AI忘记清理，以及当文件到达指定的数量时自动触发清理逻辑。
 
 ### 中期目标（v0.3.0）
-- subagent
+- subagent,多agent系统
 - 长期记忆功能
 - 搜索工具的返回结果，可能需要添加id（段落-两位哈希）
 - 删除文件后，需要更新ai的加载文件列表
-- subagent，多agent系统
 - git存档功能支持分支
 - 部分功能自动化测试
 - 多模态，上传图片
@@ -212,9 +215,7 @@
 - 工具加强
     - bug————当ai先前使用过工具（假如write_file），后续关闭使用该工具的权限与使用说明。一旦ai试图调用这个关闭的工具，就会报错。但是可控，渲染崩溃后，打开消息，删掉最后一个调用就好。
 - 中断时通知提供商停止生成？这个需要参考别人的项目看看怎么实现的
-- 没有API key，AI可以用后端端口强行创建知识库，甚至删不掉？
 - 允许用户打开文件夹作为工作目录
-- apply_diff，暂时不需要模仿roo code等AI IDE的逻辑了，当前的逻辑应该够用。
 - 新增memory_edit工具，允许ai直接编辑自己的上下文（？暂时还没有思路）
 
 

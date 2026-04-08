@@ -168,6 +168,7 @@ class CheckpointService:
             diff = parent_commit.diff(commit) # 看起来父.diff(子)，才能计算出后者相较于前者的变更。
 
             changes = []
+            seen_paths = set()
             for item in diff:
                 # 根据变更类型选择正确的路径
                 if item.change_type == 'A':  # 新增的文件
@@ -176,6 +177,15 @@ class CheckpointService:
                     file_path = item.a_path
                 else:  # 修改的文件或其他
                     file_path = item.b_path if item.b_path else item.a_path
+
+                # 标准化路径：移除 './' 前缀
+                if file_path.startswith('./'):
+                    file_path = file_path[2:]
+                
+                # 去重：如果路径已经处理过，跳过
+                if file_path in seen_paths:
+                    continue
+                seen_paths.add(file_path)
 
                 change_info = {
                     "path": file_path,
@@ -231,9 +241,25 @@ class CheckpointService:
             # 获取工作区与暂存区之间的差异
             diff_items = repo.index.diff(None)
             changes = []
+            seen_paths = set()
             for item in diff_items:
+                # 根据变更类型选择正确的路径
+                if item.change_type == 'D':  # 删除的文件使用旧路径
+                    file_path = item.a_path
+                else:  # 修改或新增的文件使用新路径
+                    file_path = item.b_path if item.b_path else item.a_path
+                
+                # 标准化路径：移除 './' 前缀
+                if file_path.startswith('./'):
+                    file_path = file_path[2:]
+                
+                # 去重：如果路径已经处理过，跳过
+                if file_path in seen_paths:
+                    continue
+                seen_paths.add(file_path)
+                
                 change_info = {
-                    "path": item.a_path,
+                    "path": file_path,
                     "change_type": item.change_type,  # 'M'=修改, 'A'=新增, 'D'=删除
                 }
                 changes.append(change_info)

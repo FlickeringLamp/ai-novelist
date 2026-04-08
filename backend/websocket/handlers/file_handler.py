@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from backend.websocket.manager import ws_manager
 from backend.file.file_watcher import file_watcher_service
-from backend.file.file_service import get_file_tree_for_user, read_file, resolve_file_path
+from backend.file.file_service import get_file_tree_for_user, read_file
 from backend.settings.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,15 @@ async def _push_file_content(file_path: str) -> None:
     try:
         # watchdog 传来的路径如: backend/data/演示文件.md
         # 去掉 DATA_DIR 前缀得到相对于 DATA_DIR 的路径（也是前端的标签ID）
-        relative_path = file_path.replace(f"{settings.DATA_DIR}/", "")
+        # 使用 Path 处理跨平台路径分隔符（Windows 用 \, Linux/Mac 用 /）
+        file_path_obj = Path(file_path)
+        data_dir_obj = Path(settings.DATA_DIR)
+        
+        try:
+            relative_path = str(file_path_obj.relative_to(data_dir_obj))
+        except ValueError:
+            # 如果不在 DATA_DIR 下，直接使用原路径
+            relative_path = file_path
         
         # 用相对路径读取文件内容（read_file 会基于 DATA_DIR 解析）
         content = await read_file(relative_path)

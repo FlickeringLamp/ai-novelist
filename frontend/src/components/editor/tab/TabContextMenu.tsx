@@ -48,7 +48,6 @@ function EditorContextMenu({
       { label: '关闭其他标签', onClick: handleCloseOtherTabs },
       { label: '关闭所有已保存标签', onClick: handleCloseSavedTabs },
       { label: '关闭所有标签', onClick: handleCloseAllTabs },
-      { divider: true },
       { label: '向右拆分', onClick: handleSplitRight }
     ];
   };

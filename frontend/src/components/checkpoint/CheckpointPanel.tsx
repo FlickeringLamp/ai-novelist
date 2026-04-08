@@ -16,6 +16,7 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
   const [expandedCheckpoint, setExpandedCheckpoint] = useState<string | null>(null);
   const [checkpointChanges, setCheckpointChanges] = useState<ApiFileChange[]>([]);
   const [checkpointChangesMap, setCheckpointChangesMap] = useState<Record<string, any>>({});
+  const [loadingChanges, setLoadingChanges] = useState(false);
 
   const [restoreModal, setRestoreModal] = useState<{ show: boolean; checkpoint: ApiCheckpoint | null }>({ show: false, checkpoint: null });
   const [restoring, setRestoring] = useState(false);
@@ -76,6 +77,10 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
       setCheckpointChangesMap({});
     } else {
       setExpandedCheckpoint(checkpoint.commit_hash);
+      // 清空旧文件列表，等待新状态加载
+      setCheckpointChanges([]);
+      setCheckpointChangesMap({});
+      setLoadingChanges(true);
       try {
         const response = await httpClient.get(`/api/checkpoints/diff/${checkpoint.commit_hash}`);
         if (response.success) {
@@ -98,6 +103,8 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
         }
       } catch (error) {
         console.error('获取存档点差异失败:', error);
+      } finally {
+        setLoadingChanges(false);
       }
     }
   };
@@ -280,25 +287,31 @@ const CheckpointPanel = ({ onDiffDisplay }: CheckpointPanelProps) => {
                   </div>
 
                   {/* 展开的文件更改列表 */}
-                  {expandedCheckpoint === checkpoint.commit_hash && checkpointChanges.length > 0 && (
+                  {expandedCheckpoint === checkpoint.commit_hash && (
                     <div className="mt-2 ml-4 border-l-2 border-theme-gray3 pl-2">
-                      {checkpointChanges.map((change, index) => {
-                        const isInitialCommit = change.change_type === 'INIT';
-                        return (
-                          <div
-                            key={`change-${index}`}
-                            className={`flex items-center gap-2 px-2 py-1 hover:bg-theme-gray2 rounded transition-colors ${!isInitialCommit ? 'cursor-pointer' : ''}`}
-                            onClick={() => !isInitialCommit && handleShowFileDiff(change.path, expandedCheckpoint || undefined)}
-                          >
-                            {getChangeTypeIcon(change)}
-                            {isInitialCommit ? (
-                              <span className="text-xs text-theme-gray4 italic">{change.path}</span>
-                            ) : (
-                              <span className="text-xs text-theme-white truncate">{change.path}</span>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {loadingChanges ? (
+                        <div className="flex items-center gap-2 px-2 py-1 text-theme-gray4">
+                          <span className="text-xs">加载中...</span>
+                        </div>
+                      ) : checkpointChanges.length > 0 ? (
+                        checkpointChanges.map((change, index) => {
+                          const isInitialCommit = change.change_type === 'INIT';
+                          return (
+                            <div
+                              key={`change-${index}`}
+                              className={`flex items-center gap-2 px-2 py-1 hover:bg-theme-gray2 rounded transition-colors ${!isInitialCommit ? 'cursor-pointer' : ''}`}
+                              onClick={() => !isInitialCommit && handleShowFileDiff(change.path, expandedCheckpoint || undefined)}
+                            >
+                              {getChangeTypeIcon(change)}
+                              {isInitialCommit ? (
+                                <span className="text-xs text-theme-gray4 italic">{change.path}</span>
+                              ) : (
+                                <span className="text-xs text-theme-white truncate">{change.path}</span>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : null}
                     </div>
                   )}
                 </div>

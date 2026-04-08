@@ -678,10 +678,10 @@ const MessageDisplayPanel = () => {
               >
                 <FontAwesomeIcon icon={copiedMessageId === msg.id ? faCheck : faCopy} />
               </button>
-              {!isUser && !isInterrupted && (
+              {isUser && !isInterrupted && (
                 <button
                   className="text-xs flex items-center gap-1 text-theme-gray3 hover:text-theme-green transition-colors"
-                  onClick={() => regenerateMessage(msg.id, 'ai')}
+                  onClick={() => regenerateMessage(msg.id, 'human')}
                   title="重新生成"
                 >
                   <FontAwesomeIcon icon={faRotateRight} />

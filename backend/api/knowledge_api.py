@@ -93,7 +93,20 @@ async def add_knowledge_base(request: AddKnowledgeBaseRequest):
     # 使用前端提供的ID
     kb_id = request.id
     
-    # 创建知识库配置
+    # 获取提供商配置（用于创建集合）
+    provider_config = settings.get_config('provider', request.provider)
+    api_key = settings.get_provider_key(request.provider)
+    
+    # 先创建ChromaDB集合，失败则直接报错不写入配置
+    create_collection(
+        collection_name=kb_id,
+        provider=request.provider,
+        model=request.model,
+        provider_url=provider_config.get('url', ''),
+        api_key=api_key
+    )
+    
+    # 创建成功后，写入配置
     kb_config = {
         "name": request.name,
         "provider": request.provider,
@@ -105,17 +118,10 @@ async def add_knowledge_base(request: AddKnowledgeBaseRequest):
         "returnDocs": request.returnDocs
     }
     
-    # 获取当前知识库配置
+    # 获取当前知识库配置并添加新的
     knowledge_base = settings.get_config("knowledgeBase", default={})
-    
-    # 添加新知识库
     knowledge_base[kb_id] = kb_config
-    
-    # 更新配置
     settings.update_config(knowledge_base, "knowledgeBase")
-    
-    # 创建ChromaDB集合
-    create_collection(kb_id)
     
     logger.info(f"添加知识库: {kb_id} - {request.name}")
     
@@ -164,12 +170,17 @@ async def delete_knowledge_base(kb_id: str):
     """
     # 获取当前知识库配置
     knowledge_base = settings.get_config("knowledgeBase", default={})
-    # 删除向量集合
-    delete_collection(kb_id)
-    # 删除知识库配置
+    
+    # 先删除知识库配置（即使集合删除失败，配置也能清理干净）
     del knowledge_base[kb_id]
-    # 保存配置
     settings.update_config(knowledge_base, "knowledgeBase")
+    
+    # 再删除向量集合（忽略不存在的错误）
+    try:
+        delete_collection(kb_id)
+    except Exception:
+        pass  # 集合可能不存在，忽略错误
+    
     logger.info(f"删除知识库: {kb_id}")
     return knowledge_base
 

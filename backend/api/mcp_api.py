@@ -27,6 +27,7 @@ class MCPServerConfig(BaseModel):
     command: Optional[str] = Field(None, description="命令（stdio类型）")
     args: Optional[List[str]] = Field(default_factory=list, description="命令参数（stdio类型）")
     env: Optional[List[str]] = Field(default_factory=list, description="环境变量名列表")
+    envValues: Optional[Dict[str, str]] = Field(default_factory=dict, description="环境变量值字典")
     headers: Optional[Dict[str, str]] = Field(default_factory=dict, description="请求头（用于HTTP/SSE传输）")
 
 class SaveMCPServerRequest(BaseModel):
@@ -55,6 +56,7 @@ async def get_server_tools(server_id: str):
 async def save_server(request: SaveMCPServerRequest):
     try:
         config_dict = request.config.model_dump()
+        print("config_dict:",config_dict)
         return await save_mcp_server(request.server_id, config_dict)
     except Exception as e:
         logger.error(f"保存MCP服务器失败: {e}")
