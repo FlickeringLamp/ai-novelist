@@ -1,9 +1,9 @@
 **English** | [中文](README.md)
 
-# QingZhu (Green Candle) v0.2.0
+# QingZhu v0.2.0
 
 ## Project Introduction
-- **QingZhu** (official name) is a text creation tool, primarily exploring the application of AI in the field of text creation.
+- **QingZhu** (official name) is a text creation tool, primarily exploring the application of AI in text creation.
 - **Supported Platforms**: Ubuntu 24.04, Windows 11
 - Respects different users' habits by not providing pre-made "one-click features"
 - Aims to integrate AI into the writing process, improving efficiency and extending the author's thinking, rather than replacing the author
@@ -176,10 +176,12 @@ python -m venv backend_env
 source backend_env/bin/activate
 
 cd backend
-pip install -r requirements.txt
+pip install -r requirements.lock
 cd ..
 python main.py
 ```
+
+> **Note**: Using `requirements.lock` ensures all dependencies are fully version-locked to avoid compatibility issues. For development environments that need the latest versions, use `requirements.txt` instead.
 
 ### 4. Access via Browser
 Open your browser and visit: http://localhost:3000
