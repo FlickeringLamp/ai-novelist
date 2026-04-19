@@ -340,9 +340,11 @@ def _normalize_search_path(file_path: str) -> str:
     # 统一路径分隔符为 /
     file_path = file_path.replace('\\', '/')
     
-    # 去除 backend/data/ 前缀（ripgrep 返回的是相对于项目根目录的路径）
-    if file_path.startswith('backend/data/'):
-        file_path = file_path[len('backend/data/'):]
+    # 去除 data/ 前缀（ripgrep 返回的是相对于项目根目录的路径）
+    for prefix in ('data/'):
+        if file_path.startswith(prefix):
+            file_path = file_path[len(prefix):]
+            break
     
     return file_path
 

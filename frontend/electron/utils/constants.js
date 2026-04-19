@@ -50,12 +50,14 @@ export const isDev = !app.isPackaged && !isGreenPackage();
 // 获取后端路径
 export function getBackendPath() {
   if (isDev) {
-    // 开发环境：使用系统 Python，找项目根目录的 main.py
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    // 开发环境：优先使用项目 venv，回退到系统 Python
+    const projectRoot = path.join(__dirname, '../../..');
+    const venvPython = path.join(projectRoot, 'venv', 'Scripts', 'python.exe');
+    const hasVenv = fs.existsSync(venvPython);
     return {
       type: 'python',
-      pythonPath: pythonCmd,
-      path: path.join(__dirname, '../../..', 'main.py'),
+      pythonPath: hasVenv ? venvPython : 'python',
+      path: path.join(projectRoot, 'main.py'),
     };
   }
 
@@ -106,8 +108,5 @@ export function getPortablePythonPath() {
 
 // 获取默认 shell
 export function getDefaultShell() {
-  if (process.platform === 'win32') {
-    return 'powershell.exe';
-  }
-  return process.env.SHELL || '/bin/bash';
+  return 'powershell.exe';
 }

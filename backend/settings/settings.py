@@ -7,7 +7,7 @@ from typing import Dict, Any, TypedDict, Optional
 
 import yaml
 
-from backend.settings.paths import get_model_dir, get_data_dir, get_bin_dir, get_env_file_path
+from backend.settings.paths import get_data_dir, get_bin_dir, get_env_file_path
 from backend.settings.env import EnvManager
 from backend.settings.tools import ALL_AVAILABLE_TOOLS
 
@@ -23,7 +23,6 @@ class Settings:
     def __init__(self):
         # 先初始化路径
         self.DATA_DIR: str = str(get_data_dir())
-        self.MODEL_DIR: str = get_model_dir()
         self.ENV_FILE_PATH: Path = get_env_file_path()
         
         # 配置文件目录

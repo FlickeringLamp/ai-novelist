@@ -1,0 +1,9 @@
+app:
+  name: "青烛"
+  main_executable: "electron.exe"
+
+git:
+  remote_url: "https://gitee.com/flickeringlamp/qingzhu.git"
+  project_dir: "qingzhu"
+
+mirror: "tsinghua"

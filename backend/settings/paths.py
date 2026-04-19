@@ -6,17 +6,6 @@ import sys
 from pathlib import Path
 
 
-def get_model_dir():
-    """获取模型目录路径"""
-    if getattr(sys, 'frozen', False):
-        # 文件夹模式：models 在 _internal 目录下
-        exe_dir = Path(sys.executable).parent
-        return exe_dir / '_internal' / 'models' / 'embedding'
-    else:
-        # 开发环境
-        return Path(__file__).parent.parent.parent / 'models' / 'embedding'
-
-
 def get_data_dir():
     """获取数据目录路径"""
     if getattr(sys, 'frozen', False):
@@ -25,7 +14,8 @@ def get_data_dir():
         exe_dir = Path(sys.executable).parent
         return exe_dir / 'data'
     else:
-        return Path('backend/data')
+        # 开发环境，data 放在项目根目录
+        return Path(__file__).parent.parent.parent / 'data'
 
 
 def get_bin_dir():

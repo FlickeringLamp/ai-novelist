@@ -170,27 +170,15 @@ if __name__ == "__main__":
     try:
         # 启动服务器
         logger.info("后端运行中......")
-        
-        if getattr(sys, 'frozen', False):
-            # 打包环境：直接传递 app 对象，禁用 reload
-            uvicorn.run(
-                app,
-                host=settings.HOST,
-                port=settings.PORT,
-                reload=False,
-                log_level="warning",
-                access_log=False
-            )
-        else:
-            # 开发环境：使用模块路径，启用 reload
-            uvicorn.run(
-                "main:app",
-                host=settings.HOST,
-                port=settings.PORT,
-                reload=True,
-                log_level="warning",
-                access_log=False
-            )
+
+        uvicorn.run(
+            app,
+            host=settings.HOST,
+            port=settings.PORT,
+            reload=False,
+            log_level="warning",
+            access_log=False
+        )
     except Exception as e:
         logger.error(f"服务器启动失败: {e}")
         sys.exit(1)

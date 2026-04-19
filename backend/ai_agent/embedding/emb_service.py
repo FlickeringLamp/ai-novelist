@@ -13,8 +13,6 @@ from uuid import uuid4
 import asyncio
 from functools import partial
 
-# 导入本地嵌入模型支持
-from backend.ai_agent.embedding.llama_cpp_embeddings import LlamaCppEmbeddings
 from backend.websocket.manager import ws_manager
 
 DB_PATH = settings.CHROMADB_PERSIST_DIR
@@ -54,14 +52,7 @@ def prepare_doc(orgfile_path, chunk_size, chunk_overlap):
     return documents
 
 def prepare_emb(provider, model_id,embedding_url,embedding_api_key=None):
-    # 本地内置模型支持
-    if provider == "local":
-        print(f"准备本地嵌入模型: {model_id}")
-        embeddings = LlamaCppEmbeddings(model_name=model_id)
-        print("本地嵌入模型准备就绪")
-        return embeddings
-
-    elif provider == "dashscope":
+    if provider == "dashscope":
         embeddings = DashScopeEmbeddings(
             model=model_id,
             dashscope_api_key=embedding_api_key

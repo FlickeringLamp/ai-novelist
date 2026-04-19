@@ -9,6 +9,23 @@ from backend.settings.settings import settings
 logger = logging.getLogger(__name__)
 
 
+def _ensure_data_subdirs(data_dir: Path):
+    """检查并创建 data 下所有一级文件夹"""
+    expected_dirs = [
+        "config",
+        "chromadb",
+        "db",
+        "uploads",
+        "temp",
+        "skills",
+    ]
+    for name in expected_dirs:
+        subdir = data_dir / name
+        if not subdir.exists():
+            os.makedirs(subdir, exist_ok=True)
+            logger.info(f"创建数据目录: {subdir}")
+
+
 def _initialize_git(base_dir: Path):
     """初始化Git仓库和相关配置文件"""
     try:
@@ -60,11 +77,11 @@ def _initialize_git(base_dir: Path):
 def initialize_directories_and_files():
     """
     初始化data目录下的所有目录和文件
-    确保必要的目录存在（配置文件已随项目分发，不再自动创建）
+    1. 确保 data 下所有一级目录存在
+    2. 确保 .env 文件存在
+    3. 初始化 Git 仓库
     """
-    # 从 settings 获取路径属性
-    base_dir = Path(settings.DATA_DIR)
-    config_dir = Path(settings.CONFIG_DIR)
+    data_dir = Path(settings.DATA_DIR)
     chromadb_dir = Path(settings.CHROMADB_PERSIST_DIR)
     db_dir = Path(settings.DB_DIR)
     uploads_dir = Path(settings.UPLOADS_DIR)
@@ -72,15 +89,18 @@ def initialize_directories_and_files():
     skills_dir = Path(settings.SKILLS_DIR)
     env_file = settings.ENV_FILE_PATH
     
-    # 确保所有目录存在
-    directories = [base_dir, config_dir, chromadb_dir, db_dir, uploads_dir, temp_dir, skills_dir, env_file.parent]
+    # 1. 确保 data 下所有一级目录存在
+    _ensure_data_subdirs(data_dir)
+    
+    # 2. 确保其他必要的目录存在（env 文件的父目录等）
+    directories = [chromadb_dir, db_dir, uploads_dir, temp_dir, skills_dir, env_file.parent]
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
     
-    # 确保 .env 文件存在，不存在则创建空文件
+    # 3. 确保 .env 文件存在，不存在则创建空文件
     if not env_file.exists():
         env_file.write_text("", encoding='utf-8')
         logger.info(f"创建 .env 文件: {env_file}")
     
-    # 初始化Git仓库和相关配置文件
-    _initialize_git(base_dir)
+    # 4. 初始化Git仓库和相关配置文件
+    _initialize_git(data_dir)

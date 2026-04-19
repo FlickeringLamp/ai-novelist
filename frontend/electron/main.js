@@ -26,13 +26,13 @@ app.whenReady().then(async () => {
 });
 
 // 应用退出时清理
-app.on('window-all-closed', () => {
-  backendManager.stop();
+app.on('window-all-closed', async () => {
+  await backendManager.stop();
   terminalManager.killAllTerminals();
   app.quit();
 });
 
-app.on('before-quit', () => {
-  backendManager.stop();
+app.on('before-quit', async () => {
+  await backendManager.stop();
   terminalManager.killAllTerminals();
 });

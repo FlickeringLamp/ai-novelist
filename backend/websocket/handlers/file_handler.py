@@ -31,7 +31,7 @@ async def _push_file_content(file_path: str) -> None:
     if not ws_manager.is_connected():
         return
     try:
-        # watchdog 传来的路径如: backend/data/演示文件.md
+        # watchdog 传来的路径如: data/演示文件.md
         # 去掉 DATA_DIR 前缀得到相对于 DATA_DIR 的路径（也是前端的标签ID）
         # 使用 Path 处理跨平台路径分隔符（Windows 用 \, Linux/Mac 用 /）
         file_path_obj = Path(file_path)

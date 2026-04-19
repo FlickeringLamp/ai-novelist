@@ -13,8 +13,8 @@ class BackendManager {
 
   // 自注册 IPC 处理器
   setupIpcHandlers() {
-    ipcMain.handle('backend:restart', () => {
-      this.restart();
+    ipcMain.handle('backend:restart', async () => {
+      await this.restart();
       return { success: true };
     });
   }
@@ -27,11 +27,30 @@ class BackendManager {
     this.process = spawn(backend.pythonPath, [backend.path], {
       cwd: path.dirname(backend.path),
       detached: false,
-      stdio: 'inherit',
+      stdio: 'pipe',
+      windowsHide: true,
     });
 
     if (this.process?.pid) {
       this.pid = this.process.pid;
+    }
+
+    // 转发 Python 输出到 Electron 控制台（让 launcher GUI 能捕获到）
+    if (this.process.stdout) {
+      this.process.stdout.on('data', (data) => {
+        const lines = data.toString().trim().split('\n');
+        for (const line of lines) {
+          console.log(`[Python] ${line}`);
+        }
+      });
+    }
+    if (this.process.stderr) {
+      this.process.stderr.on('data', (data) => {
+        const lines = data.toString().trim().split('\n');
+        for (const line of lines) {
+          console.error(`[Python ERR] ${line}`);
+        }
+      });
     }
 
     this.process.on('close', (code) => {
@@ -42,89 +61,97 @@ class BackendManager {
     console.log('后端服务已启动，PID:', this.pid);
   }
 
+  getPidByPort(port) {
+    try {
+      let output;
+      if (process.platform === 'win32') {
+        output = execSync(`netstat -ano | findstr :${port}`).toString();
+        const lines = output.trim().split('\n');
+        const pids = new Set();
+        for (const line of lines) {
+          const parts = line.trim().split(/\s+/);
+          if (parts.length >= 5) {
+            const state = parts[parts.length - 2];
+            const pid = parts[parts.length - 1];
+            // 只杀 LISTENING 状态的服务端进程；忽略 TIME_WAIT/CLOSE_WAIT 以及 PID 0
+            if (state === 'LISTENING' && pid !== '0') {
+              pids.add(pid);
+            }
+          }
+        }
+        return Array.from(pids);
+      } else {
+        try {
+          output = execSync(`lsof -ti:${port}`).toString();
+          return output.trim().split('\n').filter(pid => pid);
+        } catch (e) {
+          try {
+            output = execSync(`fuser ${port}/tcp 2>/dev/null`).toString();
+            return output.trim().split(/\s+/).filter(pid => pid);
+          } catch (e2) {
+            return [];
+          }
+        }
+      }
+    } catch (e) {
+      return [];
+    }
+  }
+
+  killProcess(pid, signal = 'SIGTERM') {
+    return new Promise((resolve) => {
+      if (process.platform === 'win32') {
+        // /T 递归杀掉子进程树，避免孤儿进程残留
+        exec(`taskkill /F /T /PID ${pid}`, (error) => {
+          resolve(!error);
+        });
+      } else {
+        try {
+          process.kill(parseInt(pid), signal);
+          resolve(true);
+        } catch (e) {
+          resolve(false);
+        }
+      }
+    });
+  }
+
+  async waitForPortRelease(port, timeout = 5000) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const pids = this.getPidByPort(port).filter(pid => pid !== '0');
+      if (pids.length === 0) return true;
+      for (const pid of pids) {
+        await this.killProcess(pid, 'SIGTERM');
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+    return this.getPidByPort(port).filter(pid => pid !== '0').length === 0;
+  }
+
   // 停止后端服务
-  stop(callback) {
+  async stop() {
     const { port } = APP_CONFIG.backend;
 
-    const getPidByPort = (port) => {
-      try {
-        let output;
-        if (process.platform === 'win32') {
-          output = execSync(`netstat -ano | findstr :${port}`).toString();
-          const lines = output.trim().split('\n');
-          const pids = new Set();
-          for (const line of lines) {
-            const parts = line.trim().split(/\s+/);
-            if (parts.length >= 5) {
-              pids.add(parts[parts.length - 1]);
-            }
-          }
-          return Array.from(pids);
-        } else {
-          try {
-            output = execSync(`lsof -ti:${port}`).toString();
-            return output.trim().split('\n').filter(pid => pid);
-          } catch (e) {
-            try {
-              output = execSync(`fuser ${port}/tcp 2>/dev/null`).toString();
-              return output.trim().split(/\s+/).filter(pid => pid);
-            } catch (e2) {
-              return [];
-            }
-          }
-        }
-      } catch (e) {
-        return [];
-      }
-    };
-
-    const killProcess = (pid, signal = 'SIGTERM') => {
-      return new Promise((resolve) => {
-        if (process.platform === 'win32') {
-          exec(`taskkill /F /PID ${pid}`, (error) => {
-            resolve(!error);
-          });
-        } else {
-          try {
-            process.kill(parseInt(pid), signal);
-            resolve(true);
-          } catch (e) {
-            resolve(false);
-          }
-        }
-      });
-    };
-
-    const checkAndKill = async () => {
-      const pids = getPidByPort(port);
-      if (pids.length > 0) {
-        for (const pid of pids) {
-          await killProcess(pid, 'SIGTERM');
-        }
-        setTimeout(checkAndKill, 500);
-      } else {
-        console.log(`${port}端口已释放`);
-        if (callback) callback();
-      }
-    };
-
     if (this.pid) {
-      killProcess(this.pid, 'SIGTERM').then(() => {
-        console.log('后端服务已停止');
-        this.pid = null;
-        this.process = null;
-        checkAndKill();
-      });
+      await this.killProcess(this.pid, 'SIGTERM');
+      console.log('后端主进程已发送终止信号');
+      this.pid = null;
+      this.process = null;
+    }
+
+    const released = await this.waitForPortRelease(port, 5000);
+    if (released) {
+      console.log(`${port}端口已释放`);
     } else {
-      checkAndKill();
+      console.warn(`${port}端口在超时后仍被占用`);
     }
   }
 
   // 重启后端服务
-  restart() {
-    this.stop(() => {
-      this.start();
-    });
+  async restart() {
+    await this.stop();
+    this.start();
   }
 
   // 健康检查

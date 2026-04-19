@@ -1,0 +1,39 @@
+aiignore: |
+  chromadb/
+  db/
+  uploads/
+  temp/
+  skills/
+  .git/
+
+gitignore: |
+  chromadb/
+  db/
+  temp/
+  .git/
+
+userignore: |
+  # 您可以在这里配置任何不想看到的文件或文件夹，它们将会在左侧章节栏显示或隐藏
+  # 删除“#”解除注释，即可生效
+
+  # config/是配置文件所在目录，可在本编辑器打开并修改（可见，添加config/后不可见）
+  # chromadb/是嵌入数据所在目录，不建议点击和操作（不可见，删除chromadb/后可见）
+  # db/是聊天历史所在目录，需要专业软件读取，不建议点击和操作（不可见，删除db/后可见）
+  # uploads是...emm,应该是图片上传目录，这个好像已经废弃了（不可见，删除uploads/后可见）
+  # temp是上传的知识库缓存目录（不可见，删除temp/后可见）
+  # skills/为技能目录，功能类似龙虾（openclaw）的skills（可见，添加skills/后不可见）
+  # .git/为 git仓库的目录，与回档功能相关（不可见，删除.git/后可见）
+
+  # 如果希望绝对干净，请谨慎忽略.userignore文件，再次调出可能需要找到该项目文件夹的data/.userignore，删除.userignore,才能恢复
+
+
+  # ==========忽略内容============
+
+  chromadb/
+  db/
+  uploads/
+  temp/
+  .git/
+  #.userignore
+  #.aiignore
+  #.gitignore

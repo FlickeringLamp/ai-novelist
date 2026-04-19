@@ -130,3 +130,10 @@ frontend/node_modules/
 frontend/package-lock.json
 test-results/
 playwright-report/
+
+launcher/frontend/node_modules/
+launcher/*.exe
+*.exe
+
+# Data directory (user data, not version controlled)
+data/
